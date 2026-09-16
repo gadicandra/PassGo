@@ -20,16 +20,13 @@ monorepo-passgo/
 │   │   ├── src/
 │   │   │   ├── controllers/
 │   │   │   ├── routes/
-│   │   │   └── index.ts
+│   │   │   └── index.js
 │   │   ├── package.json
-│   │   └── tsconfig.json
 │   └── frontend/            # Next.js App
 │       ├── src/
 │       │   └── app/
 │       ├── package.json
-│       └── tsconfig.json
 ├── packages/                # Shared modules
-│   └── types/               # Shared TypeScript interfaces/DTOs
 ├── .gitignore
 └── package.json             # Root workspace configuration
 ```

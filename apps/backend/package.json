@@ -10,7 +10,7 @@
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "node --test --env-file-if-exists=.env.test tests/",
+    "test": "tsx --test tests/**/*.test.ts",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -26,8 +26,8 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "midtrans-client": "^1.4.3",
-    "multer": "^2.0.2",
     "mongoose": "^8.18.0",
+    "multer": "^2.0.2",
     "nodemailer": "^7.0.6",
     "pino": "^9.9.0",
     "pino-http": "^10.5.0",
@@ -37,14 +37,16 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
-    "eslint": "^9.35.0",
-    "globals": "^16.4.0",
-    "pino-pretty": "^13.1.1",
-    "supertest": "^7.1.4",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.3",
+    "@types/supertest": "^7.2.1",
+    "eslint": "^9.35.0",
+    "globals": "^16.4.0",
     "nodemon": "^3.1.14",
+    "pino-pretty": "^13.1.1",
+    "supertest": "^7.1.4",
+    "tsx": "^4.19.2",
     "typescript": "^7.0.2"
   }
 }

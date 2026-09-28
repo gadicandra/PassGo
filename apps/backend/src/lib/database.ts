@@ -13,3 +13,7 @@ export async function connectDatabase(): Promise<void> {
 export async function disconnectDatabase(): Promise<void> {
   await mongoose.disconnect();
 }
+
+export function isDatabaseReady(): boolean {
+  return mongoose.connection.readyState === 1;
+}

@@ -290,7 +290,7 @@ Resource yang bisa diedit bersamaan (**User, Event, TicketType, Ticket**) memili
     ```
 - Response list tidak menyertakan `ETag` per item; gunakan field `version` dari body (§1.2).
 
-**Kuota dan check-in tidak memakai mekanisme ini.** `soldCount`/`reservedCount` dan status check-in diubah secara atomik oleh server (`UPDATE` kondisional) dan **tidak menaikkan `version`**, sehingga organizer yang sedang mengedit deskripsi tipe tiket tidak terkena `412` hanya karena ada penjualan.
+**Kuota dan check-in tidak memakai mekanisme ini.** `soldCount`/`reservedCount` dan status check-in diubah secara atomik oleh server (`findOneAndUpdate` kondisional) dan **tidak menaikkan `version`**, sehingga organizer yang sedang mengedit deskripsi tipe tiket tidak terkena `412` hanya karena ada penjualan.
 
 ---
 
@@ -857,7 +857,7 @@ Acara `CANCELLED` atau sudah berakhir → `409 event-not-editable`. `201 TicketT
 
 Aturan `PATCH`:
 - `price` boleh diubah kapan saja; pesanan lama tidak terpengaruh (harga di-*snapshot*). Pesanan baru yang dibuat dengan `expectedUnitPrice` lama akan ditolak `409 price-changed`.
-- `quota` tidak boleh di bawah `soldCount + reservedCount` → `409 quota-below-sold` (+ extension `minimumQuota`). Pengecekan atomik (`UPDATE … WHERE sold_count + reserved_count <= :newQuota`).
+- `quota` tidak boleh di bawah `soldCount + reservedCount` → `409 quota-below-sold` (+ extension `minimumQuota`). Pengecekan atomik (`findOneAndUpdate` dengan filter `{ $expr: { $lte: [{ $add: ['$soldCount', '$reservedCount'] }, newQuota] } }`).
 - Menaikkan `quota` di atas `capacity` → `422 capacity-exceeded`.
 - `isActive=false` menjeda penjualan; pesanan yang sudah ada tidak terpengaruh.
 
@@ -1094,7 +1094,7 @@ Hasil (setiap upaya tercatat sebagai `CheckIn`, termasuk yang gagal):
 | Kode tidak dikenal | `404 ticket-not-found` | `NOT_FOUND` |
 
 - Urutan evaluasi bila beberapa kondisi terpenuhi: normalisasi → `NOT_FOUND` → `WRONG_EVENT` → `CHECK_IN_CLOSED` → `TICKET_VOID` → `ALREADY_CHECKED_IN` → `ACCEPTED`. Kode tak dikenal selalu `404` meski di luar jendela, sehingga pemindai tidak bisa dipakai untuk memeriksa validitas kode di luar jam acara.
-- Keputusan akhir diambil dari satu `UPDATE … WHERE status = 'VALID'` (arsitektur §7.3); dua pemindaian bersamaan menghasilkan tepat satu `201`.
+- Keputusan akhir diambil dari satu `findOneAndUpdate` dengan filter `{ code, eventId, status: 'VALID' }` (arsitektur §7.3); dua pemindaian bersamaan menghasilkan tepat satu `201`.
 - Endpoint ini **tidak** 🔁. Retry setelah jaringan putus menghasilkan `409 ticket-already-checked-in` dengan `checkedInBy` = diri sendiri dan `checkedInAt` beberapa detik lalu. FE memperlakukan kasus ini sebagai sukses ("baru saja di-check-in oleh Anda"), karena itu lebih sederhana daripada meminta pemindai membuat key per pindaian.
 - Response sengaja memuat `holderName` & `ticketTypeName`, agar panitia bisa mencocokkan dengan orangnya (mis. VIP ke jalur khusus).
 - `401`/`403`/`404 event-not-found` (staff tidak ditugaskan) **tidak** menghasilkan `CheckIn`.
@@ -1109,7 +1109,7 @@ Cursor. Filter: `result` (jamak), `method`, `scannedById` (dipaksa diri sendiri 
 `reason` 5–500.
 - Sudah di-*revert* → `409 check-in-already-reverted`.
 - Selain itu wajib semua: `result = ACCEPTED`, check-in ini adalah `ACCEPTED` **terakhir** untuk tiket tersebut, tiket saat ini `CHECKED_IN` (bukan `VOID`), dan acara `PUBLISHED`. Gagal salah satu → `409 check-in-not-revertible`.
-- Tiket kembali `VALID` (`checkedInAt`, `checkedInById` dikosongkan). Operasi atomik: `UPDATE ticket … WHERE status = 'CHECKED_IN'`.
+- Tiket kembali `VALID` (`checkedInAt`, `checkedInBy` dikosongkan). Operasi atomik: `findOneAndUpdate` pada tiket dengan filter `{ status: 'CHECKED_IN' }`.
 
 `200 CheckIn`.
 

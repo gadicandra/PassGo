@@ -78,12 +78,12 @@ Otorisasi diterapkan berlapis:
 
 | Lapisan | Pilihan | Alasan |
 |---|---|---|
-| Runtime | Node.js ≥ 22.18 (rekomendasi 24 LTS) | Syarat minimum Prisma 7; `--watch`, `--env-file`, `node:test` bawaan |
+| Runtime | Node.js ≥ 22.18 (rekomendasi 24 LTS) | `--watch`, `--env-file`, `node:test` bawaan |
 | Framework | Express 5 | Kesepakatan tim; v5 otomatis meneruskan *rejected promise* ke error handler |
-| Modul | ESM (`"type": "module"`) | Selaras dengan output generator `prisma-client` |
-| Database | PostgreSQL 16+ | Transaksi ACID, `CHECK` constraint untuk kuota, *partial unique index*, advisory lock, `citext` |
-| ORM | Prisma 7 + `@prisma/adapter-pg` | Prisma 7 wajib *driver adapter* dan generator `prisma-client` dengan `output` eksplisit; konfigurasi CLI di `prisma.config.ts` |
-| Validasi | Zod 4 | Satu skema untuk validasi & pesan error |
+| Modul | ESM (`"type": "module"`) | Standar modern |
+| Database | MongoDB 7+ (Replica Set) | Dokumen fleksibel, horizontal scaling, transaksi multi-dokumen (sejak v4) untuk alur kritis. **Replica set wajib** agar transaksi dan change stream berfungsi; untuk development cukup `mongosh --replSet rs0` satu node atau `run-rs` |
+| ODM | Mongoose 8 | Skema, validasi, middleware (hooks), plugin, population — ekosistem terluas untuk MongoDB + Node.js |
+| Validasi | Zod 4 | Satu skema untuk validasi request & pesan error (Mongoose schema menangani validasi data layer) |
 | Auth | JWT access token (Bearer, HS256) + refresh token opak di cookie `__Secure-` (dirotasi) | Access token pendek; pencabutan instan via `tokenVersion` |
 | Hash password | bcryptjs | Pure JS, tanpa native build |
 | Keamanan HTTP | helmet, cors, express-rate-limit | Header aman, allowlist origin, anti brute-force |
@@ -95,7 +95,7 @@ Otorisasi diterapkan berlapis:
 | Ekspor | exceljs (XLSX), CSV manual (streaming) | |
 | Test | `node:test` + supertest | |
 
-> Catatan Prisma 7: `prisma.config.ts` dibaca oleh CLI (migrate/generate), bukan runtime. Runtime membuat `new PrismaClient({ adapter: new PrismaPg({ connectionString }) })`. Client di-generate ke `src/generated/prisma` (di-*gitignore*).
+> Catatan MongoDB: development harus memakai replica set (minimal single-node) agar `session.startTransaction()` berfungsi. Gunakan `run-rs` atau `mongod --replSet rs0` + `rs.initiate()`. Koneksi memakai `mongoose.connect(MONGODB_URI)` dengan `MONGODB_URI` berformat `mongodb://…/passgo?replicaSet=rs0`.
 
 ## 5. Arsitektur Aplikasi
 
@@ -112,7 +112,7 @@ flowchart LR
   WEB -- Snap.js popup / redirect --> MT[Midtrans Snap]
   API -- create Snap token / status / cancel / expire --> MT
   MT -- HTTP Notification --> API
-  API --> DB[(PostgreSQL)]
+  API --> DB[(MongoDB)]
   API -- upload poster --> ST[(Supabase Storage)]
   JOB[Jobs: expire order,<br/>email outbox, cleanup] --> DB
   JOB -- SMTP --> SMTP[Mail provider]
@@ -125,42 +125,39 @@ flowchart LR
 HTTP ─► routes ─► middlewares (requestId, authenticate, authorize, csrf, validate, idempotency, ifMatch, rateLimit, upload)
                      └─► controllers   (terjemahkan req → panggil service → bentuk response)
                             └─► services   (aturan bisnis, transaksi DB, otorisasi resource)
-                                   └─► lib/prisma, lib/midtrans, lib/mailer, lib/storage, lib/qr
+                                   └─► models/ (Mongoose), lib/db, lib/midtrans, lib/mailer, lib/storage, lib/qr
 ```
 
 Aturan antar-lapisan:
-- **Controller** tidak menyentuh Prisma langsung dan tidak berisi aturan bisnis.
+- **Controller** tidak menyentuh Mongoose model langsung dan tidak berisi aturan bisnis.
 - **Service** tidak mengenal `req`/`res`; menerima objek biasa dan melempar `AppError`.
 - **Validator** (Zod, `strict`) dijalankan sebelum controller; controller menerima `req.validated`.
 - Semua error dibentuk menjadi RFC 9457 Problem Details oleh satu error handler global.
 - Efek samping eksternal yang boleh tertunda (email) **tidak dilakukan di dalam request**; service menulis ke `EmailOutbox` di transaksi DB yang sama, lalu job yang mengirimkannya.
 
-> Opini: tanpa lapisan *repository*. Prisma sudah merupakan abstraksi data; repository hanya jadi *pass-through* untuk proyek sebesar ini.
+> Opini: tanpa lapisan *repository*. Mongoose model sudah merupakan abstraksi data yang kaya (query builder, hooks, statics); repository hanya jadi *pass-through* untuk proyek sebesar ini.
 
 ### 5.3 Struktur folder backend
 
 ```
 apps/backend/
-├── prisma/
-│   ├── schema.prisma          # model data
-│   ├── migrations/            # hasil prisma migrate (+ SQL manual: CHECK, partial index, citext)
-│   └── seed.js                # akun organizer awal, acara contoh
-├── prisma.config.ts           # konfigurasi Prisma CLI
 ├── src/
 │   ├── config/                # env loader + validasi env (Zod), konstanta
+│   ├── models/                # Mongoose schemas & models (user, event, ticket-type, order, ticket, check-in, dll.)
 │   ├── controllers/           # health, auth, me, users, events, ticket-types, event-staff, orders, payments, tickets, check-ins, attendees, reports, audit-logs
 │   ├── routes/                # satu router per resource + index.js (mount /api/v1)
 │   ├── middlewares/           # requestId, authenticate, authorize, csrf, validate, idempotency, ifMatch, rateLimit, upload, errorHandler, notFound
 │   ├── services/              # logika bisnis per domain
 │   ├── validators/            # skema Zod per domain
-│   ├── lib/                   # prisma, logger, midtrans, mailer, storage (Supabase), qr
+│   ├── lib/                   # db (koneksi Mongoose), logger, midtrans, mailer, storage (Supabase), qr
 │   ├── templates/
 │   │   └── emails/            # template email (HTML + teks) per EmailOutbox.type
 │   ├── utils/                 # AppError, money, date/zona waktu, pagination, csv, codes (kode tiket & nomor pesanan)
 │   ├── jobs/                  # expire-pending-orders, email-outbox, cleanup
-│   ├── generated/             # Prisma Client (di-generate, tidak di-commit)
 │   ├── app.js                 # rakit express app (tanpa listen) → bisa dites supertest
 │   └── index.js               # entry point: listen + scheduler job + graceful shutdown
+├── scripts/
+│   └── seed.js                # akun organizer awal, acara contoh
 ├── tests/
 │   ├── unit/
 │   └── integration/
@@ -191,136 +188,164 @@ erDiagram
   User ||--o{ CheckIn : "memindai"
 ```
 
-### 6.2 Entitas
+### 6.2 Koleksi & Dokumen
 
-Semua PK adalah **UUID v7** (`@default(uuid(7))`), semua timestamp `timestamptz`, dan semua uang **integer Rupiah**.
+Semua `_id` menggunakan **UUID v7** (disimpan sebagai `String`, bukan ObjectId, agar terurut waktu dan lintas-sistem). Mongoose schema mendefinisikan `_id` sebagai `{ type: String, default: uuidv7 }` dan menyetel `toJSON: { virtuals: true, versionKey: false, transform: (_, ret) => { ret.id = ret._id; delete ret._id; } }` agar API tetap mengembalikan `id`.
 
-**User**
-| Kolom | Tipe | Catatan |
+Semua timestamp `Date` (UTC), semua uang **integer Rupiah**. Mongoose `timestamps: true` otomatis mengelola `createdAt`/`updatedAt`.
+
+**User** — collection `users`
+| Field | Tipe | Catatan |
 |---|---|---|
-| id | UUID PK | |
-| name | varchar(100) | |
-| email | citext unique | Login & tujuan e-ticket |
-| phone | varchar(20) nullable | Format E.164 (`+62…`); dikirim ke Midtrans `customer_details` |
-| passwordHash | text | bcrypt cost 12 |
-| role | enum `ORGANIZER`/`STAFF`/`ATTENDEE` | |
-| isActive | boolean | Nonaktifkan, jangan hapus |
-| emailVerifiedAt | timestamptz nullable | Wajib terisi sebelum ATTENDEE bisa membeli. Akun STAFF/ORGANIZER dibuat organizer → langsung terisi |
-| tokenVersion | integer | Naik saat nonaktif, ganti peran/password, `logout-all` |
-| version | integer | *Optimistic concurrency* (`If-Match`) |
-| createdAt, updatedAt | | |
+| _id | String (UUID v7) | |
+| name | String, maxlength 100 | |
+| email | String, unique index dengan collation `{ locale: 'en', strength: 2 }` | Case-insensitive; login & tujuan e-ticket |
+| phone | String, maxlength 20, nullable | Format E.164 (`+62…`); dikirim ke Midtrans `customer_details` |
+| passwordHash | String | bcrypt cost 12 |
+| role | String, enum `ORGANIZER`/`STAFF`/`ATTENDEE` | |
+| isActive | Boolean, default true | Nonaktifkan, jangan hapus |
+| emailVerifiedAt | Date, nullable | Wajib terisi sebelum ATTENDEE bisa membeli. Akun STAFF/ORGANIZER dibuat organizer → langsung terisi |
+| tokenVersion | Number, default 0 | Naik saat nonaktif, ganti peran/password, `logout-all` |
+| version | Number, default 0 | *Optimistic concurrency* (`If-Match`). Dikelola manual (bukan Mongoose `__v`), dinaikkan oleh service saat update |
+| createdAt, updatedAt | Date (auto) | |
 
-**Event**
-| Kolom | Tipe | Catatan |
+**Event** — collection `events`
+| Field | Tipe | Catatan |
 |---|---|---|
-| id | UUID PK | |
-| slug | varchar(120) unique | URL publik; dibuat dari judul + sufiks acak, tidak berubah setelah publish |
-| title | varchar(150) | |
-| description | text (≤ 10.000) | Teks biasa/Markdown; di-*escape*/di-*sanitize* oleh FE |
-| venueName, venueAddress | varchar(150), varchar(300) | Lokasi; `venueAddress` boleh kosong selama `DRAFT`, wajib saat publish |
-| mapsUrl | varchar(500) nullable | Hanya `https:` |
-| startAt, endAt | timestamptz | `endAt > startAt` |
-| timezone | varchar(40) | IANA, default `Asia/Jakarta`; untuk tampilan & email |
-| checkInOpensAt | timestamptz nullable | Bila `null`, efektif `startAt − 2 jam` |
-| posterUrl, posterPath | nullable | URL publik & path objek di storage |
-| capacity | integer nullable | Kapasitas venue; bila diisi, Σ `quota` tipe tiket ≤ capacity |
-| maxTicketsPerUser | integer nullable | Batas tiket per akun untuk acara ini (lintas tipe) |
-| status | enum `DRAFT`, `PUBLISHED`, `CANCELLED` | "Selesai" diturunkan dari `endAt < now` (tidak disimpan) |
-| publishedAt, cancelledAt, cancelReason | nullable | |
-| createdById | FK User | |
-| version | integer | |
-| createdAt, updatedAt | | |
+| _id | String (UUID v7) | |
+| slug | String, unique index | URL publik; dibuat dari judul + sufiks acak, tidak berubah setelah publish |
+| title | String, maxlength 150 | |
+| description | String, maxlength 10000 | Teks biasa/Markdown; di-*escape*/di-*sanitize* oleh FE |
+| venueName, venueAddress | String (150), String (300) | Lokasi; `venueAddress` boleh kosong selama `DRAFT`, wajib saat publish |
+| mapsUrl | String, maxlength 500, nullable | Hanya `https:` |
+| startAt, endAt | Date | `endAt > startAt` |
+| timezone | String, maxlength 40 | IANA, default `Asia/Jakarta`; untuk tampilan & email |
+| checkInOpensAt | Date, nullable | Bila `null`, efektif `startAt − 2 jam` |
+| posterUrl, posterPath | String, nullable | URL publik & path objek di storage |
+| capacity | Number, nullable | Kapasitas venue; bila diisi, Σ `quota` tipe tiket ≤ capacity |
+| maxTicketsPerUser | Number, nullable | Batas tiket per akun untuk acara ini (lintas tipe) |
+| status | String, enum `DRAFT`, `PUBLISHED`, `CANCELLED` | "Selesai" diturunkan dari `endAt < now` (tidak disimpan) |
+| publishedAt, cancelledAt | Date, nullable | |
+| cancelReason | String, nullable | |
+| createdBy | String (ref User) | |
+| version | Number, default 0 | |
+| createdAt, updatedAt | Date (auto) | |
 
-**TicketType**
-| Kolom | Tipe | Catatan |
+**TicketType** — collection `ticketTypes`
+| Field | Tipe | Catatan |
 |---|---|---|
-| id | UUID PK | |
-| eventId | FK Event | |
-| name | varchar(50) | "Presale", "Reguler", "VIP"; unik per event (case-insensitive) |
-| description | varchar(500) nullable | Benefit, mis. "Termasuk merchandise" |
-| price | integer `0` atau 1.000–100.000.000 | `0` = gratis (tidak lewat payment gateway) |
-| quota | integer ≥ 1 | |
-| soldCount | integer ≥ 0 | "Kuota terpakai" oleh pesanan `PAID`. Turun hanya saat refund pada acara `PUBLISHED`; tidak turun saat acara batal. Jumlah tiket terjual untuk laporan dihitung dari status tiket |
-| reservedCount | integer ≥ 0 | Tiket dari pesanan `PENDING_PAYMENT` |
-| salesStartAt, salesEndAt | timestamptz | `salesStartAt < salesEndAt ≤ event.endAt` |
-| maxPerOrder | integer 1–20, default 5 | |
-| isActive | boolean | Organizer bisa menjeda penjualan tipe ini |
-| sortOrder | integer | Urutan tampil |
-| version | integer | |
-| createdAt, updatedAt | | |
+| _id | String (UUID v7) | |
+| eventId | String (ref Event) | |
+| name | String, maxlength 50 | "Presale", "Reguler", "VIP"; unik per event (compound unique index `{ eventId, name }` dengan collation case-insensitive) |
+| description | String, maxlength 500, nullable | Benefit, mis. "Termasuk merchandise" |
+| price | Number, min 0 | `0` = gratis (tidak lewat payment gateway); 1–999 ditolak oleh validasi Zod |
+| quota | Number, min 1 | |
+| soldCount | Number, min 0, default 0 | "Kuota terpakai" oleh pesanan `PAID`. Turun hanya saat refund pada acara `PUBLISHED`; tidak turun saat acara batal |
+| reservedCount | Number, min 0, default 0 | Tiket dari pesanan `PENDING_PAYMENT` |
+| salesStartAt, salesEndAt | Date | `salesStartAt < salesEndAt ≤ event.endAt` |
+| maxPerOrder | Number, min 1, max 20, default 5 | |
+| isActive | Boolean, default true | Organizer bisa menjeda penjualan tipe ini |
+| sortOrder | Number, default 0 | Urutan tampil |
+| version | Number, default 0 | |
+| createdAt, updatedAt | Date (auto) | |
 
-> **Invariant kuota** (dijaga oleh DB, bukan hanya aplikasi): `CHECK (sold_count + reserved_count <= quota)`, `CHECK (sold_count >= 0 AND reserved_count >= 0)`. `available = quota − soldCount − reservedCount` dihitung saat dibaca.
+> **Invariant kuota** dijaga oleh **`findOneAndUpdate` kondisional** pada service layer. Alih-alih `CHECK` constraint (tidak ada di MongoDB), setiap operasi yang mengubah `soldCount`/`reservedCount` memakai filter `{ $expr: { $lte: [{ $add: ['$soldCount', '$reservedCount', qty] }, '$quota'] } }` sehingga update hanya berhasil bila invariant terpenuhi. Mongoose validator (`validate` pada path `soldCount` dan `reservedCount`) menambah pertahanan kedua untuk operasi `save()`. `available = quota − soldCount − reservedCount` dihitung saat dibaca (Mongoose virtual).
 
-**EventStaff** — `eventId`, `userId` (PK gabungan), `assignedById`, `assignedAt`. Hanya user ber-peran `STAFF`.
+**EventStaff** — collection `eventStaffs`
+- `_id` (UUID v7), `eventId` (ref Event), `userId` (ref User), `assignedBy` (ref User), `assignedAt` (Date).
+- Compound unique index `{ eventId, userId }`. Hanya user ber-peran `STAFF`.
 
-**Order**
-| Kolom | Tipe | Catatan |
+**Order** — collection `orders`
+| Field | Tipe | Catatan |
 |---|---|---|
-| id | UUID PK | |
-| orderNumber | varchar(20) unique | `PG-` + 10 karakter Crockford base32 acak (mis. `PG-7K2M9XDQ4R`). Acak, bukan urut, agar volume penjualan tidak terbaca. Dipakai sebagai `order_id` Midtrans, **tidak pernah dipakai ulang** |
-| userId | FK User | Pembeli |
-| eventId | FK Event | Satu pesanan = satu acara |
-| status | enum `PENDING_PAYMENT`, `PAID`, `EXPIRED`, `CANCELLED` | |
-| subtotal, total | integer | v1 tanpa biaya layanan/diskon, `total = subtotal`; dipisah agar siap untuk voucher |
-| buyerName, buyerEmail, buyerPhone | snapshot | Data pembeli saat checkout |
-| expiresAt | timestamptz nullable | Batas waktu bayar = `createdAt + ORDER_HOLD_MINUTES`; `null` untuk pesanan gratis |
-| paidAt, expiredAt, cancelledAt | nullable | |
-| cancelReason | nullable | |
-| refundStatus | enum `NOT_REQUIRED`, `REQUIRED`, `REFUNDED` | `REQUIRED` karena acara batal atau *late settlement* yang tidak bisa dipenuhi |
-| refundedAt, refundAmount, refundNote, refundedById | nullable | Refund manual v1 |
-| ticketEmailStatus | enum `NOT_APPLICABLE`, `PENDING`, `SENT`, `FAILED` | `NOT_APPLICABLE` selama pesanan belum/tidak `PAID` |
-| createdAt, updatedAt | | |
+| _id | String (UUID v7) | |
+| orderNumber | String, unique index | `PG-` + 10 karakter Crockford base32 acak (mis. `PG-7K2M9XDQ4R`). Acak, bukan urut, agar volume penjualan tidak terbaca. Dipakai sebagai `order_id` Midtrans, **tidak pernah dipakai ulang** |
+| userId | String (ref User) | Pembeli |
+| eventId | String (ref Event) | Satu pesanan = satu acara |
+| status | String, enum `PENDING_PAYMENT`, `PAID`, `EXPIRED`, `CANCELLED` | |
+| subtotal, total | Number | v1 tanpa biaya layanan/diskon, `total = subtotal`; dipisah agar siap untuk voucher |
+| items | `[OrderItemSchema]` (sub-dokumen) | |
+| buyerName, buyerEmail, buyerPhone | String (snapshot) | Data pembeli saat checkout |
+| expiresAt | Date, nullable | Batas waktu bayar = `createdAt + ORDER_HOLD_MINUTES`; `null` untuk pesanan gratis |
+| paidAt, expiredAt, cancelledAt | Date, nullable | |
+| cancelReason | String, nullable | |
+| refundStatus | String, enum `NOT_REQUIRED`, `REQUIRED`, `REFUNDED` | `REQUIRED` karena acara batal atau *late settlement* yang tidak bisa dipenuhi |
+| refundedAt | Date, nullable | |
+| refundAmount, refundNote | nullable | Refund manual v1 |
+| refundedBy | String (ref User), nullable | |
+| ticketEmailStatus | String, enum `NOT_APPLICABLE`, `PENDING`, `SENT`, `FAILED` | `NOT_APPLICABLE` selama pesanan belum/tidak `PAID` |
+| createdAt, updatedAt | Date (auto) | |
 
-Index penting: *partial unique* `(userId, eventId) WHERE status = 'PENDING_PAYMENT'` — **satu pesanan menggantung per user per acara**, mencegah satu orang menahan kuota lewat banyak pesanan yang tidak dibayar.
+Index penting: **partial unique index** `{ userId: 1, eventId: 1 }, { unique: true, partialFilterExpression: { status: 'PENDING_PAYMENT' } }` — **satu pesanan menggantung per user per acara**, mencegah satu orang menahan kuota lewat banyak pesanan yang tidak dibayar. MongoDB mendukung partial index secara native.
 
 > Refund dimodelkan sebagai sumbu terpisah (`refundStatus`), bukan status pesanan, karena pesanan `PAID` yang di-refund dan pesanan `EXPIRED` yang terlanjur dibayar (*late settlement*) sama-sama perlu dilacak tanpa kehilangan status asalnya.
 
-**OrderItem** — `id`, `orderId`, `ticketTypeId`, `ticketTypeName` (snapshot), `unitPrice` (snapshot), `quantity`, `lineTotal`.
+**OrderItem** — sub-dokumen (`embedded`) di dalam `Order.items[]`:
+- `ticketTypeId` (String, ref TicketType), `ticketTypeName` (snapshot), `unitPrice` (snapshot), `quantity`, `lineTotal`.
 
-**Payment** — `id`, `orderId` (unique), `provider` (`MIDTRANS`), `providerOrderId` (= `orderNumber`), `snapToken`, `snapRedirectUrl`, `providerTransactionId`, `paymentType` (mis. `qris`, `gopay`, `bank_transfer`), `status` ternormalisasi (`PENDING`, `SETTLED`, `CHALLENGE`, `EXPIRED`, `CANCELLED`, `DENIED`, `FAILED`, `REFUNDED`, `PARTIALLY_REFUNDED`), `providerStatus` (mentah), `amount`, `settledAt`, `lastSyncedAt`, `rawNotification` (jsonb), timestamps. Tidak ada untuk pesanan gratis.
+> Keputusan embed: `OrderItem` selalu dibaca bersama `Order` dan tidak pernah di-query mandiri. Embedding menghindari join/populate tambahan.
 
-**Ticket**
-| Kolom | Tipe | Catatan |
+**Payment** — collection `payments`
+- `_id` (UUID v7), `orderId` (String, unique index, ref Order), `provider` (`MIDTRANS`), `providerOrderId` (= `orderNumber`), `snapToken`, `snapRedirectUrl`, `providerTransactionId`, `paymentType` (mis. `qris`, `gopay`, `bank_transfer`), `status` ternormalisasi (`PENDING`, `SETTLED`, `CHALLENGE`, `EXPIRED`, `CANCELLED`, `DENIED`, `FAILED`, `REFUNDED`, `PARTIALLY_REFUNDED`), `providerStatus` (mentah), `amount`, `settledAt`, `lastSyncedAt`, `rawNotification` (Mixed/Object), timestamps. Tidak ada untuk pesanan gratis.
+
+**Ticket** — collection `tickets`
+| Field | Tipe | Catatan |
 |---|---|---|
-| id | UUID PK | |
-| code | char(16) unique | 80 bit acak (CSPRNG), Crockford base32 huruf besar, disimpan tanpa tanda hubung. Tampil sebagai `XXXX-XXXX-XXXX-XXXX` |
-| orderId, eventId, ticketTypeId, ownerId | FK | `eventId` didenormalisasi agar check-in cukup satu lookup |
-| holderName | varchar(100) | Nama di tiket; default nama pembeli, bisa diubah pemilik sebelum check-in dibuka |
-| status | enum `VALID`, `CHECKED_IN`, `VOID` | |
-| checkedInAt, checkedInById | nullable | |
-| voidedAt, voidReason | nullable | `voidReason`: `EVENT_CANCELLED`, `ORDER_REFUNDED` |
-| codeVersion | integer | Naik saat kode diterbitkan ulang |
-| createdAt, updatedAt | | |
+| _id | String (UUID v7) | |
+| code | String, unique index | 80 bit acak (CSPRNG), Crockford base32 huruf besar, disimpan tanpa tanda hubung. Tampil sebagai `XXXX-XXXX-XXXX-XXXX` |
+| orderId | String (ref Order) | |
+| eventId | String (ref Event) | Didenormalisasi agar check-in cukup satu lookup |
+| ticketTypeId | String (ref TicketType) | |
+| ownerId | String (ref User) | |
+| holderName | String, maxlength 100 | Nama di tiket; default nama pembeli, bisa diubah pemilik sebelum check-in dibuka |
+| status | String, enum `VALID`, `CHECKED_IN`, `VOID` | |
+| checkedInAt | Date, nullable | |
+| checkedInBy | String (ref User), nullable | |
+| voidedAt | Date, nullable | |
+| voidReason | String, nullable | `EVENT_CANCELLED`, `ORDER_REFUNDED` |
+| codeVersion | Number, default 1 | Naik saat kode diterbitkan ulang |
+| version | Number, default 0 | |
+| createdAt, updatedAt | Date (auto) | |
 
 > Opini: kode tiket disimpan *plaintext* (bukan hash). Pemilik harus bisa melihat ulang QR-nya kapan saja, dan kode tidak memberi akses selain masuk ke satu acara. Kebocoran DB berarti kebocoran data peserta secara umum, dan mitigasinya adalah penerbitan ulang massal.
 
-**CheckIn** (log pemindaian, *append-only*):
-- `id`, `eventId`, `ticketId` (nullable bila kode tidak dikenal).
-- `scannedCodeMasked` — 4 karakter terakhir input ternormalisasi, hanya untuk `NOT_FOUND`/`WRONG_EVENT`; `null` untuk hasil lain (tiket sudah tertaut lewat `ticketId`).
+**CheckIn** — collection `checkIns` (log pemindaian, *append-only*):
+- `_id` (UUID v7), `eventId` (ref Event), `ticketId` (ref Ticket, nullable bila kode tidak dikenal).
+- `scannedCodeMasked` — 4 karakter terakhir input ternormalisasi, hanya untuk `NOT_FOUND`/`WRONG_EVENT`; `null` untuk hasil lain.
 - `method` — `QR`/`MANUAL`.
 - `result` — `ACCEPTED`, `ALREADY_CHECKED_IN`, `TICKET_VOID`, `WRONG_EVENT`, `NOT_FOUND`, `CHECK_IN_CLOSED`.
-- `scannedById`, `revertedAt`, `revertedById`, `revertReason`, `createdAt`.
+- `scannedBy` (ref User), `revertedAt`, `revertedBy` (ref User, nullable), `revertReason`, `createdAt`.
 
 Semua upaya, termasuk yang gagal, dicatat untuk investigasi tiket palsu/ganda.
 
-**EmailOutbox** — `id`, `type` (`EMAIL_VERIFICATION`, `ACCOUNT_EXISTS`, `PASSWORD_RESET`, `ORDER_TICKETS`, `TICKET_REISSUED`, `EVENT_CANCELLED`, `REFUND_REQUIRED`, `ORDER_REFUNDED`), `to`, `payload` (jsonb), `status` (`PENDING`, `SENT`, `FAILED`), `attempts`, `nextAttemptAt`, `lastError`, `sentAt`, `orderId` (nullable), `createdAt`.
+**EmailOutbox** — collection `emailOutbox`
+- `_id` (UUID v7), `type` (enum), `to`, `payload` (Mixed), `status` (`PENDING`, `SENT`, `FAILED`), `attempts`, `nextAttemptAt`, `lastError`, `sentAt`, `orderId` (nullable), `createdAt`.
 
-**RefreshToken** — `id`, `userId`, `tokenHash` (SHA-256), `familyId`, `expiresAt`, `revokedAt`, `replacedById`, `userAgent`, `ip`, `createdAt`.
+**RefreshToken** — collection `refreshTokens`
+- `_id` (UUID v7), `userId` (ref User), `tokenHash` (SHA-256), `familyId`, `expiresAt`, `revokedAt`, `replacedBy` (ref RefreshToken, nullable), `userAgent`, `ip`, `createdAt`.
+- TTL index pada `expiresAt` agar MongoDB otomatis menghapus token kedaluwarsa (opsional; job `cleanup` tetap ada sebagai jaring pengaman).
 
-**AuthToken** (verifikasi email & reset password) — `id`, `userId`, `purpose` (`EMAIL_VERIFICATION`/`PASSWORD_RESET`), `tokenHash`, `expiresAt`, `usedAt`, `createdAt`. Token asli hanya ada di tautan email.
+**AuthToken** — collection `authTokens` (verifikasi email & reset password)
+- `_id` (UUID v7), `userId` (ref User), `purpose` (`EMAIL_VERIFICATION`/`PASSWORD_RESET`), `tokenHash`, `expiresAt`, `usedAt`, `createdAt`. Token asli hanya ada di tautan email.
+- TTL index pada `expiresAt`.
 
-**IdempotencyKey** — unique `(userId, method, path, key)`, `requestHash`, `state`, `responseStatus`, `responseHeaders`, `responseBody`, `expiresAt` (24 jam).
+**IdempotencyKey** — collection `idempotencyKeys`
+- Compound unique index `{ userId, method, path, key }`. Field: `requestHash`, `state`, `responseStatus`, `responseHeaders`, `responseBody` (Mixed), `expiresAt` (TTL index, 24 jam).
 
-**AuditLog** — `id`, `actorId` (nullable untuk sistem), `actorRole` (peran user atau `SYSTEM`), `action` (daftar lengkap di api-contract §9.14), `entityType`, `entityId`, `eventId` (nullable, untuk filter per acara), `before`, `after` (jsonb), `ip`, `userAgent`, `createdAt`.
+**AuditLog** — collection `auditLogs`
+- `_id` (UUID v7), `actorId` (ref User, nullable untuk sistem), `actorRole`, `action`, `entityType`, `entityId`, `eventId` (nullable), `before` (Mixed), `after` (Mixed), `ip`, `userAgent`, `createdAt`.
 
 ### 6.3 Index penting
-- `Event(status, startAt)` — katalog publik.
-- `TicketType(eventId, sortOrder)`.
-- `Order(userId, id DESC)`, `Order(eventId, status)`, `Order(status, expiresAt)` — job expire.
-- Partial unique `Order(userId, eventId) WHERE status='PENDING_PAYMENT'`.
-- `Ticket(code)` unique, `Ticket(eventId, status)`, `Ticket(ownerId, id DESC)`, trigram `Ticket(holderName)` untuk pencarian manual di pintu.
-- `CheckIn(eventId, id DESC)`.
-- `EmailOutbox(status, nextAttemptAt)`.
+- `events: { status: 1, startAt: 1 }` — katalog publik.
+- `ticketTypes: { eventId: 1, sortOrder: 1 }`.
+- `ticketTypes: { eventId: 1, name: 1 }` unique, collation case-insensitive.
+- `orders: { userId: 1, _id: -1 }`, `orders: { eventId: 1, status: 1 }`, `orders: { status: 1, expiresAt: 1 }` — job expire.
+- Partial unique `orders: { userId: 1, eventId: 1 }` dengan `partialFilterExpression: { status: 'PENDING_PAYMENT' }`.
+- `tickets: { code: 1 }` unique, `tickets: { eventId: 1, status: 1 }`, `tickets: { ownerId: 1, _id: -1 }`.
+- `tickets: { holderName: 'text' }` (MongoDB text index) untuk pencarian manual di pintu.
+- `checkIns: { eventId: 1, _id: -1 }`.
+- `emailOutbox: { status: 1, nextAttemptAt: 1 }`.
+- TTL indexes pada `refreshTokens.expiresAt`, `authTokens.expiresAt`, `idempotencyKeys.expiresAt`.
 
 ## 7. Alur Bisnis Kritis
 
@@ -330,38 +355,37 @@ Semua upaya, termasuk yang gagal, dicatat untuk investigasi tiket palsu/ganda.
 sequenceDiagram
   participant P as Peserta (FE)
   participant A as API
-  participant D as PostgreSQL
+  participant D as MongoDB
   participant M as Midtrans Snap
   P->>A: POST /orders (Idempotency-Key, eventId, items[])
-  A->>D: BEGIN
-  A->>D: pg_advisory_xact_lock(hash(userId, eventId))
-  A->>D: cek pesanan PENDING_PAYMENT lain (user, event) → 409 pending-order-exists
+  A->>D: session.startTransaction()
+  A->>D: findOneAndUpdate order PENDING_PAYMENT (userId, eventId) → 409 pending-order-exists
   A->>D: cek maxTicketsPerUser (tiket VALID + CHECKED_IN + kuantitas baru)
   loop tiap item (urut ticketTypeId → hindari deadlock)
-    A->>D: UPDATE ticket_types SET reserved_count = reserved_count + qty<br/>WHERE id=? AND event_id=? AND is_active AND now() BETWEEN sales_start_at AND sales_end_at<br/>AND sold_count + reserved_count + qty <= quota RETURNING *
-    alt 0 row
-      A->>D: ROLLBACK
+    A->>D: findOneAndUpdate ticketTypes<br/>filter: { _id, eventId, isActive, salesStartAt lte now, salesEndAt gt now,<br/>$expr: soldCount + reservedCount + qty lte quota }<br/>update: { $inc: { reservedCount: qty } }<br/>options: { session }
+    alt null result
+      A->>D: session.abortTransaction()
       A-->>P: 409 quota-exceeded / ticket-type-not-on-sale
     end
   end
-  A->>D: INSERT order (PENDING_PAYMENT, expiresAt), order_items (harga snapshot)
+  A->>D: insertOne order (PENDING_PAYMENT, expiresAt, items embedded)
   A->>M: POST /snap/v1/transactions {order_id, gross_amount, item_details, customer_details, expiry, callbacks.finish}
   alt gagal / timeout
-    A->>D: ROLLBACK (reservasi batal)
+    A->>D: session.abortTransaction() (reservasi batal)
     A-->>P: 502 payment-gateway-error
   end
-  A->>D: INSERT payment (snapToken, redirectUrl); COMMIT
+  A->>D: insertOne payment (snapToken, redirectUrl); session.commitTransaction()
   A-->>P: 201 order + payment.snapToken
   P->>M: snap.pay(token) → peserta memilih QRIS/e-wallet/VA
 ```
 
 Keputusan penting:
-- **Reservasi, bukan "cek lalu kurangi".** Kondisi kuota ada di klausa `WHERE` satu `UPDATE`, sehingga dua pembeli slot terakhir tidak bisa sama-sama berhasil: PostgreSQL mengunci baris dan pembeli kedua mengevaluasi ulang kondisi setelah pembeli pertama commit (READ COMMITTED). `CHECK` constraint adalah pertahanan kedua. Inilah jawaban langsung untuk masalah "beberapa orang membayar slot yang sama".
+- **Reservasi, bukan "cek lalu kurangi".** Kondisi kuota ada di filter `findOneAndUpdate`, sehingga dua pembeli slot terakhir tidak bisa sama-sama berhasil: MongoDB WiredTiger memberikan *document-level locking*, dan `$expr` mengevaluasi kondisi secara atomik dalam satu operasi. Mongoose validator pada `soldCount`/`reservedCount` menjadi pertahanan kedua. Inilah jawaban langsung untuk masalah "beberapa orang membayar slot yang sama".
 - **Kuota ditahan selama `ORDER_HOLD_MINUTES`** (default 30 menit, cukup untuk bayar VA). `expiry` Snap diset sama agar Midtrans menolak pembayaran setelah batas itu. Pesanan yang tidak dibayar dilepas oleh webhook `expire` atau job.
 - **Pemanggilan Snap di dalam transaksi DB** membuat transaksi terbuka ±1 detik. Tradeoff ini diterima di skala komunitas demi kesederhanaan (tidak ada state "pesanan tanpa token"). Bila Snap timeout tetapi transaksinya sempat dibuat di Midtrans, tidak ada yang bisa membayarnya karena token tidak pernah sampai ke peserta, dan `orderNumber` acak tidak dipakai ulang. Snap memakai timeout 10 detik.
 - **Pesanan gratis** (`total = 0`) langsung `PAID` tanpa Midtrans; tiket langsung terbit.
 - **Harga dari server.** Klien mengirim `expectedUnitPrice`; bila berbeda dengan harga saat ini → `409 price-changed`.
-- **Batas per akun** (`maxTicketsPerUser`) dihitung di bawah *advisory lock* `(userId, eventId)` agar dua tab tidak bisa melewatinya bersamaan.
+- **Batas per akun** (`maxTicketsPerUser`) dihitung dalam transaksi MongoDB (`session`). Partial unique index `(userId, eventId) WHERE status='PENDING_PAYMENT'` menjamin tidak ada dua pesanan menggantung bersamaan. Untuk mencegah *race condition* dua tab yang membuat pesanan bersamaan, service membuat pesanan baru dengan `insertOne` yang memicu unique index violation (ditangkap sebagai `pending-order-exists`), **atau** alternatif: `findOneAndUpdate` dengan `upsert: false` pada partial unique index sudah cukup karena transaksi mengisolasi operasi.
 - **Bayar ulang:** bila popup Snap tertutup, FE memakai `payment.snapToken`/`snapRedirectUrl` yang sama selama pesanan masih `PENDING_PAYMENT`. Tidak ada endpoint "buat token baru" karena satu `order_id` hanya bisa punya satu transaksi Snap.
 
 ### 7.2 Pembayaran & penerbitan tiket
@@ -370,18 +394,18 @@ Keputusan penting:
 sequenceDiagram
   participant M as Midtrans
   participant A as API
-  participant D as PostgreSQL
+  participant D as MongoDB
   participant J as Job email-outbox
   M->>A: POST /payments/midtrans/notifications
   A->>A: verifikasi signature (SHA512, string mentah, timingSafeEqual) + cek nominal
   A->>M: GET /v2/{order_id}/status (konfirmasi ulang)
-  A->>D: BEGIN
+  A->>D: session.startTransaction()
   A->>D: order PENDING_PAYMENT → PAID
-  A->>D: ticket_types: reserved_count -= qty, sold_count += qty
-  A->>D: INSERT tickets (1 per kuantitas, kode acak)
-  A->>D: INSERT email_outbox (ORDER_TICKETS); COMMIT
+  A->>D: ticketTypes: $inc reservedCount -qty, soldCount +qty
+  A->>D: insertMany tickets (1 per kuantitas, kode acak)
+  A->>D: insertOne emailOutbox (ORDER_TICKETS); session.commitTransaction()
   A-->>M: 200
-  J->>D: ambil outbox PENDING (FOR UPDATE SKIP LOCKED)
+  J->>D: findOneAndUpdate outbox PENDING (atomic claim)
   J->>J: render email + QR PNG (cid) per tiket
   J-->>D: SENT / attempts++ + backoff
 ```
@@ -419,24 +443,24 @@ sequenceDiagram
 sequenceDiagram
   participant S as Panitia (kamera HP)
   participant A as API
-  participant D as PostgreSQL
+  participant D as MongoDB
   S->>A: POST /events/:eventId/check-ins {code: "PASSGO1:7K2M9XDQ4R8B3N5P"}
   A->>A: authorize: ORGANIZER atau STAFF yang ditugaskan di event ini
-  A->>D: SELECT ticket by code (normalisasi) → NOT_FOUND / WRONG_EVENT
-  A->>D: cek event PUBLISHED & now ∈ [checkInOpensAt, endAt] → CHECK_IN_CLOSED
-  A->>D: UPDATE tickets SET status='CHECKED_IN', checked_in_at=now(), checked_in_by_id=?<br/>WHERE code=? AND event_id=? AND status='VALID' RETURNING *
-  alt 1 row
-    A->>D: INSERT check_in (ACCEPTED)
+  A->>D: findOne ticket by code (normalisasi) → NOT_FOUND / WRONG_EVENT
+  A->>D: cek event PUBLISHED dan now ∈ [checkInOpensAt, endAt] → CHECK_IN_CLOSED
+  A->>D: findOneAndUpdate tickets<br/>filter: { code, eventId, status: 'VALID' }<br/>update: { $set: { status: 'CHECKED_IN', checkedInAt: now(), checkedInBy } }
+  alt result !== null
+    A->>D: insertOne checkIn (ACCEPTED)
     A-->>S: 201 ✅ nama pemegang, tipe tiket
-  else 0 row
+  else null
     A->>D: baca ulang status tiket → tentukan alasan
-    A->>D: INSERT check_in (TICKET_VOID / ALREADY_CHECKED_IN)
+    A->>D: insertOne checkIn (TICKET_VOID / ALREADY_CHECKED_IN)
     A-->>S: 409/404 ❌ + kapan & oleh siapa bila sudah masuk
   end
 ```
 
 - Hasil gagal pada langkah awal (`NOT_FOUND`, `WRONG_EVENT`, `CHECK_IN_CLOSED`) juga dicatat sebagai `CheckIn`. Urutan evaluasi lengkap ada di api-contract §9.12.
-- **Satu `UPDATE` kondisional** menjamin bahwa bila dua panitia di dua pintu memindai tiket yang sama bersamaan, hanya satu yang `ACCEPTED`.
+- **Satu `findOneAndUpdate` kondisional** menjamin bahwa bila dua panitia di dua pintu memindai tiket yang sama bersamaan, hanya satu yang `ACCEPTED` (MongoDB *document-level lock* pada WiredTiger).
 - Payload QR: `PASSGO1:<code>`. Prefix memungkinkan pemindai langsung menolak QR asing, dan versi `1` memberi ruang format baru (mis. tiket bertanda tangan untuk check-in *offline*) tanpa memutus tiket lama. Server juga menerima kode mentah (dengan/tanpa tanda hubung, huruf kecil, `O`→`0`, `I`/`L`→`1` sesuai Crockford) untuk input ketik manual.
 - **Kode acak 80 bit, bukan data yang ditandatangani.** Validasi selalu ke DB, sehingga pembatalan, *void*, dan penerbitan ulang langsung berlaku. Menebak kode tidak praktis (2⁸⁰ kemungkinan + rate limit).
 - **Check-in manual** untuk peserta yang HP-nya mati: panitia mencari nama/email di daftar peserta, lalu check-in dengan `ticketId` (tercatat `method = MANUAL`).
@@ -456,17 +480,17 @@ Refund v1 dilakukan organizer di luar sistem (dashboard Midtrans atau transfer),
 Bila peserta melaporkan tiketnya bocor (mis. screenshot tersebar), organizer menerbitkan ulang: `code` baru, `codeVersion++`, kode lama langsung tidak berlaku, dan email `TICKET_REISSUED` dikirim ke pemilik.
 
 ### 7.6 Perubahan tipe tiket setelah terjual
-- `price` boleh berubah; pesanan lama tidak terpengaruh karena harga di-*snapshot* di `OrderItem`.
-- `quota` boleh diturunkan hanya sampai `soldCount + reservedCount` (`UPDATE … WHERE sold_count + reserved_count <= :newQuota`), selain itu `409 quota-below-sold`.
+- `price` boleh berubah; pesanan lama tidak terpengaruh karena harga di-*snapshot* di embedded `OrderItem`.
+- `quota` boleh diturunkan hanya sampai `soldCount + reservedCount` (`findOneAndUpdate` dengan filter `{ $expr: { $lte: [{ $add: ['$soldCount', '$reservedCount'] }, newQuota] } }`), selain itu `409 quota-below-sold`.
 - Tipe tiket yang sudah punya pesanan tidak bisa dihapus; nonaktifkan (`isActive=false`).
 
 ## 8. Email
 
-- **Outbox pattern:** baris `EmailOutbox` ditulis dalam transaksi DB yang sama dengan perubahan bisnisnya, lalu job `email-outbox` (tiap 30 detik) mengirim lewat SMTP.
+- **Outbox pattern:** dokumen `EmailOutbox` ditulis dalam transaksi MongoDB yang sama (`session`) dengan perubahan bisnisnya, lalu job `email-outbox` (tiap 30 detik) mengirim lewat SMTP.
   - Webhook pembayaran tidak pernah gagal atau lambat karena SMTP down.
   - Email tidak hilang bila server restart.
 - Retry dengan *exponential backoff* (1, 2, 4 … menit, maks. 8 percobaan), lalu `FAILED` dan `Order.ticketEmailStatus = FAILED` agar organizer tahu. Error permanen (`EENVELOPE`, alamat ditolak) langsung `FAILED`.
-- Pengiriman *at-least-once*: email ganda mungkin terjadi pada kondisi langka (crash setelah SMTP menerima, sebelum status disimpan). Diterima karena tidak berbahaya.
+- Pengiriman *at-least-once*: email ganda mungkin terjadi pada kondisi langka (crash setelah SMTP menerima, sebelum status disimpan). Diterima karena tidak berbahaya. Job mengklaim pesan secara atomik dengan `findOneAndUpdate({ status: 'PENDING', nextAttemptAt: { $lte: now } }, { $set: { status: 'PROCESSING' } })` agar dua instance job tidak memproses email yang sama.
 - Email tiket memuat, per tiket, QR PNG *inline* (`cid`, `errorCorrectionLevel: 'M'`), nama pemegang, tipe tiket, dan kode teks, plus tautan ke "Tiket Saya" di web. QR tidak di-*hosting* publik.
 - QR di-render saat job berjalan dari data tiket **terkini**, bukan disimpan di payload outbox, sehingga email kirim-ulang setelah penerbitan ulang selalu memuat kode baru.
 - Transporter nodemailer dibuat **sekali** dengan `pool: true`.
@@ -506,11 +530,11 @@ Agregasi *on-the-fly* dengan index di atas cukup untuk skala ratusan tiket per a
 
 - `GET /api/v1/health` (liveness) dan `GET /api/v1/health/ready` (DB).
 - `X-Request-Id` di setiap request, di log, dan di body error.
-- Job berjalan in-process (`setInterval` + *advisory lock* per job agar aman bila ada >1 instance).
-- Graceful shutdown: `SIGTERM` → hentikan job & koneksi baru → `prisma.$disconnect()` → tutup pool SMTP.
-- Migrasi produksi: `prisma migrate deploy`.
+- Job berjalan in-process (`setInterval` + *distributed lock* via `findOneAndUpdate` pada collection `locks` agar aman bila ada >1 instance). Setiap job mengklaim lock dokumen `{ _id: '<jobName>' }` dengan `$set: { lockedUntil: now + interval }` dan filter `{ lockedUntil: { $lte: now } }`. Tanpa PostgreSQL advisory lock, pola ini memberikan jaminan yang setara untuk skala kecil.
+- Graceful shutdown: `SIGTERM` → hentikan job & koneksi baru → `mongoose.disconnect()` → tutup pool SMTP.
+- Migrasi produksi: MongoDB *schema-less*, sehingga tidak ada tool migrasi DDL. Perubahan skema ditangani oleh Mongoose schema (field baru diberi `default`; penghapusan field di-handle dengan script migrasi data bila perlu). Untuk migrasi data, gunakan script di `scripts/`.
 - Webhook Midtrans di development memakai tunnel (ngrok/cloudflared), dan email ditangkap Mailpit lokal.
-- Job `cleanup` harian: hapus `IdempotencyKey` & `AuthToken` kedaluwarsa, `RefreshToken` kedaluwarsa > 30 hari.
+- Job `cleanup` harian: TTL index MongoDB otomatis menghapus `IdempotencyKey`, `AuthToken`, dan `RefreshToken` kedaluwarsa. Job ini tetap ada untuk membersihkan data lain (mis. `EmailOutbox` lama) dan sebagai jaring pengaman.
 
 ## 12. Strategi Pengujian
 
@@ -541,14 +565,16 @@ Milestone 1 dan 2 bersama-sama membentuk API v1 (`/api/v1`) seperti di kontrak; 
 
 | # | Keputusan | Alternatif | Alasan |
 |---|---|---|---|
-| 1 | Counter `soldCount`/`reservedCount` + `UPDATE` kondisional + `CHECK` | `SELECT … FOR UPDATE` / hitung `COUNT(tickets)` | Satu round-trip, tanpa lock eksplisit, invariant dijaga DB; `COUNT` rawan *race* tanpa isolasi serializable |
+| 1 | Counter `soldCount`/`reservedCount` + `findOneAndUpdate` kondisional + Mongoose validator | `find` + cek manual + `save` | Satu round-trip atomik pada *document-level lock* WiredTiger; invariant dijaga oleh filter `$expr` dan Mongoose validator; `find`-lalu-`save` rawan *race* |
 | 2 | Reservasi kuota saat pesanan dibuat, ditahan 30 menit | Kurangi kuota hanya saat lunas | Mengurangi saat lunas justru memunculkan kembali masalah awal: dua orang membayar slot yang sama. Konsekuensinya kuota bisa "tertahan" sementara; diimbangi batas 1 pesanan menggantung per user per acara |
 | 3 | Kode tiket acak disimpan di DB | JWT/HMAC bertanda tangan di QR | Validasi online selalu akurat (void & terbit ulang langsung berlaku); tanda tangan baru berguna untuk check-in offline (v2) |
 | 4 | Midtrans Snap | Core API | Peserta membayar dari perangkatnya sendiri; Snap menyediakan UI semua metode. Core API cocok bila QR ditampilkan di layar kasir, yang tidak berlaku di sini |
 | 5 | Email lewat outbox + job | Kirim langsung di request/webhook | Webhook cepat dan andal; email tahan gangguan SMTP |
 | 6 | Satu tenant, semua organizer berbagi acara | Kepemilikan acara per organizer | Sesuai konteks satu komunitas; kolaborasi tim lebih mudah. Multi-tenant masuk v2 bila dibutuhkan |
 | 7 | STAFF ditugaskan per acara | STAFF bisa memindai semua acara | *Least privilege*; panitia sering relawan yang berbeda tiap acara |
-| 8 | JWT + refresh cookie + `tokenVersion` | Session di DB | Access token pendek tanpa tabel session, tetap bisa dicabut instan |
-| 9 | UUID v7 | UUID v4 / autoincrement | Tidak bisa ditebak, terurut waktu (index lebih rapat, cursor cukup `id`) |
+| 8 | JWT + refresh cookie + `tokenVersion` | Session di DB | Access token pendek tanpa collection session, tetap bisa dicabut instan |
+| 9 | UUID v7 (String) | ObjectId / UUID v4 | Tidak bisa ditebak, terurut waktu (cursor cukup `_id`), portabel lintas sistem. ObjectId lebih ringkas tapi kurang standar untuk API publik |
 | 10 | Nomor pesanan acak `PG-XXXXXXXXXX` | Urut per hari | Tidak membocorkan volume penjualan; aman sebagai `order_id` Midtrans karena tidak pernah terulang |
 | 11 | Poster di Supabase Storage via API (multer) | Signed upload URL langsung dari browser | Validasi *magic bytes* & ukuran tetap di server; volume upload kecil. Signed URL bisa dipakai bila poster besar menjadi masalah |
+| 12 | MongoDB + Mongoose | PostgreSQL + Prisma | Fleksibilitas skema dokumen, horizontal scaling mudah, sub-dokumen (`OrderItem`) menghindari join, TTL index otomatis. Transaksi multi-dokumen tersedia untuk alur kritis (pesanan, pembayaran). Tradeoff: tidak ada `CHECK` constraint level DB — invariant dijaga di application layer (Mongoose validator + `findOneAndUpdate` kondisional) |
+| 13 | Distributed lock via `findOneAndUpdate` pada collection `locks` | PostgreSQL advisory lock | Cukup untuk satu-dua instance; tidak memerlukan library eksternal. Untuk skala lebih besar, gunakan Redis-based lock |

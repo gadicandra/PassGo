@@ -38,8 +38,8 @@ Referensi produk: Loket.com, GoTix, Tiket.com.
 
 | Bagian | Teknologi |
 |---|---|
-| Backend | Node.js ≥ 22.18, Express 5 (ESM), Prisma 7 + `@prisma/adapter-pg`, Zod 4, JWT |
-| Database | PostgreSQL 16+ |
+| Backend | Node.js ≥ 22.18, Express 5 (ESM), Mongoose, Zod 4, JWT |
+| Database | MongoDB (replica set required for transactions) |
 | Payment | Midtrans Snap |
 | Email | Nodemailer (SMTP; Mailpit saat development) |
 | Storage | Supabase Storage (poster acara, di-*re-encode* WebP dengan sharp) |
@@ -51,7 +51,7 @@ Referensi produk: Loket.com, GoTix, Tiket.com.
 monorepo-passgo/
 ├── apps/
 │   ├── backend/                 # Express API
-│   │   ├── prisma/              # schema.prisma, migrations, seed
+│   │   ├── src/lib/database.ts  # Mongoose connection lifecycle
 │   │   ├── src/
 │   │   │   ├── config/          # env & konstanta
 │   │   │   ├── controllers/     # request → service → response
@@ -59,12 +59,12 @@ monorepo-passgo/
 │   │   │   ├── middlewares/     # auth, authorize, validate, idempotency, upload, error handler
 │   │   │   ├── services/        # logika bisnis & transaksi DB (order, payment, check-in, …)
 │   │   │   ├── validators/      # skema Zod
-│   │   │   ├── lib/             # prisma client, logger, midtrans, mailer, storage
+│   │   │   ├── lib/             # Mongoose, logger, midtrans, mailer, storage
 │   │   │   ├── utils/           # AppError, kode tiket, date, pagination
 │   │   │   ├── jobs/            # expire-pending-orders, email-outbox, cleanup
 │   │   │   ├── templates/
 │   │   │   │   └── emails/      # template email (e-ticket, verifikasi, dll.)
-│   │   │   ├── generated/       # Prisma Client (hasil generate, tidak di-commit)
+│   │   │   ├── models/         # Mongoose schemas and models
 │   │   │   └── index.js
 │   │   ├── tests/
 │   │   │   ├── unit/
@@ -86,8 +86,6 @@ monorepo-passgo/
 ```bash
 npm install                                   # dari root, menginstal semua workspace
 cp apps/backend/.env.example apps/backend/.env
-npm run prisma:generate --workspace=apps/backend
-npm run db:migrate --workspace=apps/backend
 npm run dev:backend
 ```
 

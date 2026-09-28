@@ -78,11 +78,11 @@ Otorisasi diterapkan berlapis:
 
 | Lapisan | Pilihan | Alasan |
 |---|---|---|
-| Runtime | Node.js ≥ 22.18 (rekomendasi 24 LTS) | Syarat minimum Prisma 7; `--watch`, `--env-file`, `node:test` bawaan |
+| Runtime | Node.js ≥ 22.18 (rekomendasi 24 LTS) | `--watch`, `--env-file`, `node:test` bawaan |
 | Framework | Express 5 | Kesepakatan tim; v5 otomatis meneruskan *rejected promise* ke error handler |
-| Modul | ESM (`"type": "module"`) | Selaras dengan output generator `prisma-client` |
-| Database | PostgreSQL 16+ | Transaksi ACID, `CHECK` constraint untuk kuota, *partial unique index*, advisory lock, `citext` |
-| ORM | Prisma 7 + `@prisma/adapter-pg` | Prisma 7 wajib *driver adapter* dan generator `prisma-client` dengan `output` eksplisit; konfigurasi CLI di `prisma.config.ts` |
+| Modul | ESM (`"type": "module"`) | Modul backend terpisah dan dapat diuji |
+| Database | MongoDB (replica set) | Transaksi ACID dan indeks unik; kuota dijaga dengan update atomik bersyarat |
+| ODM | Mongoose | Schema, model, index, dan transaksi MongoDB dikelola langsung lewat Mongoose |
 | Validasi | Zod 4 | Satu skema untuk validasi & pesan error |
 | Auth | JWT access token (Bearer, HS256) + refresh token opak di cookie `__Secure-` (dirotasi) | Access token pendek; pencabutan instan via `tokenVersion` |
 | Hash password | bcryptjs | Pure JS, tanpa native build |
@@ -95,7 +95,7 @@ Otorisasi diterapkan berlapis:
 | Ekspor | exceljs (XLSX), CSV manual (streaming) | |
 | Test | `node:test` + supertest | |
 
-> Catatan Prisma 7: `prisma.config.ts` dibaca oleh CLI (migrate/generate), bukan runtime. Runtime membuat `new PrismaClient({ adapter: new PrismaPg({ connectionString }) })`. Client di-generate ke `src/generated/prisma` (di-*gitignore*).
+> Catatan MongoDB: transaksi Mongoose memerlukan MongoDB replica set, termasuk pada lingkungan development.
 
 ## 5. Arsitektur Aplikasi
 
@@ -112,7 +112,7 @@ flowchart LR
   WEB -- Snap.js popup / redirect --> MT[Midtrans Snap]
   API -- create Snap token / status / cancel / expire --> MT
   MT -- HTTP Notification --> API
-  API --> DB[(PostgreSQL)]
+  API --> DB[(MongoDB)]
   API -- upload poster --> ST[(Supabase Storage)]
   JOB[Jobs: expire order,<br/>email outbox, cleanup] --> DB
   JOB -- SMTP --> SMTP[Mail provider]
@@ -125,40 +125,36 @@ flowchart LR
 HTTP ─► routes ─► middlewares (requestId, authenticate, authorize, csrf, validate, idempotency, ifMatch, rateLimit, upload)
                      └─► controllers   (terjemahkan req → panggil service → bentuk response)
                             └─► services   (aturan bisnis, transaksi DB, otorisasi resource)
-                                   └─► lib/prisma, lib/midtrans, lib/mailer, lib/storage, lib/qr
+                                   └─► lib/database, lib/midtrans, lib/mailer, lib/storage, lib/qr
 ```
 
 Aturan antar-lapisan:
-- **Controller** tidak menyentuh Prisma langsung dan tidak berisi aturan bisnis.
+- **Controller** tidak menyentuh model Mongoose langsung dan tidak berisi aturan bisnis.
 - **Service** tidak mengenal `req`/`res`; menerima objek biasa dan melempar `AppError`.
 - **Validator** (Zod, `strict`) dijalankan sebelum controller; controller menerima `req.validated`.
 - Semua error dibentuk menjadi RFC 9457 Problem Details oleh satu error handler global.
 - Efek samping eksternal yang boleh tertunda (email) **tidak dilakukan di dalam request**; service menulis ke `EmailOutbox` di transaksi DB yang sama, lalu job yang mengirimkannya.
 
-> Opini: tanpa lapisan *repository*. Prisma sudah merupakan abstraksi data; repository hanya jadi *pass-through* untuk proyek sebesar ini.
+> Opini: tanpa lapisan *repository*. Service dapat menggunakan model Mongoose melalui modul database; repository hanya jadi *pass-through* untuk proyek sebesar ini.
 
 ### 5.3 Struktur folder backend
 
 ```
 apps/backend/
-├── prisma/
-│   ├── schema.prisma          # model data
-│   ├── migrations/            # hasil prisma migrate (+ SQL manual: CHECK, partial index, citext)
-│   └── seed.js                # akun organizer awal, acara contoh
-├── prisma.config.ts           # konfigurasi Prisma CLI
 ├── src/
+│   ├── lib/database.ts        # koneksi Mongoose dan lifecycle shutdown
 │   ├── config/                # env loader + validasi env (Zod), konstanta
 │   ├── controllers/           # health, auth, me, users, events, ticket-types, event-staff, orders, payments, tickets, check-ins, attendees, reports, audit-logs
 │   ├── routes/                # satu router per resource + index.js (mount /api/v1)
 │   ├── middlewares/           # requestId, authenticate, authorize, csrf, validate, idempotency, ifMatch, rateLimit, upload, errorHandler, notFound
 │   ├── services/              # logika bisnis per domain
 │   ├── validators/            # skema Zod per domain
-│   ├── lib/                   # prisma, logger, midtrans, mailer, storage (Supabase), qr
+│   ├── lib/                   # Mongoose, logger, midtrans, mailer, storage (Supabase), qr
 │   ├── templates/
 │   │   └── emails/            # template email (HTML + teks) per EmailOutbox.type
 │   ├── utils/                 # AppError, money, date/zona waktu, pagination, csv, codes (kode tiket & nomor pesanan)
 │   ├── jobs/                  # expire-pending-orders, email-outbox, cleanup
-│   ├── generated/             # Prisma Client (di-generate, tidak di-commit)
+│   ├── models/                # Mongoose schemas and models
 │   ├── app.js                 # rakit express app (tanpa listen) → bisa dites supertest
 │   └── index.js               # entry point: listen + scheduler job + graceful shutdown
 ├── tests/
@@ -200,7 +196,7 @@ Semua PK adalah **UUID v7** (`@default(uuid(7))`), semua timestamp `timestamptz`
 |---|---|---|
 | id | UUID PK | |
 | name | varchar(100) | |
-| email | citext unique | Login & tujuan e-ticket |
+| email | string lowercase unique | Login & tujuan e-ticket |
 | phone | varchar(20) nullable | Format E.164 (`+62…`); dikirim ke Midtrans `customer_details` |
 | passwordHash | text | bcrypt cost 12 |
 | role | enum `ORGANIZER`/`STAFF`/`ATTENDEE` | |
@@ -249,7 +245,7 @@ Semua PK adalah **UUID v7** (`@default(uuid(7))`), semua timestamp `timestamptz`
 | version | integer | |
 | createdAt, updatedAt | | |
 
-> **Invariant kuota** (dijaga oleh DB, bukan hanya aplikasi): `CHECK (sold_count + reserved_count <= quota)`, `CHECK (sold_count >= 0 AND reserved_count >= 0)`. `available = quota − soldCount − reservedCount` dihitung saat dibaca.
+> **Invariant kuota** dijaga oleh update atomik bersyarat pada dokumen `TicketType`; validasi angka juga dilakukan di service karena MongoDB tidak memiliki `CHECK` constraint. `available = quota − soldCount − reservedCount` dihitung saat dibaca.
 
 **EventStaff** — `eventId`, `userId` (PK gabungan), `assignedById`, `assignedAt`. Hanya user ber-peran `STAFF`.
 
@@ -271,7 +267,7 @@ Semua PK adalah **UUID v7** (`@default(uuid(7))`), semua timestamp `timestamptz`
 | ticketEmailStatus | enum `NOT_APPLICABLE`, `PENDING`, `SENT`, `FAILED` | `NOT_APPLICABLE` selama pesanan belum/tidak `PAID` |
 | createdAt, updatedAt | | |
 
-Index penting: *partial unique* `(userId, eventId) WHERE status = 'PENDING_PAYMENT'` — **satu pesanan menggantung per user per acara**, mencegah satu orang menahan kuota lewat banyak pesanan yang tidak dibayar.
+Index penting: kombinasi field user/event/status perlu dirancang untuk MongoDB; validasi satu pesanan `PENDING_PAYMENT` per user per acara tetap dilakukan di dalam transaksi.
 
 > Refund dimodelkan sebagai sumbu terpisah (`refundStatus`), bukan status pesanan, karena pesanan `PAID` yang di-refund dan pesanan `EXPIRED` yang terlanjur dibayar (*late settlement*) sama-sama perlu dilacak tanpa kehilangan status asalnya.
 
@@ -317,7 +313,7 @@ Semua upaya, termasuk yang gagal, dicatat untuk investigasi tiket palsu/ganda.
 - `Event(status, startAt)` — katalog publik.
 - `TicketType(eventId, sortOrder)`.
 - `Order(userId, id DESC)`, `Order(eventId, status)`, `Order(status, expiresAt)` — job expire.
-- Partial unique `Order(userId, eventId) WHERE status='PENDING_PAYMENT'`.
+- Unique and compound indexes must be created through Mongoose schema definitions or explicitly in MongoDB.
 - `Ticket(code)` unique, `Ticket(eventId, status)`, `Ticket(ownerId, id DESC)`, trigram `Ticket(holderName)` untuk pencarian manual di pintu.
 - `CheckIn(eventId, id DESC)`.
 - `EmailOutbox(status, nextAttemptAt)`.
@@ -330,11 +326,11 @@ Semua upaya, termasuk yang gagal, dicatat untuk investigasi tiket palsu/ganda.
 sequenceDiagram
   participant P as Peserta (FE)
   participant A as API
-  participant D as PostgreSQL
+  participant D as MongoDB
   participant M as Midtrans Snap
   P->>A: POST /orders (Idempotency-Key, eventId, items[])
   A->>D: BEGIN
-  A->>D: pg_advisory_xact_lock(hash(userId, eventId))
+  A->>D: transaction + deterministic order checks
   A->>D: cek pesanan PENDING_PAYMENT lain (user, event) → 409 pending-order-exists
   A->>D: cek maxTicketsPerUser (tiket VALID + CHECKED_IN + kuantitas baru)
   loop tiap item (urut ticketTypeId → hindari deadlock)
@@ -356,12 +352,12 @@ sequenceDiagram
 ```
 
 Keputusan penting:
-- **Reservasi, bukan "cek lalu kurangi".** Kondisi kuota ada di klausa `WHERE` satu `UPDATE`, sehingga dua pembeli slot terakhir tidak bisa sama-sama berhasil: PostgreSQL mengunci baris dan pembeli kedua mengevaluasi ulang kondisi setelah pembeli pertama commit (READ COMMITTED). `CHECK` constraint adalah pertahanan kedua. Inilah jawaban langsung untuk masalah "beberapa orang membayar slot yang sama".
+- **Reservasi, bukan "cek lalu kurangi".** Kondisi kuota ada pada update atomik bersyarat di dalam transaksi, sehingga dua pembeli slot terakhir tidak bisa sama-sama berhasil. MongoDB harus berjalan sebagai replica set untuk transaksi Mongoose.
 - **Kuota ditahan selama `ORDER_HOLD_MINUTES`** (default 30 menit, cukup untuk bayar VA). `expiry` Snap diset sama agar Midtrans menolak pembayaran setelah batas itu. Pesanan yang tidak dibayar dilepas oleh webhook `expire` atau job.
 - **Pemanggilan Snap di dalam transaksi DB** membuat transaksi terbuka ±1 detik. Tradeoff ini diterima di skala komunitas demi kesederhanaan (tidak ada state "pesanan tanpa token"). Bila Snap timeout tetapi transaksinya sempat dibuat di Midtrans, tidak ada yang bisa membayarnya karena token tidak pernah sampai ke peserta, dan `orderNumber` acak tidak dipakai ulang. Snap memakai timeout 10 detik.
 - **Pesanan gratis** (`total = 0`) langsung `PAID` tanpa Midtrans; tiket langsung terbit.
 - **Harga dari server.** Klien mengirim `expectedUnitPrice`; bila berbeda dengan harga saat ini → `409 price-changed`.
-- **Batas per akun** (`maxTicketsPerUser`) dihitung di bawah *advisory lock* `(userId, eventId)` agar dua tab tidak bisa melewatinya bersamaan.
+- **Batas per akun** (`maxTicketsPerUser`) dihitung in-transaction dan harus dicakup oleh pengujian integrasi konkuren.
 - **Bayar ulang:** bila popup Snap tertutup, FE memakai `payment.snapToken`/`snapRedirectUrl` yang sama selama pesanan masih `PENDING_PAYMENT`. Tidak ada endpoint "buat token baru" karena satu `order_id` hanya bisa punya satu transaksi Snap.
 
 ### 7.2 Pembayaran & penerbitan tiket
@@ -370,7 +366,7 @@ Keputusan penting:
 sequenceDiagram
   participant M as Midtrans
   participant A as API
-  participant D as PostgreSQL
+  participant D as MongoDB
   participant J as Job email-outbox
   M->>A: POST /payments/midtrans/notifications
   A->>A: verifikasi signature (SHA512, string mentah, timingSafeEqual) + cek nominal
@@ -419,7 +415,7 @@ sequenceDiagram
 sequenceDiagram
   participant S as Panitia (kamera HP)
   participant A as API
-  participant D as PostgreSQL
+  participant D as MongoDB
   S->>A: POST /events/:eventId/check-ins {code: "PASSGO1:7K2M9XDQ4R8B3N5P"}
   A->>A: authorize: ORGANIZER atau STAFF yang ditugaskan di event ini
   A->>D: SELECT ticket by code (normalisasi) → NOT_FOUND / WRONG_EVENT
@@ -506,9 +502,9 @@ Agregasi *on-the-fly* dengan index di atas cukup untuk skala ratusan tiket per a
 
 - `GET /api/v1/health` (liveness) dan `GET /api/v1/health/ready` (DB).
 - `X-Request-Id` di setiap request, di log, dan di body error.
-- Job berjalan in-process (`setInterval` + *advisory lock* per job agar aman bila ada >1 instance).
-- Graceful shutdown: `SIGTERM` → hentikan job & koneksi baru → `prisma.$disconnect()` → tutup pool SMTP.
-- Migrasi produksi: `prisma migrate deploy`.
+- Job berjalan in-process (`setInterval`); production deployments should use a single scheduler instance or an external job lock because MongoDB has no advisory-lock equivalent.
+- Graceful shutdown: `SIGTERM` → hentikan job & koneksi baru → `mongoose.disconnect()` → tutup pool SMTP.
+- Perubahan schema produksi: version-control schema dan index Mongoose, lalu deploy dengan review aplikasi dan prosedur migrasi aplikasi.
 - Webhook Midtrans di development memakai tunnel (ngrok/cloudflared), dan email ditangkap Mailpit lokal.
 - Job `cleanup` harian: hapus `IdempotencyKey` & `AuthToken` kedaluwarsa, `RefreshToken` kedaluwarsa > 30 hari.
 

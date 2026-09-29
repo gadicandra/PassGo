@@ -28,7 +28,7 @@ export async function issueTicketsForOrder(order: OrderRecord, session: ClientSe
       codeVersion: 1,
       version: 0,
     }));
-    await Ticket.create(tickets, { session });
+    await Ticket.create(tickets, { session, ordered: true });
   }
 }
 

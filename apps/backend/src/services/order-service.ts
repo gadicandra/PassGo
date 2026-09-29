@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import mongoose from "mongoose";
-import { Payment } from "../models";
+import { Payment, Ticket } from "../models";
 import { snapClient } from "../lib/midtrans";
 import { issueTicketsForOrder } from "./ticket-issuance-service";
 import { AppError } from "../utils/app-error";
@@ -21,11 +21,43 @@ interface MidtransOrderPayload {
   custom_field1: string;
 }
 
+interface PaymentRecord { provider: string; status: string; paymentType: string | null; snapToken: string | null; snapRedirectUrl: string | null; settledAt: Date | null; lastSyncedAt: Date | null }
+interface TicketRecord { id: string; code: string; holderName: string; ticketTypeId: string; status: string; checkedInAt: Date | null }
+
+export function maskTicketCode(code: string): string {
+  return `••••-••••-••••-${code.slice(-4)}`;
+}
+
+// Bentuk `Order` §8: payment null untuk pesanan gratis, snapToken hanya untuk pemilik saat PENDING_PAYMENT, tickets berisi TicketSummary.
+export function orderView(order: OrderRecord, payment: PaymentRecord | null, tickets: TicketRecord[], viewerIsOwner: boolean) {
+  const names = new Map(order.items.map((item) => [item.ticketTypeId, item.ticketTypeName]));
+  const exposeSnap = viewerIsOwner && order.status === "PENDING_PAYMENT";
+  return {
+    ...order,
+    payment: payment && {
+      provider: payment.provider, status: payment.status, paymentType: payment.paymentType ?? null,
+      snapToken: exposeSnap ? payment.snapToken : null, snapRedirectUrl: exposeSnap ? payment.snapRedirectUrl : null,
+      settledAt: payment.settledAt ?? null, lastSyncedAt: payment.lastSyncedAt ?? null,
+    },
+    tickets: tickets.map((ticket) => ({ id: ticket.id, codeMasked: maskTicketCode(ticket.code), holderName: ticket.holderName, ticketTypeId: ticket.ticketTypeId, ticketTypeName: names.get(ticket.ticketTypeId) ?? null, status: ticket.status, checkedInAt: ticket.checkedInAt ?? null })),
+  };
+}
+
+export type OrderView = ReturnType<typeof orderView>;
+
+async function loadOrderView(order: OrderRecord, viewerId: string): Promise<OrderView> {
+  const [payment, tickets] = await Promise.all([
+    Payment.findOne({ orderId: order.id }).lean<PaymentRecord>(),
+    Ticket.find({ orderId: order.id }).sort({ id: 1 }).lean<TicketRecord[]>(),
+  ]);
+  return orderView(order, payment, tickets, order.userId === viewerId);
+}
+
 function orderNumber(): string {
   return `PG-${randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`;
 }
 
-export async function createOrder(userId: string, input: OrderInput): Promise<OrderRecord> {
+export async function createOrder(userId: string, input: OrderInput): Promise<OrderView> {
   const user = await getUserById(userId);
   if (!user || !user.isActive) throw new AppError(401, "token-revoked", "Akun tidak aktif.");
   if (!user.emailVerified) throw new AppError(403, "email-not-verified", "Email harus diverifikasi terlebih dahulu.");
@@ -99,20 +131,20 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
     await session.endSession();
   }
   if (!created) throw new Error("Order transaction did not create an order");
-  return created;
+  return loadOrderView(created, userId);
 }
 
 export async function listOrders(userId: string, role: string): Promise<OrderRecord[]> {
   return OrderModel.find(role === "ORGANIZER" ? {} : { userId }).sort({ createdAt: -1 }).lean<OrderRecord[]>();
 }
 
-export async function getOrder(userId: string, role: string, orderId: string): Promise<OrderRecord> {
+export async function getOrder(userId: string, role: string, orderId: string): Promise<OrderView> {
   const order = await OrderModel.findOne(role === "ORGANIZER" ? { id: orderId } : { id: orderId, userId }).lean<OrderRecord>();
   if (!order) throw new AppError(404, "order-not-found", "Pesanan tidak ditemukan.");
-  return order;
+  return loadOrderView(order, userId);
 }
 
-export async function cancelOrder(userId: string, role: string, orderId: string, reason: string | undefined): Promise<OrderRecord> {
+export async function cancelOrder(userId: string, role: string, orderId: string, reason: string | undefined): Promise<OrderView> {
   const session = await mongoose.startSession();
   let cancelled: OrderRecord | undefined;
   try {
@@ -127,7 +159,7 @@ export async function cancelOrder(userId: string, role: string, orderId: string,
     });
   } finally { await session.endSession(); }
   if (!cancelled) throw new Error("Order cancellation did not update an order");
-  return cancelled;
+  return loadOrderView(cancelled, userId);
 }
 
 export async function settleOrder(orderNumberValue: string, paymentInput: { transactionId?: string; paymentType?: string; providerStatus?: string }): Promise<void> {

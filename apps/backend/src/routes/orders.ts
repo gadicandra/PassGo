@@ -24,6 +24,8 @@ router.post("/", async (request, response, next) => {
     const input = orderBody.parse(request.body);
     const result = await runIdempotent({ userId: (request as AuthenticatedRequest).user.sub, method: request.method, path: request.baseUrl + request.path, keyHeader: request.get("idempotency-key"), body: input, handler: async () => ({ status: 201, body: { data: await createOrder((request as AuthenticatedRequest).user.sub, input) } }) });
     for (const [name, value] of Object.entries(result.headers)) response.set(name, value);
+    const orderId = (result.body as { data?: { id?: string } }).data?.id;
+    if (result.status === 201 && orderId) response.location(`/api/v1/orders/${orderId}`);
     response.status(result.status).json(result.body);
   } catch (error) { next(error); }
 });

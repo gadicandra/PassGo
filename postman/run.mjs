@@ -16,8 +16,9 @@ const overrides = {
   attendeeEmail: env.SEED_ATTENDEE_EMAIL,
   attendeePassword: env.SEED_ATTENDEE_PASSWORD ?? env.SEED_ORGANIZER_PASSWORD,
   midtransServerKey: env.MIDTRANS_SERVER_KEY,
-  origin: env.CSRF_ALLOWED_ORIGINS?.split(",")[0],
-  baseUrl: `http://localhost:${env.PORT ?? 3000}/api/v1`,
+  origin: process.env.API_ORIGIN ?? env.CSRF_ALLOWED_ORIGINS?.split(",")[0],
+  // API_BASE_URL=https://<project>.vercel.app/api/v1 untuk menguji hasil deploy.
+  baseUrl: process.env.API_BASE_URL ?? `http://localhost:${env.PORT ?? 3000}/api/v1`,
 };
 
 const missing = ["organizerEmail", "organizerPassword"].filter((key) => !overrides[key]);

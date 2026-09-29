@@ -11,6 +11,7 @@ interface EventRecord {
   id: string; slug: string; title: string; description: string; venueName: string; venueAddress: string;
   mapsUrl: string | null; startAt: Date; endAt: Date; timezone: string; checkInOpensAt: Date | null;
   posterUrl: string | null; capacity: number | null; maxTicketsPerUser: number | null; status: EventStatus;
+  publishedAt?: Date | null; cancelledAt?: Date | null; cancelReason?: string | null;
   createdBy: string; version: number; createdAt: Date; updatedAt: Date;
 }
 
@@ -31,17 +32,17 @@ function slugify(title: string): string {
   return `${base}-${randomBytes(2).toString("hex")}`;
 }
 
-function statusForTicketType(type: { isActive: boolean; salesStartAt: Date; salesEndAt: Date; quota: number; soldCount: number; reservedCount: number }, eventStatus: EventStatus): string {
+function statusForTicketType(type: { isActive: boolean; salesStartAt: Date; salesEndAt: Date; quota: number; soldCount: number; reservedCount: number }, eventStatus: EventStatus, eventEnded = false): string {
   if (!type.isActive) return "PAUSED";
   const current = now();
-  if (eventStatus === "CANCELLED" || type.salesEndAt <= current) return "ENDED";
+  if (eventStatus === "CANCELLED" || eventEnded || type.salesEndAt <= current) return "ENDED";
   if (type.salesStartAt > current) return "UPCOMING";
   if (type.quota - type.soldCount - type.reservedCount <= 0) return "SOLD_OUT";
   return "ON_SALE";
 }
 
-function ticketTypeResponse(type: TicketTypeRecord, eventStatus: EventStatus): TicketTypeView {
-  return { ...type, available: Math.max(0, type.quota - type.soldCount - type.reservedCount), salesStatus: statusForTicketType(type, eventStatus) };
+function ticketTypeResponse(type: TicketTypeRecord, eventStatus: EventStatus, eventEnded = false): TicketTypeView {
+  return { ...type, available: Math.max(0, type.quota - type.soldCount - type.reservedCount), salesStatus: statusForTicketType(type, eventStatus, eventEnded) };
 }
 
 // Representasi terbaru untuk body 412 (`current`) — kontrak §6.
@@ -76,17 +77,28 @@ export async function listEvents(input: { status?: EventStatus[]; when: "upcomin
   return { data, meta: { totalItems: data.length } };
 }
 
+// Agregat §4 EventSummary: ON_SALE > UPCOMING > SOLD_OUT (semua tipe aktif habis) > ENDED; acara CANCELLED selalu ENDED.
+export function aggregateSalesStatus(statuses: string[], eventStatus: EventStatus): string {
+  if (eventStatus === "CANCELLED") return "ENDED";
+  if (statuses.includes("ON_SALE")) return "ON_SALE";
+  if (statuses.includes("UPCOMING")) return "UPCOMING";
+  if (statuses.length && statuses.every((status) => status === "SOLD_OUT")) return "SOLD_OUT";
+  return "ENDED";
+}
+
 function eventResponse(event: EventRecord, types: TicketTypeRecord[] = []) {
   const activeTypes = types.filter((type) => type.isActive);
+  const isEnded = event.endAt < now();
   return {
     id: event.id, slug: event.slug, title: event.title, description: event.description, venueName: event.venueName,
     venueAddress: event.venueAddress, mapsUrl: event.mapsUrl, startAt: event.startAt, endAt: event.endAt, timezone: event.timezone,
     checkInOpensAt: event.checkInOpensAt ?? new Date(event.startAt.getTime() - 2 * 60 * 60 * 1000),
     checkInOpensAtIsDefault: event.checkInOpensAt == null, capacity: event.capacity, maxTicketsPerUser: event.maxTicketsPerUser,
-    posterUrl: event.posterUrl, status: event.status, isEnded: event.endAt < now(),
+    posterUrl: event.posterUrl, status: event.status, isEnded,
     priceFrom: activeTypes.length ? Math.min(...activeTypes.map((type) => type.price)) : null,
-    salesStatus: event.status === "CANCELLED" ? "ENDED" : activeTypes.some((type) => statusForTicketType(type, event.status) === "ON_SALE") ? "ON_SALE" : "UPCOMING",
-    ticketTypes: types.map((type) => ticketTypeResponse(type, event.status)), version: event.version, createdBy: event.createdBy, createdAt: event.createdAt, updatedAt: event.updatedAt,
+    salesStatus: aggregateSalesStatus(activeTypes.map((type) => statusForTicketType(type, event.status, isEnded)), event.status),
+    publishedAt: event.publishedAt ?? null, cancelledAt: event.cancelledAt ?? null, cancelReason: event.cancelReason ?? null,
+    ticketTypes: types.map((type) => ticketTypeResponse(type, event.status, isEnded)), version: event.version, createdBy: event.createdBy, createdAt: event.createdAt, updatedAt: event.updatedAt,
   };
 }
 

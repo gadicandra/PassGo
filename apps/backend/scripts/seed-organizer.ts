@@ -16,8 +16,6 @@ async function seedUser(name: string, rawEmail: string, password: string, role: 
     passwordHash: await bcrypt.hash(password, 12),
     role,
     isActive: true,
-    // Akun seed dibuat langsung terverifikasi: job email-outbox belum ada (M2),
-    // sehingga token verifikasi tidak pernah sampai ke inbox mana pun.
     emailVerified: true,
     tokenVersion: 0,
     version: 1,

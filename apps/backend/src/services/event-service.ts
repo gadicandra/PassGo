@@ -49,7 +49,6 @@ function ticketTypeResponse(type: TicketTypeRecord, eventStatus: EventStatus): T
   return { ...type, available: Math.max(0, type.quota - type.soldCount - type.reservedCount), salesStatus: statusForTicketType(type, eventStatus) };
 }
 
-// §2.5: non-organizer dipaksa ke PUBLISHED,CANCELLED — DRAFT tidak boleh bocor lewat ?status=
 export function allowedStatuses(requested: EventStatus[] | undefined, role?: UserRole): EventStatus[] {
   const allowed: EventStatus[] = role === "ORGANIZER" ? ["DRAFT", "PUBLISHED", "CANCELLED"] : ["PUBLISHED", "CANCELLED"];
   return (requested ?? allowed).filter((status) => allowed.includes(status));

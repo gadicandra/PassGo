@@ -23,7 +23,6 @@ export async function authenticate(request: Request, _response: Response, next: 
   }
 }
 
-// Endpoint 🔓: tanpa header Authorization dilayani sebagai tamu, header rusak tetap 401 (kontrak §2.1).
 export const optionalAuthenticate: RequestHandler = (request, response, next) => {
   if (!request.header("authorization")) {
     next();

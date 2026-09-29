@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { type AuthenticatedRequest } from "../middlewares/authenticate";
+import { optionalAuthenticate, roleOf, type AuthenticatedRequest } from "../middlewares/authenticate";
 import { authorize } from "../middlewares/authorize";
 import {
   cancelEvent, createEvent, createTicketType, deleteEvent, deleteTicketType, getEvent, listEvents, listTicketTypes, publishEvent, updateEvent, updateTicketType,
@@ -21,12 +21,12 @@ const cancelBody = z.object({ reason: z.string().trim().min(5).max(500) }).stric
 const ticketTypeBody = z.object({ name: z.string().trim().min(2).max(50), description: z.string().max(500).nullable().default(null), price: z.number().int().min(0), quota: z.number().int().min(1).max(100000), salesStartAt: date, salesEndAt: date, maxPerOrder: z.number().int().min(1).max(20).default(5), isActive: z.boolean().default(true), sortOrder: z.number().int().min(0).max(999).default(0) }).strict();
 const ticketTypePatch = ticketTypeBody.partial().strict();
 
-router.get("/", async (request, response, next) => {
-  try { const query = z.object({ status: z.string().optional(), when: z.enum(["upcoming", "past", "all"]).default("upcoming"), q: z.string().min(2).optional() }).parse(request.query); const statuses = query.status?.split(",").map((value) => eventStatus.parse(value)); response.json(await listEvents({ status: statuses, when: query.when, q: query.q })); } catch (error) { next(error); }
+router.get("/", optionalAuthenticate, async (request, response, next) => {
+  try { const query = z.object({ status: z.string().optional(), when: z.enum(["upcoming", "past", "all"]).default("upcoming"), q: z.string().min(2).optional() }).parse(request.query); const statuses = query.status?.split(",").map((value) => eventStatus.parse(value)); response.json(await listEvents({ status: statuses, when: query.when, q: query.q, role: roleOf(request) })); } catch (error) { next(error); }
 });
 
-router.get("/by-slug/:slug", async (request, response, next) => {
-  try { response.json({ data: await getEvent(request.params.slug, undefined, true) }); } catch (error) { next(error); }
+router.get("/by-slug/:slug", optionalAuthenticate, async (request, response, next) => {
+  try { response.json({ data: await getEvent(String(request.params.slug), roleOf(request), true) }); } catch (error) { next(error); }
 });
 
 router.post("/", authorize("ORGANIZER"), async (request, response, next) => {
@@ -61,16 +61,16 @@ router.delete("/:eventId/staff/:userId", authorize("ORGANIZER"), async (request,
   try { await removeEventStaff(String(request.params.eventId), String(request.params.userId)); response.status(204).send(); } catch (error) { next(error); }
 });
 
-router.get("/:eventId/ticket-types", async (request, response, next) => {
-  try { response.json(await listTicketTypes(request.params.eventId, false)); } catch (error) { next(error); }
+router.get("/:eventId/ticket-types", optionalAuthenticate, async (request, response, next) => {
+  try { response.json(await listTicketTypes(String(request.params.eventId), roleOf(request) === "ORGANIZER")); } catch (error) { next(error); }
 });
 
 router.post("/:eventId/ticket-types", authorize("ORGANIZER"), async (request, response, next) => {
   try { const type = await createTicketType(String(request.params.eventId), ticketTypeBody.parse(request.body) as TicketTypeInput); response.status(201).json({ data: type }); } catch (error) { next(error); }
 });
 
-router.get("/:eventId/ticket-types/:ticketTypeId", async (request, response, next) => {
-  try { const result = await listTicketTypes(String(request.params.eventId), false); const type = result.data.find((item: TicketTypeView) => item.id === request.params.ticketTypeId); if (!type) return next(new AppError(404, "ticket-type-not-found", "Tipe tiket tidak ditemukan.")); response.set("ETag", `"${type.version}"`).json({ data: type }); } catch (error) { next(error); }
+router.get("/:eventId/ticket-types/:ticketTypeId", optionalAuthenticate, async (request, response, next) => {
+  try { const result = await listTicketTypes(String(request.params.eventId), roleOf(request) === "ORGANIZER"); const type = result.data.find((item: TicketTypeView) => item.id === request.params.ticketTypeId); if (!type) return next(new AppError(404, "ticket-type-not-found", "Tipe tiket tidak ditemukan.")); response.set("ETag", `"${type.version}"`).json({ data: type }); } catch (error) { next(error); }
 });
 
 router.patch("/:eventId/ticket-types/:ticketTypeId", authorize("ORGANIZER"), async (request, response, next) => {
@@ -81,8 +81,8 @@ router.delete("/:eventId/ticket-types/:ticketTypeId", authorize("ORGANIZER"), as
   try { await deleteTicketType(String(request.params.eventId), String(request.params.ticketTypeId), request.get("if-match")); response.status(204).send(); } catch (error) { next(error); }
 });
 
-router.get("/:eventId", async (request, response, next) => {
-  try { const event = await getEvent(request.params.eventId); response.set("ETag", `"${event.version}"`).json({ data: event }); } catch (error) { next(error); }
+router.get("/:eventId", optionalAuthenticate, async (request, response, next) => {
+  try { const event = await getEvent(String(request.params.eventId), roleOf(request)); response.set("ETag", `"${event.version}"`).json({ data: event }); } catch (error) { next(error); }
 });
 
 export default router;

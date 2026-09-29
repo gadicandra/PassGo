@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { verifyAccessToken, type AccessTokenClaims } from "../lib/auth-tokens";
 import { getUserById } from "../services/auth-service";
 import { AppError } from "../utils/app-error";
@@ -22,3 +22,15 @@ export async function authenticate(request: Request, _response: Response, next: 
     next(error instanceof AppError ? error : new AppError(401, "token-invalid", "Access token tidak valid."));
   }
 }
+
+// Endpoint 🔓: tanpa header Authorization dilayani sebagai tamu, header rusak tetap 401 (kontrak §2.1).
+export const optionalAuthenticate: RequestHandler = (request, response, next) => {
+  if (!request.header("authorization")) {
+    next();
+    return;
+  }
+  void authenticate(request, response, next);
+};
+
+export const roleOf = (request: Request): AccessTokenClaims["role"] | undefined =>
+  (request as Partial<AuthenticatedRequest>).user?.role;

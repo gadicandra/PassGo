@@ -4,7 +4,7 @@ import { AUTH_TOKEN_PURPOSES, IDEMPOTENCY_STATES, USER_ROLES } from "./enums";
 
 const userSchema = new Schema(
   {
-    _id: idField,
+    id: idField,
     name: { type: String, required: true, trim: true, maxlength: 100 },
     email: {
       type: String,
@@ -36,7 +36,7 @@ export const User = model("User", userSchema);
 
 const refreshTokenSchema = new Schema(
   {
-    _id: idField,
+    id: idField,
     userId: { type: String, ref: "User", required: true, index: true },
     tokenHash: { type: String, required: true, unique: true },
     familyId: { type: String, required: true, index: true },
@@ -57,7 +57,7 @@ export const RefreshToken = model("RefreshToken", refreshTokenSchema);
 
 const authTokenSchema = new Schema(
   {
-    _id: idField,
+    id: idField,
     userId: { type: String, ref: "User", required: true, index: true },
     purpose: { type: String, enum: [...AUTH_TOKEN_PURPOSES], required: true },
     tokenHash: { type: String, required: true, unique: true },
@@ -71,7 +71,7 @@ export const AuthToken = model("AuthToken", authTokenSchema);
 
 const idempotencyKeySchema = new Schema(
   {
-    _id: idField,
+    id: idField,
     userId: { type: String, required: true },
     method: { type: String, required: true },
     path: { type: String, required: true },

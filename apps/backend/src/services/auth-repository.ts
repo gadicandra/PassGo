@@ -1,4 +1,5 @@
-import mongoose, { Schema, type Model } from "mongoose";
+import type { Model } from "mongoose";
+import * as models from "../models";
 
 export type UserRole = "ORGANIZER" | "STAFF" | "ATTENDEE";
 export type AuthPurpose = "EMAIL_VERIFICATION" | "PASSWORD_RESET";
@@ -51,16 +52,10 @@ interface EmailOutboxRecord {
   createdAt: Date;
 }
 
-const userSchema = new Schema<UserRecord>({}, { strict: false, timestamps: true, versionKey: false });
-const refreshTokenSchema = new Schema<RefreshTokenRecord>({}, { strict: false, versionKey: false });
-const authTokenSchema = new Schema<AuthTokenRecord>({}, { strict: false, versionKey: false });
-const emailOutboxSchema = new Schema<EmailOutboxRecord>({}, { strict: false, versionKey: false });
-
-function model<T>(name: string, schema: Schema<T>, collection: string): Model<T> {
-  return (mongoose.models[name] as Model<T> | undefined) ?? mongoose.model<T>(name, schema, collection);
-}
-
-export const UserModel = model("User", userSchema, "users");
-export const RefreshTokenModel = model("RefreshToken", refreshTokenSchema, "refreshTokens");
-export const AuthTokenModel = model("AuthToken", authTokenSchema, "authTokens");
-export const EmailOutboxModel = model("EmailOutbox", emailOutboxSchema, "emailOutbox");
+export const UserModel = models.User as unknown as Model<UserRecord>;
+export const RefreshTokenModel =
+  models.RefreshToken as unknown as Model<RefreshTokenRecord>;
+export const AuthTokenModel =
+  models.AuthToken as unknown as Model<AuthTokenRecord>;
+export const EmailOutboxModel =
+  models.EmailOutbox as unknown as Model<EmailOutboxRecord>;

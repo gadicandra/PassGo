@@ -4,7 +4,7 @@ import { AUDIT_ACTOR_ROLES, EMAIL_STATUSES, EMAIL_TYPES } from "./enums";
 
 const emailOutboxSchema = new Schema(
   {
-    _id: idField,
+    id: idField,
     type: { type: String, enum: [...EMAIL_TYPES], required: true },
     to: { type: String, required: true },
     payload: { type: Schema.Types.Mixed, default: {} },
@@ -22,7 +22,7 @@ export const EmailOutbox = model("EmailOutbox", emailOutboxSchema);
 
 const auditLogSchema = new Schema(
   {
-    _id: idField,
+    id: idField,
     actorId: { type: String, ref: "User", default: null },
     actorRole: { type: String, enum: [...AUDIT_ACTOR_ROLES], required: true },
     action: { type: String, required: true },
@@ -36,7 +36,7 @@ const auditLogSchema = new Schema(
   },
   schemaOptions("auditLogs", { updatedAt: false }),
 );
-auditLogSchema.index({ eventId: 1, _id: -1 });
+auditLogSchema.index({ eventId: 1, id: -1 });
 auditLogSchema.index({ actorId: 1 });
 auditLogSchema.index({ action: 1 });
 export const AuditLog = model("AuditLog", auditLogSchema);

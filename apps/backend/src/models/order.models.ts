@@ -20,7 +20,7 @@ const orderItemSchema = new Schema(
 
 const orderSchema = new Schema(
   {
-    _id: idField,
+    id: idField,
     orderNumber: { type: String, required: true, unique: true, maxlength: 20 },
     userId: { type: String, ref: "User", required: true },
     eventId: { type: String, ref: "Event", required: true },
@@ -57,7 +57,7 @@ const orderSchema = new Schema(
   },
   schemaOptions("orders"),
 );
-orderSchema.index({ userId: 1, _id: -1 });
+orderSchema.index({ userId: 1, id: -1 });
 orderSchema.index({ eventId: 1, status: 1 });
 orderSchema.index({ status: 1, expiresAt: 1 });
 
@@ -69,7 +69,7 @@ export const Order = model("Order", orderSchema);
 
 const paymentSchema = new Schema(
   {
-    _id: idField,
+    id: idField,
     orderId: { type: String, ref: "Order", required: true, unique: true },
     provider: { type: String, enum: ["MIDTRANS"], default: "MIDTRANS" },
     providerOrderId: { type: String, required: true, unique: true },

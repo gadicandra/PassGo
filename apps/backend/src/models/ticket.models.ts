@@ -9,7 +9,7 @@ import {
 
 const ticketSchema = new Schema(
   {
-    _id: idField,
+    id: idField,
     code: {
       type: String,
       required: true,
@@ -33,14 +33,14 @@ const ticketSchema = new Schema(
   schemaOptions("tickets"),
 );
 ticketSchema.index({ eventId: 1, status: 1 });
-ticketSchema.index({ ownerId: 1, _id: -1 });
+ticketSchema.index({ ownerId: 1, id: -1 });
 ticketSchema.index({ orderId: 1 });
 ticketSchema.index({ holderName: "text" });
 export const Ticket = model("Ticket", ticketSchema);
 
 const checkInSchema = new Schema(
   {
-    _id: idField,
+    id: idField,
     eventId: { type: String, ref: "Event", required: true },
     ticketId: { type: String, ref: "Ticket", default: null },
     scannedCodeMasked: { type: String, maxlength: 4, default: null },
@@ -53,6 +53,6 @@ const checkInSchema = new Schema(
   },
   schemaOptions("checkIns", { updatedAt: false }),
 );
-checkInSchema.index({ eventId: 1, _id: -1 });
+checkInSchema.index({ eventId: 1, id: -1 });
 checkInSchema.index({ ticketId: 1 });
 export const CheckIn = model("CheckIn", checkInSchema);

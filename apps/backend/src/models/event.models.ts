@@ -4,7 +4,7 @@ import { EVENT_STATUSES } from "./enums";
 
 const eventSchema = new Schema(
   {
-    _id: idField,
+    id: idField,
     slug: { type: String, required: true, unique: true, maxlength: 120 },
     title: { type: String, required: true, trim: true, maxlength: 150 },
     description: { type: String, default: "", maxlength: 10000 },
@@ -33,7 +33,7 @@ export const Event = model("Event", eventSchema);
 
 const ticketTypeSchema = new Schema(
   {
-    _id: idField,
+    id: idField,
     eventId: { type: String, ref: "Event", required: true },
     name: { type: String, required: true, trim: true, maxlength: 50 },
     description: { type: String, trim: true, maxlength: 500, default: null },
@@ -74,7 +74,7 @@ export const TicketType = model("TicketType", ticketTypeSchema);
 
 const eventStaffSchema = new Schema(
   {
-    _id: idField,
+    id: idField,
     eventId: { type: String, ref: "Event", required: true },
     userId: { type: String, ref: "User", required: true },
     assignedBy: { type: String, ref: "User", required: true },

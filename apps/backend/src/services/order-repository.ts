@@ -1,4 +1,5 @@
-import mongoose, { Schema, type ClientSession, type Model } from "mongoose";
+import type { ClientSession, Model } from "mongoose";
+import * as models from "../models";
 
 export type OrderStatus = "PENDING_PAYMENT" | "PAID" | "EXPIRED" | "CANCELLED";
 
@@ -55,21 +56,10 @@ export interface OrderRecord {
   updatedAt: Date;
 }
 
-const eventSchema = new Schema<EventRecord>({}, { strict: false, versionKey: false });
-const ticketTypeSchema = new Schema<TicketTypeRecord>({}, { strict: false, versionKey: false });
-const orderSchema = new Schema<OrderRecord>({}, { strict: false, versionKey: false });
-orderSchema.index({ userId: 1, createdAt: -1 });
-orderSchema.index({ eventId: 1, status: 1 });
-orderSchema.index({ userId: 1, eventId: 1, status: 1 });
-ticketTypeSchema.index({ eventId: 1, id: 1 }, { unique: true });
-
-function model<T>(name: string, schema: Schema<T>, collection: string): Model<T> {
-  return (mongoose.models[name] as Model<T> | undefined) ?? mongoose.model<T>(name, schema, collection);
-}
-
-export const EventModel = model("Event", eventSchema, "events");
-export const TicketTypeModel = model("TicketType", ticketTypeSchema, "ticketTypes");
-export const OrderModel = model("Order", orderSchema, "orders");
+export const EventModel = models.Event as unknown as Model<EventRecord>;
+export const TicketTypeModel =
+  models.TicketType as unknown as Model<TicketTypeRecord>;
+export const OrderModel = models.Order as unknown as Model<OrderRecord>;
 
 export async function reserveTicketType(
   ticketTypeId: string,
@@ -88,7 +78,12 @@ export async function reserveTicketType(
       $expr: {
         $and: [
           { $lte: [quantity, "$maxPerOrder"] },
-          { $lte: [{ $add: ["$soldCount", "$reservedCount", quantity] }, "$quota"] },
+          {
+            $lte: [
+              { $add: ["$soldCount", "$reservedCount", quantity] },
+              "$quota",
+            ],
+          },
         ],
       },
     },
@@ -97,6 +92,13 @@ export async function reserveTicketType(
   ).lean<TicketTypeRecord>();
 }
 
-export async function releaseReservation(item: OrderItemRecord, session: ClientSession): Promise<void> {
-  await TicketTypeModel.updateOne({ id: item.ticketTypeId }, { $inc: { reservedCount: -item.quantity } }, { session });
+export async function releaseReservation(
+  item: OrderItemRecord,
+  session: ClientSession,
+): Promise<void> {
+  await TicketTypeModel.updateOne(
+    { id: item.ticketTypeId },
+    { $inc: { reservedCount: -item.quantity } },
+    { session },
+  );
 }

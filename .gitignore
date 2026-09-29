@@ -28,9 +28,13 @@ Thumbs.db
 .idea/
 
 # Fixture Postman (poster uji) tidak di-commit
-postman/fixtures/
+postman/fixtures/*
+!postman/fixtures/poster.jpg
 
 # Dokumen tugas lokal
 docs/RPL.pdf
 docs/Assignment.png
 docs/laporan
+
+# Poster yang disimpan lokal saat Supabase tidak dikonfigurasi
+apps/backend/uploads/

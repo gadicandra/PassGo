@@ -486,7 +486,7 @@
           ]
         },
         {
-          "name": "(BLM) PUT /events/:eventId/poster 🔒",
+          "name": "PUT /events/:eventId/poster 🔒",
           "request": {
             "method": "PUT",
             "header": [
@@ -513,16 +513,21 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "pm.test('posterUrl terisi', () => pm.expect(pm.response.json().data.posterUrl).to.be.a('string'));",
-                  "if (pm.response.code === 200) pm.environment.set('etag_event', pm.response.headers.get('ETag'));"
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const payload = pm.response.json().data;",
+                  "  pm.test(\"posterUrl terisi dan sudah di-reencode ke WebP\", () => {",
+                  "    pm.expect(payload.posterUrl).to.be.a(\"string\").and.match(/.webp$/);",
+                  "  });",
+                  "  pm.environment.set(\"etag_event\", pm.response.headers.get(\"ETag\"));",
+                  "}"
                 ]
               }
             }
           ]
         },
         {
-          "name": "(BLM) DELETE /events/:eventId/poster 🔒",
+          "name": "DELETE /events/:eventId/poster 🔒",
           "request": {
             "method": "DELETE",
             "header": [
@@ -539,8 +544,11 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "if (pm.response.code === 200) pm.environment.set('etag_event', pm.response.headers.get('ETag'));"
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"posterUrl kembali null\", () => pm.expect(pm.response.json().data.posterUrl).to.be.null);",
+                  "  pm.environment.set(\"etag_event\", pm.response.headers.get(\"ETag\"));",
+                  "}"
                 ]
               }
             }

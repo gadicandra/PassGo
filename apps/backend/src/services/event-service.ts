@@ -1,8 +1,10 @@
+import sharp from "sharp";
 import { randomBytes } from "node:crypto";
 import { Event, EventStaff, Order, Ticket, TicketType } from "../models";
 import { uuidv7 } from "../utils/uuid";
 import { AppError } from "../utils/app-error";
 import { assertVersion, ifMatchVersion, preconditionFailed } from "../utils/if-match";
+import { removePoster, uploadPoster } from "../lib/storage";
 
 type EventStatus = "DRAFT" | "PUBLISHED" | "CANCELLED";
 type UserRole = "ORGANIZER" | "STAFF" | "ATTENDEE";
@@ -10,7 +12,7 @@ type UserRole = "ORGANIZER" | "STAFF" | "ATTENDEE";
 interface EventRecord {
   id: string; slug: string; title: string; description: string; venueName: string; venueAddress: string;
   mapsUrl: string | null; startAt: Date; endAt: Date; timezone: string; checkInOpensAt: Date | null;
-  posterUrl: string | null; capacity: number | null; maxTicketsPerUser: number | null; status: EventStatus;
+  posterUrl: string | null; posterPath: string | null; capacity: number | null; maxTicketsPerUser: number | null; status: EventStatus;
   publishedAt?: Date | null; cancelledAt?: Date | null; cancelReason?: string | null;
   createdBy: string; version: number; createdAt: Date; updatedAt: Date;
 }
@@ -228,4 +230,66 @@ export async function deleteTicketType(eventId: string, ticketTypeId: string, he
   if (type.soldCount > 0 || type.reservedCount > 0 || await Order.exists({ "items.ticketTypeId": ticketTypeId })) throw new AppError(409, "ticket-type-not-deletable", "Tipe tiket sudah digunakan.");
   const deleted = await TicketType.deleteOne({ id: ticketTypeId, eventId, version });
   if (!deleted.deletedCount) throw preconditionFailed(await currentTicketTypeView(eventId, ticketTypeId, event?.status ?? "DRAFT"));
+}
+
+const POSTER_FORMATS = ["jpeg", "png", "webp"];
+const POSTER_MIN_SIDE = 600;
+
+async function editableEvent(id: string, header: string | undefined) {
+  const version = ifMatchVersion(header);
+  const event = await Event.findOne({ id }).lean<EventRecord>();
+  if (!event) throw new AppError(404, "event-not-found", "Acara tidak ditemukan.");
+  assertVersion(version, event.version, await currentEventView(id));
+  if (event.status === "CANCELLED" || event.endAt < now()) throw new AppError(409, "event-not-editable", "Acara tidak dapat diubah.");
+  return { event, version };
+}
+
+async function eventWithTypes(event: EventRecord) {
+  const types = await TicketType.find({ eventId: event.id }).sort({ sortOrder: 1, price: 1 }).lean() as unknown as TicketTypeRecord[];
+  return eventResponse(event, types);
+}
+
+// Diekspor agar aturan 415/422 bisa diuji tanpa database.
+export async function encodePoster(file: Buffer): Promise<Buffer> {
+  // sharp membaca format dari isi berkas, bukan dari header klien.
+  const meta = await sharp(file).metadata().catch(() => null);
+  if (!meta?.format || !POSTER_FORMATS.includes(meta.format)) throw new AppError(415, "unsupported-media-type", "Poster harus JPEG, PNG, atau WebP.");
+  if ((meta.width ?? 0) < POSTER_MIN_SIDE || (meta.height ?? 0) < POSTER_MIN_SIDE) {
+    throw new AppError(422, "poster-too-small", `Poster minimal ${POSTER_MIN_SIDE}x${POSTER_MIN_SIDE} piksel.`, { width: meta.width ?? 0, height: meta.height ?? 0 });
+  }
+  // Re-encode sekaligus membuang metadata EXIF (termasuk GPS) dan payload yang disisipkan.
+  return sharp(file).webp({ quality: 82 }).toBuffer();
+}
+
+export async function setEventPoster(id: string, header: string | undefined, file: Buffer | undefined) {
+  const { event, version } = await editableEvent(id, header);
+  if (!file?.length) throw new AppError(422, "validation-error", "Berkas poster wajib dikirim.", { errors: [{ pointer: "/poster", detail: "Berkas poster wajib dikirim." }] });
+
+  const stored = await uploadPoster(id, await encodePoster(file));
+
+  const updated = await Event.findOneAndUpdate(
+    { id, version },
+    { $set: { posterUrl: stored.url, posterPath: stored.path, updatedAt: now(), version: version + 1 } },
+    { new: true },
+  ).lean<EventRecord>();
+  if (!updated) {
+    await removePoster(stored.path);
+    throw preconditionFailed(await currentEventView(id));
+  }
+  if (event.posterPath) await removePoster(event.posterPath);
+  return eventWithTypes(updated);
+}
+
+export async function removeEventPoster(id: string, header: string | undefined) {
+  const { event, version } = await editableEvent(id, header);
+  if (!event.posterPath && !event.posterUrl) return eventWithTypes(event);
+
+  const updated = await Event.findOneAndUpdate(
+    { id, version },
+    { $set: { posterUrl: null, posterPath: null, updatedAt: now(), version: version + 1 } },
+    { new: true },
+  ).lean<EventRecord>();
+  if (!updated) throw preconditionFailed(await currentEventView(id));
+  if (event.posterPath) await removePoster(event.posterPath);
+  return eventWithTypes(updated);
 }

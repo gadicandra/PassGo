@@ -1,9 +1,10 @@
 import { Router } from "express";
+import multer from "multer";
 import { z } from "zod";
 import { optionalAuthenticate, roleOf, type AuthenticatedRequest } from "../middlewares/authenticate";
 import { authorize } from "../middlewares/authorize";
 import {
-  cancelEvent, createEvent, createTicketType, deleteEvent, deleteTicketType, getEvent, listEvents, listTicketTypes, publishEvent, updateEvent, updateTicketType,
+  cancelEvent, createEvent, createTicketType, deleteEvent, deleteTicketType, getEvent, listEvents, listTicketTypes, publishEvent, removeEventPoster, setEventPoster, updateEvent, updateTicketType,
 } from "../services/event-service";
 import type { EventInput, TicketTypeInput, TicketTypeView } from "../services/event-service";
 import { AppError } from "../utils/app-error";
@@ -12,6 +13,8 @@ import { getCheckIn, listCheckIns, revertCheckIn, scanTicket } from "../services
 import { exportAttendeesCsv, listAttendees } from "../services/attendee-service";
 
 const router = Router();
+// Kontrak §9.5: tepat satu berkas `poster`, tanpa field teks, maksimal 2 MB.
+const uploadPoster = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 0, parts: 1 } }).single("poster");
 const date = z.coerce.date();
 const eventStatus = z.enum(["DRAFT", "PUBLISHED", "CANCELLED"]);
 // Field tanpa default: .partial() di Zod 4 tetap menjalankan .default(), sehingga PATCH parsial akan menimpa field yang tidak dikirim.
@@ -54,6 +57,14 @@ router.post("/:eventId/publish", authorize("ORGANIZER"), async (request, respons
 
 router.post("/:eventId/cancel", authorize("ORGANIZER"), async (request, response, next) => {
   try { const event = await cancelEvent(String(request.params.eventId), request.get("if-match"), cancelBody.parse(request.body).reason); response.set("ETag", `"${event.version}"`).json({ data: event }); } catch (error) { next(error); }
+});
+
+router.put("/:eventId/poster", authorize("ORGANIZER"), uploadPoster, async (request, response, next) => {
+  try { const event = await setEventPoster(String(request.params.eventId), request.get("if-match"), request.file?.buffer); response.set("ETag", `"${event.version}"`).json({ data: event }); } catch (error) { next(error); }
+});
+
+router.delete("/:eventId/poster", authorize("ORGANIZER"), async (request, response, next) => {
+  try { const event = await removeEventPoster(String(request.params.eventId), request.get("if-match")); response.set("ETag", `"${event.version}"`).json({ data: event }); } catch (error) { next(error); }
 });
 
 router.get("/:eventId/staff", authorize("ORGANIZER"), async (request, response, next) => {

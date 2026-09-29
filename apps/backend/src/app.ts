@@ -1,7 +1,9 @@
 import cors from "cors";
 import express, { type RequestHandler } from "express";
 import helmet from "helmet";
+import { join } from "node:path";
 import { isDatabaseReady } from "./lib/database";
+import { usesLocalStorage } from "./lib/storage";
 import authRouter from "./routes/auth";
 import ordersRouter from "./routes/orders";
 import usersRouter from "./routes/users";
@@ -57,6 +59,8 @@ app.use("/api/v1/orders", ordersRouter);
 app.use("/api/v1/users", usersRouter);
 app.use("/api/v1/me", meRouter);
 app.use("/api/v1/events", eventsRouter);
+// Tanpa kredensial Supabase, poster disimpan lokal dan dilayani dari sini.
+if (usesLocalStorage) app.use("/uploads", express.static(join(process.cwd(), "uploads"), { maxAge: "1y", index: false }));
 app.use("/api/v1/payments", paymentsRouter);
 app.use("/api/v1/tickets", ticketsRouter);
 

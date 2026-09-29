@@ -7,7 +7,7 @@ postman/
 ├── PassGo.postman_collection.json
 ├── PassGo.local.postman_environment.json   # template, tanpa kredensial
 ├── run.mjs                                 # menyuntik kredensial dari apps/backend/.env
-└── fixtures/poster.jpg                     # siapkan sendiri, tidak di-commit
+└── fixtures/poster.jpg                     # 900x1125, dipakai PUT poster
 ```
 
 ## Menjalankan
@@ -37,13 +37,13 @@ Jalankan dari folder 00 ke bawah. Tiap folder mengisi variabel (`eventId`, `tick
 
 | Penanda | Arti | Jumlah |
 |---|---|---|
-| — | Sudah ada, harus hijau | 75 |
-| `(BLM)` | Endpoint M1 belum dibangun | 2 |
+| — | Sudah ada, harus hijau | 77 |
+| `(BLM)` | Endpoint M1 belum dibangun | 0 |
 | `(M2)` | Fitur Milestone 2 | 7 |
 
 ## Status terakhir
 
-301 dari 312 assertion lulus. Folder yang hijau penuh: 00 Health, 01 Auth Organizer, 02 Users,
+305 dari 313 assertion lulus. Folder yang hijau penuh: 00 Health, 01 Auth Organizer, 02 Users, 03 Events,
 04 Ticket Types, 05 Publish & Staff, 06 Katalog Publik, 08 Orders Gratis, 10 Webhook Midtrans,
 11 Tickets, 12 Check-ins.
 
@@ -51,7 +51,6 @@ Yang masih merah, semuanya karena fiturnya belum dibangun:
 
 | Request | Hasil |
 |---|---|
-| `PUT`/`DELETE /events/:eventId/poster` | `404 route-not-found` |
 | `POST /orders/:orderId/payment/sync` | `404 route-not-found` |
 | `POST /orders/:orderId/refund` | `404 route-not-found` |
 | `GET /events/:eventId/reports/sales` | `404 route-not-found` |
@@ -60,6 +59,10 @@ Yang masih merah, semuanya karena fiturnya belum dibangun:
 | Mailpit + `email-verification/confirm` | Mailpit tidak berjalan di `127.0.0.1:8025` |
 
 ## Catatan
+
+- **Poster.** Bila `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` kosong, poster ditulis ke
+  `apps/backend/uploads/` dan dilayani di `/uploads`. Cukup untuk development, tetapi host
+  ephemeral (Vercel/Railway) menghapusnya tiap deploy, jadi produksi wajib mengisi `SUPABASE_*`.
 
 - **Mailpit.** Job `email-outbox` baru ada di M2, dan Mailpit harus dijalankan terpisah
   (`docker run -p 8025:8025 -p 1025:1025 axllent/mailpit`). Tanpa itu token verifikasi tidak

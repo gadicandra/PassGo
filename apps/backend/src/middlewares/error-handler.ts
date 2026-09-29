@@ -87,6 +87,18 @@ export const errorHandler: ErrorRequestHandler = (error, request, response, _nex
     status = 413;
     code = "payload-too-large";
     detail = "Body terlalu besar.";
+  } else if (error?.name === "MulterError") {
+    // Kontrak §9.5: hanya LIMIT_FILE_SIZE yang 413, sisanya bentuk multipart yang salah.
+    if (error.code === "LIMIT_FILE_SIZE") {
+      status = 413;
+      code = "payload-too-large";
+      detail = "Poster melebihi 2 MB.";
+    } else {
+      status = 422;
+      code = "validation-error";
+      detail = "Multipart tidak sesuai: kirim tepat satu berkas pada field `poster`.";
+      extra = { errors: [{ pointer: "/poster", detail }] };
+    }
   } else {
     console.error(error);
     if (process.env.NODE_ENV !== "production")

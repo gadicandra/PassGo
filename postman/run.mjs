@@ -26,7 +26,8 @@ if (missing.length) {
   process.exit(1);
 }
 
-const args = ["newman", "run", "postman/PassGo.postman_collection.json", "-e", "postman/PassGo.local.postman_environment.json"];
+// --working-dir: src berkas upload di collection relatif terhadap postman/, bukan CWD.
+const args = ["newman", "run", "postman/PassGo.postman_collection.json", "-e", "postman/PassGo.local.postman_environment.json", "--working-dir", "postman"];
 for (const [key, value] of Object.entries(overrides)) {
   if (value) args.push("--env-var", `${key}=${value}`);
 }

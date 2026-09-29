@@ -25,7 +25,7 @@
           "",
           "const skip = pm.request.headers.get('X-No-Idempotency');",
           "pm.request.headers.remove('X-No-Idempotency');",
-          "if (!skip && ['POST', 'PUT', 'PATCH'].includes(pm.request.method)) {",
+          "if (!skip && ['POST', 'PUT', 'PATCH'].includes(pm.request.method) && !pm.request.headers.has('Idempotency-Key')) {",
           "  pm.request.headers.upsert({ key: 'Idempotency-Key', value: pm.variables.replaceIn('{{$guid}}') });",
           "}"
         ]
@@ -2067,6 +2067,35 @@
         "type": "noauth"
       },
       "item": [
+        {
+          "name": "POST /auth/login (attendee ulang — token lama dicabut logout-all di folder 15)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{attendeeEmail}}\",\n  \"password\": \"{{attendeePassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('attendeeToken', pm.response.json().data.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "Tamu POST /events → 401 + WWW-Authenticate",
           "request": {

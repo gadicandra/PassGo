@@ -3,6 +3,15 @@ import { IdempotencyKey } from "../models";
 import { AppError } from "../utils/app-error";
 
 type Replay = { status: number; body: unknown; headers: Record<string, string> };
+interface IdempotencyRecord { requestHash: string; state: "IN_PROGRESS" | "COMPLETED"; responseStatus: number | null; responseHeaders: Record<string, string> | null; responseBody: unknown }
+
+function isDuplicateKeyError(error: unknown): error is { code: number } {
+  return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === 11000;
+}
+
+function responseHeaders(value: Record<string, string> | null): Record<string, string> {
+  return value ?? {};
+}
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
@@ -30,17 +39,17 @@ export async function runIdempotent<T>(input: {
 }): Promise<Replay> {
   const key = keyValue(input.keyHeader);
   const hash = requestHash(input.body);
-  const existing: any = await IdempotencyKey.findOne({ userId: input.userId, method: input.method, path: input.path, key }).lean();
+  const existing = await IdempotencyKey.findOne({ userId: input.userId, method: input.method, path: input.path, key }).lean<IdempotencyRecord>();
   if (existing) {
     if (existing.requestHash !== hash) throw new AppError(422, "idempotency-key-reused", "Idempotency-Key sudah digunakan dengan body berbeda.");
     if (existing.state === "IN_PROGRESS") throw new AppError(409, "idempotency-in-progress", "Request dengan key yang sama sedang diproses.", { retryAfter: 1 });
-    return { status: existing.responseStatus, body: existing.responseBody, headers: { ...(existing.responseHeaders ?? {}), "Idempotent-Replayed": "true" } };
+    return { status: existing.responseStatus ?? 500, body: existing.responseBody, headers: { ...responseHeaders(existing.responseHeaders), "Idempotent-Replayed": "true" } };
   }
 
   try {
     await IdempotencyKey.create({ userId: input.userId, method: input.method, path: input.path, key, requestHash: hash, state: "IN_PROGRESS", expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) });
-  } catch (error: any) {
-    if (error?.code === 11000) throw new AppError(409, "idempotency-in-progress", "Request dengan key yang sama sedang diproses.", { retryAfter: 1 });
+  } catch (error: unknown) {
+    if (isDuplicateKeyError(error)) throw new AppError(409, "idempotency-in-progress", "Request dengan key yang sama sedang diproses.", { retryAfter: 1 });
     throw error;
   }
 

@@ -6,11 +6,19 @@ import { issueTicketsForOrder } from "./ticket-issuance-service";
 import { AppError } from "../utils/app-error";
 import { getUserById } from "./auth-service";
 import { EventModel, OrderModel, releaseReservation, reserveTicketType, type OrderItemRecord, type OrderRecord } from "./order-repository";
+import type { SnapTransactionParameters } from "midtrans-client";
 
 interface OrderInput {
   eventId: string;
   items: Array<{ ticketTypeId: string; quantity: number; expectedUnitPrice: number }>;
   buyerPhone?: string | null;
+}
+
+interface MidtransOrderPayload {
+  transaction_details: { order_id: string; gross_amount: number };
+  item_details: Array<{ id: string; price: number; quantity: number; name: string }>;
+  customer_details: { first_name: string; email: string; phone?: string };
+  custom_field1: string;
 }
 
 function orderNumber(): string {
@@ -49,12 +57,13 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
       let payment: { snapToken: string; snapRedirectUrl: string } | undefined;
       if (total > 0) {
         try {
-          const snap = await snapClient().createTransaction({
+          const payload: MidtransOrderPayload = {
             transaction_details: { order_id: number, gross_amount: total },
             item_details: items.map((item) => ({ id: item.ticketTypeId, price: item.unitPrice, quantity: item.quantity, name: item.ticketTypeName.slice(0, 50) })),
             customer_details: { first_name: user.name, email: user.email, phone: input.buyerPhone ?? user.phone ?? undefined },
             custom_field1: id,
-          } as any);
+          };
+          const snap = await snapClient().createTransaction(payload as unknown as SnapTransactionParameters);
           payment = { snapToken: snap.token, snapRedirectUrl: snap.redirect_url };
         } catch (error) {
           throw new AppError(502, "payment-gateway-error", "Payment gateway gagal.", { cause: error instanceof Error ? error.message : undefined });

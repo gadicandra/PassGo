@@ -5,11 +5,13 @@ import { authorize } from "../middlewares/authorize";
 import {
   cancelEvent, createEvent, createTicketType, deleteEvent, deleteTicketType, getEvent, listEvents, listTicketTypes, publishEvent, updateEvent, updateTicketType,
 } from "../services/event-service";
+import type { EventInput, TicketTypeInput, TicketTypeView } from "../services/event-service";
 import { AppError } from "../utils/app-error";
 import { assignEventStaff, listEventStaff, removeEventStaff } from "../services/event-staff-service";
 
 const router = Router();
 const date = z.coerce.date();
+const eventStatus = z.enum(["DRAFT", "PUBLISHED", "CANCELLED"]);
 const eventShape = z.object({
   title: z.string().trim().min(3).max(150), description: z.string().max(10000).default(""), venueName: z.string().trim().min(2).max(150), venueAddress: z.string().max(300).default(""), mapsUrl: z.string().url().nullable().default(null), startAt: date, endAt: date, timezone: z.string().max(40).default("Asia/Jakarta"), checkInOpensAt: date.nullable().default(null), capacity: z.number().int().min(1).max(100000).nullable().default(null), maxTicketsPerUser: z.number().int().min(1).max(100).nullable().default(null),
 }).strict();
@@ -20,7 +22,7 @@ const ticketTypeBody = z.object({ name: z.string().trim().min(2).max(50), descri
 const ticketTypePatch = ticketTypeBody.partial().strict();
 
 router.get("/", async (request, response, next) => {
-  try { const query = z.object({ status: z.string().optional(), when: z.enum(["upcoming", "past", "all"]).default("upcoming"), q: z.string().min(2).optional() }).parse(request.query); response.json(await listEvents({ status: query.status?.split(",") as any, when: query.when, q: query.q })); } catch (error) { next(error); }
+  try { const query = z.object({ status: z.string().optional(), when: z.enum(["upcoming", "past", "all"]).default("upcoming"), q: z.string().min(2).optional() }).parse(request.query); const statuses = query.status?.split(",").map((value) => eventStatus.parse(value)); response.json(await listEvents({ status: statuses, when: query.when, q: query.q })); } catch (error) { next(error); }
 });
 
 router.get("/by-slug/:slug", async (request, response, next) => {
@@ -28,7 +30,7 @@ router.get("/by-slug/:slug", async (request, response, next) => {
 });
 
 router.post("/", authorize("ORGANIZER"), async (request, response, next) => {
-  try { const event = await createEvent((request as AuthenticatedRequest).user.sub, eventBody.parse(request.body)); response.status(201).location(`/api/v1/events/${event.id}`).json({ data: event }); } catch (error) { next(error); }
+  try { const event = await createEvent((request as AuthenticatedRequest).user.sub, eventBody.parse(request.body) as EventInput); response.status(201).location(`/api/v1/events/${event.id}`).json({ data: event }); } catch (error) { next(error); }
 });
 
 router.patch("/:eventId", authorize("ORGANIZER"), async (request, response, next) => {
@@ -64,11 +66,11 @@ router.get("/:eventId/ticket-types", async (request, response, next) => {
 });
 
 router.post("/:eventId/ticket-types", authorize("ORGANIZER"), async (request, response, next) => {
-  try { const type = await createTicketType(String(request.params.eventId), ticketTypeBody.parse(request.body)); response.status(201).json({ data: type }); } catch (error) { next(error); }
+  try { const type = await createTicketType(String(request.params.eventId), ticketTypeBody.parse(request.body) as TicketTypeInput); response.status(201).json({ data: type }); } catch (error) { next(error); }
 });
 
 router.get("/:eventId/ticket-types/:ticketTypeId", async (request, response, next) => {
-  try { const result = await listTicketTypes(String(request.params.eventId), false); const type = result.data.find((item: any) => item.id === request.params.ticketTypeId); if (!type) return next(new AppError(404, "ticket-type-not-found", "Tipe tiket tidak ditemukan.")); response.set("ETag", `"${type.version}"`).json({ data: type }); } catch (error) { next(error); }
+  try { const result = await listTicketTypes(String(request.params.eventId), false); const type = result.data.find((item: TicketTypeView) => item.id === request.params.ticketTypeId); if (!type) return next(new AppError(404, "ticket-type-not-found", "Tipe tiket tidak ditemukan.")); response.set("ETag", `"${type.version}"`).json({ data: type }); } catch (error) { next(error); }
 });
 
 router.patch("/:eventId/ticket-types/:ticketTypeId", authorize("ORGANIZER"), async (request, response, next) => {

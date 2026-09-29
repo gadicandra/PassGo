@@ -38,3 +38,9 @@ test("POST /api/v1/events/:eventId/ticket-types requires authentication", async 
   assert.equal(response.status, 401);
   assert.equal(response.body.code, "unauthenticated");
 });
+test("PATCH parsial tidak menimpa field yang tidak dikirim dengan default", async () => {
+  const { eventPatch, ticketTypePatch } = await import("../../src/routes/events");
+
+  assert.deepEqual(eventPatch.parse({ description: "baru" }), { description: "baru" });
+  assert.deepEqual(ticketTypePatch.parse({ quota: 40 }), { quota: 40 });
+});

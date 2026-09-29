@@ -12,14 +12,19 @@ import { assignEventStaff, listEventStaff, removeEventStaff } from "../services/
 const router = Router();
 const date = z.coerce.date();
 const eventStatus = z.enum(["DRAFT", "PUBLISHED", "CANCELLED"]);
+// Field tanpa default: .partial() di Zod 4 tetap menjalankan .default(), sehingga PATCH parsial akan menimpa field yang tidak dikirim.
+const eventFields = {
+  title: z.string().trim().min(3).max(150), description: z.string().max(10000), venueName: z.string().trim().min(2).max(150), venueAddress: z.string().max(300), mapsUrl: z.string().url().nullable(), startAt: date, endAt: date, timezone: z.string().max(40), checkInOpensAt: date.nullable(), capacity: z.number().int().min(1).max(100000).nullable(), maxTicketsPerUser: z.number().int().min(1).max(100).nullable(),
+};
 const eventShape = z.object({
-  title: z.string().trim().min(3).max(150), description: z.string().max(10000).default(""), venueName: z.string().trim().min(2).max(150), venueAddress: z.string().max(300).default(""), mapsUrl: z.string().url().nullable().default(null), startAt: date, endAt: date, timezone: z.string().max(40).default("Asia/Jakarta"), checkInOpensAt: date.nullable().default(null), capacity: z.number().int().min(1).max(100000).nullable().default(null), maxTicketsPerUser: z.number().int().min(1).max(100).nullable().default(null),
+  ...eventFields, description: eventFields.description.default(""), venueAddress: eventFields.venueAddress.default(""), mapsUrl: eventFields.mapsUrl.default(null), timezone: eventFields.timezone.default("Asia/Jakarta"), checkInOpensAt: eventFields.checkInOpensAt.default(null), capacity: eventFields.capacity.default(null), maxTicketsPerUser: eventFields.maxTicketsPerUser.default(null),
 }).strict();
 const eventBody = eventShape.superRefine((value, context) => { if (value.endAt <= value.startAt) context.addIssue({ code: "custom", path: ["endAt"], message: "endAt harus setelah startAt." }); });
-const eventPatch = eventShape.partial().strict();
+export const eventPatch = z.object(eventFields).partial().strict();
 const cancelBody = z.object({ reason: z.string().trim().min(5).max(500) }).strict();
-const ticketTypeBody = z.object({ name: z.string().trim().min(2).max(50), description: z.string().max(500).nullable().default(null), price: z.number().int().min(0), quota: z.number().int().min(1).max(100000), salesStartAt: date, salesEndAt: date, maxPerOrder: z.number().int().min(1).max(20).default(5), isActive: z.boolean().default(true), sortOrder: z.number().int().min(0).max(999).default(0) }).strict();
-const ticketTypePatch = ticketTypeBody.partial().strict();
+const ticketTypeFields = { name: z.string().trim().min(2).max(50), description: z.string().max(500).nullable(), price: z.number().int().min(0), quota: z.number().int().min(1).max(100000), salesStartAt: date, salesEndAt: date, maxPerOrder: z.number().int().min(1).max(20), isActive: z.boolean(), sortOrder: z.number().int().min(0).max(999) };
+const ticketTypeBody = z.object({ ...ticketTypeFields, description: ticketTypeFields.description.default(null), maxPerOrder: ticketTypeFields.maxPerOrder.default(5), isActive: ticketTypeFields.isActive.default(true), sortOrder: ticketTypeFields.sortOrder.default(0) }).strict();
+export const ticketTypePatch = z.object(ticketTypeFields).partial().strict();
 
 router.get("/", optionalAuthenticate, async (request, response, next) => {
   try { const query = z.object({ status: z.string().optional(), when: z.enum(["upcoming", "past", "all"]).default("upcoming"), q: z.string().min(2).optional() }).parse(request.query); const statuses = query.status?.split(",").map((value) => eventStatus.parse(value)); response.json(await listEvents({ status: statuses, when: query.when, q: query.q, role: roleOf(request) })); } catch (error) { next(error); }

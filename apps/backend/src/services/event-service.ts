@@ -49,8 +49,14 @@ function ticketTypeResponse(type: TicketTypeRecord, eventStatus: EventStatus): T
   return { ...type, available: Math.max(0, type.quota - type.soldCount - type.reservedCount), salesStatus: statusForTicketType(type, eventStatus) };
 }
 
+// §2.5: non-organizer dipaksa ke PUBLISHED,CANCELLED — DRAFT tidak boleh bocor lewat ?status=
+export function allowedStatuses(requested: EventStatus[] | undefined, role?: UserRole): EventStatus[] {
+  const allowed: EventStatus[] = role === "ORGANIZER" ? ["DRAFT", "PUBLISHED", "CANCELLED"] : ["PUBLISHED", "CANCELLED"];
+  return (requested ?? allowed).filter((status) => allowed.includes(status));
+}
+
 export async function listEvents(input: { status?: EventStatus[]; when: "upcoming" | "past" | "all"; q?: string; role?: UserRole }) {
-  const filter: Record<string, unknown> = { status: { $in: input.status ?? ["PUBLISHED", "CANCELLED"] } };
+  const filter: Record<string, unknown> = { status: { $in: allowedStatuses(input.status, input.role) } };
   if (input.when === "upcoming") filter.endAt = { $gte: now() };
   if (input.when === "past") filter.endAt = { $lt: now() };
   if (input.q) filter.$or = [{ title: { $regex: input.q, $options: "i" } }, { venueName: { $regex: input.q, $options: "i" } }];
@@ -147,7 +153,7 @@ export async function listTicketTypes(eventId: string, organizer: boolean) {
 
 export async function createTicketType(eventId: string, input: TicketTypeInput) {
   const event = await Event.findOne({ id: eventId }).lean<EventRecord>();
-  if (!event || event.status !== "PUBLISHED" || event.endAt <= now()) throw new AppError(409, "event-not-editable", "Acara tidak dapat diubah.");
+  if (!event || event.status === "CANCELLED" || event.endAt <= now()) throw new AppError(409, "event-not-editable", "Acara tidak dapat diubah.");
   if (input.salesEndAt > event.endAt || input.salesStartAt >= input.salesEndAt) throw new AppError(422, "validation-error", "Rentang penjualan tidak valid.");
   if (event.capacity !== null) {
     const quota = await TicketType.aggregate([{ $match: { eventId } }, { $group: { _id: null, total: { $sum: "$quota" } } }]);

@@ -5,7 +5,7 @@ import { snapClient } from "../lib/midtrans";
 import { issueTicketsForOrder } from "./ticket-issuance-service";
 import { AppError } from "../utils/app-error";
 import { getUserById } from "./auth-service";
-import { EventModel, OrderModel, releaseReservation, reserveTicketType, type OrderItemRecord, type OrderRecord } from "./order-repository";
+import { EventModel, OrderModel, TicketTypeModel, releaseReservation, reserveTicketType, type OrderItemRecord, type OrderRecord, type TicketTypeRecord } from "./order-repository";
 import type { SnapTransactionParameters } from "midtrans-client";
 
 interface OrderInput {
@@ -19,6 +19,62 @@ interface MidtransOrderPayload {
   item_details: Array<{ id: string; price: number; quantity: number; name: string }>;
   customer_details: { first_name: string; email: string; phone?: string };
   custom_field1: string;
+  expiry: { start_time: string; unit: "minutes"; duration: number };
+  callbacks?: { finish: string };
+}
+
+const holdMinutes = () => Number(process.env.ORDER_HOLD_MINUTES ?? 30) || 30;
+
+// Midtrans menerima "YYYY-MM-DD HH:mm:ss +0700"; diformat dari instan yang sama dengan dasar expiresAt.
+export function midtransTime(at: Date): string {
+  const wib = new Date(at.getTime() + 7 * 60 * 60 * 1000).toISOString();
+  return `${wib.slice(0, 10)} ${wib.slice(11, 19)} +0700`;
+}
+
+// item_details.name: "<eventTitle> - <ticketTypeName>", tanpa "|", maksimal 50 code point.
+export function snapItemName(eventTitle: string, ticketTypeName: string): string {
+  return [...`${eventTitle} - ${ticketTypeName}`.replaceAll("|", "")].slice(0, 50).join("");
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  return Promise.race([promise, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`timeout ${ms}ms`)), ms); })]).finally(() => clearTimeout(timer));
+}
+
+type OrderItemInput = OrderInput["items"][number];
+
+// Langkah 3 kontrak POST /orders — dievaluasi dari snapshot sebelum reservasi agar kode error bisa dibedakan;
+// reservasi atomik tetap menjadi penentu akhir kuota.
+export function validateOrderItems(items: OrderItemInput[], types: TicketTypeRecord[], at: Date): void {
+  const byId = new Map(types.map((type) => [type.id, type]));
+  const indexed = items.map((item, index) => ({ item, index })).sort((left, right) => left.item.ticketTypeId.localeCompare(right.item.ticketTypeId));
+  const missing = indexed.filter(({ item }) => !byId.has(item.ticketTypeId));
+  if (missing.length) throw new AppError(422, "validation-error", "Tipe tiket tidak ditemukan pada acara ini.", { errors: missing.map(({ index }) => ({ pointer: `#/items/${index}/ticketTypeId`, detail: "Tipe tiket bukan milik acara ini." })) });
+  for (const { item, index } of indexed) {
+    const type = byId.get(item.ticketTypeId)!;
+    if (item.quantity > type.maxPerOrder) throw new AppError(422, "max-per-order-exceeded", `Maksimal ${type.maxPerOrder} tiket ${type.name} per pesanan.`, { errors: [{ pointer: `#/items/${index}/quantity`, detail: `Maksimal ${type.maxPerOrder}`, ticketTypeId: type.id, maxPerOrder: type.maxPerOrder }] });
+  }
+  for (const { item, index } of indexed) {
+    const type = byId.get(item.ticketTypeId)!;
+    if (!type.isActive || type.salesStartAt > at || type.salesEndAt <= at) throw new AppError(409, "ticket-type-not-on-sale", `Tiket ${type.name} tidak sedang dijual.`, { errors: [{ pointer: `#/items/${index}/ticketTypeId`, detail: "Tidak sedang dijual", ticketTypeId: type.id }] });
+  }
+  const shortages = indexed.flatMap(({ item, index }) => {
+    const type = byId.get(item.ticketTypeId)!;
+    const available = Math.max(0, type.quota - type.soldCount - type.reservedCount);
+    return item.quantity > available ? [{ pointer: `#/items/${index}/quantity`, detail: `Tersisa ${available} tiket`, ticketTypeId: type.id, available }] : [];
+  });
+  if (shortages.length) throw new AppError(409, "quota-exceeded", "Kuota tiket tidak mencukupi.", { errors: shortages });
+  const priceChanges = indexed.flatMap(({ item, index }) => {
+    const type = byId.get(item.ticketTypeId)!;
+    return type.price !== item.expectedUnitPrice ? [{ pointer: `#/items/${index}/expectedUnitPrice`, detail: "Harga berubah", ticketTypeId: type.id, currentUnitPrice: type.price }] : [];
+  });
+  if (priceChanges.length) throw new AppError(409, "price-changed", "Harga tiket sudah berubah.", { errors: priceChanges });
+}
+
+export function remainingForUser(limit: number | null, owned: number, requested: number): number | null {
+  if (limit === null) return null;
+  const remaining = Math.max(0, limit - owned);
+  return owned + requested > limit ? remaining : null;
 }
 
 interface PaymentRecord { provider: string; status: string; paymentType: string | null; snapToken: string | null; snapRedirectUrl: string | null; settledAt: Date | null; lastSyncedAt: Date | null }
@@ -74,11 +130,24 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
       const pending = await OrderModel.findOne({ userId, eventId: input.eventId, status: "PENDING_PAYMENT" }).session(session).lean();
       if (pending) throw new AppError(409, "pending-order-exists", "Masih ada pesanan yang belum dibayar.", { orderId: pending.id });
 
+      const requested = input.items.reduce((sum, item) => sum + item.quantity, 0);
+      if (event.maxTicketsPerUser !== null) {
+        const owned = await Ticket.countDocuments({ ownerId: userId, eventId: input.eventId, status: { $in: ["VALID", "CHECKED_IN"] } }).session(session);
+        const remaining = remainingForUser(event.maxTicketsPerUser, owned, requested);
+        if (remaining !== null) throw new AppError(409, "max-per-user-exceeded", `Maksimal ${event.maxTicketsPerUser} tiket per akun untuk acara ini.`, { remaining });
+      }
+
+      const types = await TicketTypeModel.find({ id: { $in: input.items.map((item) => item.ticketTypeId) }, eventId: input.eventId }).session(session).lean<TicketTypeRecord[]>();
+      validateOrderItems(input.items, types, at);
+
       const items: OrderItemRecord[] = [];
       for (const item of [...input.items].sort((left, right) => left.ticketTypeId.localeCompare(right.ticketTypeId))) {
         const reserved = await reserveTicketType(item.ticketTypeId, input.eventId, item.quantity, at, session);
-        if (!reserved) throw new AppError(409, "quota-exceeded", "Kuota tiket tidak mencukupi.", { ticketTypeId: item.ticketTypeId });
-        if (reserved.price !== item.expectedUnitPrice) throw new AppError(409, "price-changed", "Harga tiket sudah berubah.", { currentUnitPrice: reserved.price, ticketTypeId: item.ticketTypeId });
+        if (!reserved) {
+          const latest = await TicketTypeModel.findOne({ id: item.ticketTypeId }).session(session).lean<TicketTypeRecord>();
+          const available = latest ? Math.max(0, latest.quota - latest.soldCount - latest.reservedCount) : 0;
+          throw new AppError(409, "quota-exceeded", "Kuota tiket tidak mencukupi.", { errors: [{ pointer: `#/items/${input.items.indexOf(item)}/quantity`, detail: `Tersisa ${available} tiket`, ticketTypeId: item.ticketTypeId, available }] });
+        }
         items.push({ ticketTypeId: reserved.id, ticketTypeName: reserved.name, unitPrice: reserved.price, quantity: item.quantity, lineTotal: reserved.price * item.quantity });
       }
 
@@ -91,11 +160,14 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
         try {
           const payload: MidtransOrderPayload = {
             transaction_details: { order_id: number, gross_amount: total },
-            item_details: items.map((item) => ({ id: item.ticketTypeId, price: item.unitPrice, quantity: item.quantity, name: item.ticketTypeName.slice(0, 50) })),
+            item_details: items.map((item) => ({ id: item.ticketTypeId, price: item.unitPrice, quantity: item.quantity, name: snapItemName(event.title, item.ticketTypeName) })),
             customer_details: { first_name: user.name, email: user.email, phone: input.buyerPhone ?? user.phone ?? undefined },
             custom_field1: id,
+            expiry: { start_time: midtransTime(createdAt), unit: "minutes", duration: holdMinutes() },
+            ...(process.env.FRONTEND_URL ? { callbacks: { finish: `${process.env.FRONTEND_URL.replace(/\/$/, "")}/orders/${id}` } } : {}),
           };
-          const snap = await snapClient().createTransaction(payload as unknown as SnapTransactionParameters);
+          // Snap tetap di dalam transaksi (kontrak: gagal/timeout 10 detik → rollback seluruh reservasi → 502).
+          const snap = await withTimeout(snapClient().createTransaction(payload as unknown as SnapTransactionParameters), 10_000);
           payment = { snapToken: snap.token, snapRedirectUrl: snap.redirect_url };
         } catch (error) {
           throw new AppError(502, "payment-gateway-error", "Payment gateway gagal.", { cause: error instanceof Error ? error.message : undefined });
@@ -113,7 +185,7 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
         buyerName: user.name,
         buyerEmail: user.email,
         buyerPhone: input.buyerPhone ?? user.phone,
-        expiresAt: total === 0 ? null : new Date(createdAt.getTime() + 30 * 60 * 1000),
+        expiresAt: total === 0 ? null : new Date(createdAt.getTime() + holdMinutes() * 60 * 1000),
         paidAt: total === 0 ? createdAt : null,
         expiredAt: null,
         cancelledAt: null,

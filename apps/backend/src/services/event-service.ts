@@ -58,7 +58,6 @@ async function currentTicketTypeView(eventId: string, ticketTypeId: string, even
   return type ? ticketTypeResponse(type, eventStatus) : undefined;
 }
 
-// §2.5: non-organizer dipaksa ke PUBLISHED,CANCELLED — DRAFT tidak boleh bocor lewat ?status=
 export function allowedStatuses(requested: EventStatus[] | undefined, role?: UserRole): EventStatus[] {
   const allowed: EventStatus[] = role === "ORGANIZER" ? ["DRAFT", "PUBLISHED", "CANCELLED"] : ["PUBLISHED", "CANCELLED"];
   return (requested ?? allowed).filter((status) => allowed.includes(status));

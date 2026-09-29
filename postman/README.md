@@ -43,20 +43,22 @@ Jalankan dari folder 00 ke bawah. Tiap folder mengisi variabel (`eventId`, `tick
 
 ## Status terakhir
 
-305 dari 313 assertion lulus. Folder yang hijau penuh: 00 Health, 01 Auth Organizer, 02 Users, 03 Events,
-04 Ticket Types, 05 Publish & Staff, 06 Katalog Publik, 08 Orders Gratis, 10 Webhook Midtrans,
-11 Tickets, 12 Check-ins.
+**293 assertion, 0 gagal.** Seluruh folder hijau.
 
-Yang masih merah, semuanya karena fiturnya belum dibangun:
+Tujuh request bertanda `(M2)` dilewati lewat `pm.execution.skipRequest()` di pre-request
+script masing-masing, karena endpoint-nya belum dibangun:
 
-| Request | Hasil |
+| Request | Yang belum ada |
 |---|---|
-| `POST /orders/:orderId/payment/sync` | `404 route-not-found` |
-| `POST /orders/:orderId/refund` | `404 route-not-found` |
-| `GET /events/:eventId/reports/sales` | `404 route-not-found` |
-| `GET /events/:eventId/reports/attendance` | `404 route-not-found` |
-| `GET /audit-logs` | `404 route-not-found` |
-| Mailpit + `email-verification/confirm` | Mailpit tidak berjalan di `127.0.0.1:8025` |
+| `GET Mailpit` + `email-verification/confirm` | Job `email-outbox`. Tidak ada nodemailer di `src/`, email hanya menumpuk di koleksi `emailOutbox` |
+| `POST /orders/:orderId/payment/sync` | Route belum ada |
+| `POST /orders/:orderId/refund` | Route belum ada |
+| `GET /events/:eventId/reports/sales` | Route belum ada |
+| `GET /events/:eventId/reports/attendance` | Route belum ada |
+| `GET /audit-logs` | Route belum ada |
+
+Begitu endpoint-nya dibuat, hapus baris `pm.execution.skipRequest();` di pre-request script
+request tersebut dan hapus awalan `(M2)` pada namanya.
 
 ## Catatan
 

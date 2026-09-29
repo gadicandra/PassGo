@@ -945,6 +945,16 @@
           },
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
+                  "pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
@@ -976,6 +986,16 @@
             "url": "{{baseUrl}}/auth/email-verification/confirm"
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
+                  "pm.execution.skipRequest();"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -1259,6 +1279,16 @@
             "url": "{{baseUrl}}/orders/{{orderId}}/payment/sync"
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
+                  "pm.execution.skipRequest();"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -1969,6 +1999,16 @@
           },
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
+                  "pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
@@ -1987,6 +2027,16 @@
             "url": "{{baseUrl}}/events/{{eventId}}/reports/attendance"
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
+                  "pm.execution.skipRequest();"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -2021,6 +2071,16 @@
             "url": "{{baseUrl}}/audit-logs?eventId={{eventId}}"
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
+                  "pm.execution.skipRequest();"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -2064,6 +2124,16 @@
             "url": "{{baseUrl}}/orders/{{orderId}}/refund"
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
+                  "pm.execution.skipRequest();"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {

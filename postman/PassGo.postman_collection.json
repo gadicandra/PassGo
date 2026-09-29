@@ -753,7 +753,7 @@
           ]
         },
         {
-          "name": "(BLM) PUT /events/:eventId/staff/:userId (201 baru)",
+          "name": "PUT /events/:eventId/staff/:userId (201 baru)",
           "request": {
             "method": "PUT",
             "header": [],
@@ -772,7 +772,7 @@
           ]
         },
         {
-          "name": "(BLM) PUT staff lagi (idempoten, 200)",
+          "name": "PUT staff lagi (idempoten, 200)",
           "request": {
             "method": "PUT",
             "header": [],
@@ -791,7 +791,7 @@
           ]
         },
         {
-          "name": "(BLM) GET /events/:eventId/staff",
+          "name": "GET /events/:eventId/staff",
           "request": {
             "method": "GET",
             "header": [],
@@ -1085,7 +1085,7 @@
                   "  pm.expect(payload.status).to.eql('PAID');",
                   "});",
                   "pm.test('orderNumber berformat PG-XXXXXXXXXX', () => pm.expect(payload.orderNumber).to.match(/^PG-[0-9A-Z]{10}$/));",
-                  "pm.test('[kontrak] tiket terbit untuk pesanan PAID', () => {",
+                  "pm.test('tiket terbit untuk pesanan PAID', () => {",
                   "  pm.expect(payload.tickets, 'data.tickets').to.be.an('array').with.length.of.at.least(1);",
                   "});",
                   "pm.environment.set('freeOrderId', payload.id);",
@@ -1152,7 +1152,7 @@
                   "const payload = pm.response.json().data;",
                   "pm.test('status PENDING_PAYMENT', () => pm.expect(payload.status).to.eql('PENDING_PAYMENT'));",
                   "pm.test('kuota ditahan sampai expiresAt', () => pm.expect(payload.expiresAt).to.not.be.null);",
-                  "pm.test('[M2] snapToken diterbitkan Midtrans', () => {",
+                  "pm.test('snapToken diterbitkan Midtrans', () => {",
                   "  pm.expect(payload.payment && payload.payment.snapToken, 'payment.snapToken').to.be.a('string');",
                   "});",
                   "pm.environment.set('orderId', payload.id);",
@@ -1164,7 +1164,7 @@
           ]
         },
         {
-          "name": "(M2) POST /orders replay (Idempotency-Key sama)",
+          "name": "POST /orders replay (Idempotency-Key sama)",
           "request": {
             "method": "POST",
             "header": [
@@ -1193,7 +1193,7 @@
                   "  pm.expect(pm.response.code).to.eql(201);",
                   "  pm.expect(pm.response.json().data.id).to.eql(pm.environment.get('orderId'));",
                   "});",
-                  "pm.test('[kontrak §5] header Idempotent-Replayed: true', () => {",
+                  "pm.test('header Idempotent-Replayed: true', () => {",
                   "  pm.expect(pm.response.headers.get('Idempotent-Replayed')).to.eql('true');",
                   "});"
                 ]
@@ -1300,7 +1300,7 @@
       },
       "item": [
         {
-          "name": "(M2) POST /payments/midtrans/notifications (settlement)",
+          "name": "POST /payments/midtrans/notifications (settlement)",
           "request": {
             "method": "POST",
             "header": [
@@ -1340,7 +1340,7 @@
           ]
         },
         {
-          "name": "(M2) POST notifications dengan signature salah → 403",
+          "name": "POST notifications dengan signature salah → 403",
           "request": {
             "method": "POST",
             "header": [
@@ -2393,7 +2393,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('[kontrak §5] 400 idempotency-key-required', () => {",
+                  "pm.test('400 idempotency-key-required', () => {",
                   "  pm.expect(pm.response.code).to.eql(400);",
                   "  pm.expect(pm.response.json().code).to.eql('idempotency-key-required');",
                   "});"

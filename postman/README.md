@@ -28,9 +28,11 @@ Tiap folder mengisi variabel (`eventId`, `ticketTypeId`, `orderId`, …) untuk f
 
 | Penanda | Arti | Jumlah |
 |---|---|---|
-| — | Endpoint M1 yang sudah ada, harus hijau | 52 |
-| `(BLM)` | Endpoint M1 belum diimplementasikan | 18 |
-| `(M2)` | Fitur Milestone 2 | 11 |
+| — | Endpoint yang sudah ada, harus hijau | 58 |
+| `(BLM)` | Endpoint M1 belum diimplementasikan | 15 |
+| `(M2)` | Fitur Milestone 2 | 8 |
+
+Sisa `(BLM)`: poster, `/tickets`, `/check-ins`, `/attendees`.
 
 ## Test yang sengaja merah
 
@@ -41,9 +43,6 @@ Gap implementasi, diberi awalan `[kontrak]` / `[M2]`. Hapus test-nya kalau fitur
 | `X-Request-Id ada di response` | Middleware requestId belum ada (§1.1). Berlaku di semua request |
 | `Cache-Control public max-age=60` | Belum diset di katalog publik |
 | `header WWW-Authenticate ada` | Belum dikirim pada 401 |
-| `400 idempotency-key-required` | Middleware idempotency belum ada |
-| `header Idempotent-Replayed: true` | idem |
-| `tiket terbit untuk pesanan PAID` | `createOrder` belum membuat dokumen `Ticket` |
 | `code max-per-order-exceeded` | Sekarang jatuh ke `409 quota-exceeded` |
 | `405 Method Not Allowed + header Allow` | Express menjawab `404 route-not-found` |
 

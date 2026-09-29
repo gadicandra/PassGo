@@ -3,23 +3,17 @@ import { randomUUID } from "node:crypto";
 import { UserModel, type UserRecord, type UserRole } from "./auth-repository";
 import { serializeUser } from "./auth-service";
 import { AppError } from "../utils/app-error";
+import { assertVersion, ifMatchVersion, preconditionFailed } from "../utils/if-match";
 
 type UserResponse = ReturnType<typeof serializeUser>;
 
 function now(): Date { return new Date(); }
 
-function parseVersion(value: string | undefined): number {
-  if (!value || value === "*") throw new AppError(428, "precondition-required", "If-Match wajib dikirim.");
-  const match = /^"(\d+)"$/.exec(value);
-  if (!match) throw new AppError(428, "precondition-required", "If-Match tidak valid.");
-  return Number(match[1]);
-}
-
 async function requireCurrentVersion(id: string, header: string | undefined): Promise<UserRecord> {
-  const version = parseVersion(header);
+  const version = ifMatchVersion(header);
   const user = await UserModel.findOne({ id }).lean<UserRecord>();
   if (!user) throw new AppError(404, "user-not-found", "User tidak ditemukan.");
-  if (user.version !== version) throw new AppError(412, "precondition-failed", "Data telah diubah oleh pengguna lain.", { current: serializeUser(user) });
+  assertVersion(version, user.version, serializeUser(user));
   return user;
 }
 
@@ -65,6 +59,6 @@ export async function updateManagedUser(actorId: string, id: string, header: str
   const update: Record<string, unknown> = { ...input, updatedAt: now(), version: current.version + 1 };
   if (roleOrStatusChanged) update.tokenVersion = current.tokenVersion + 1;
   const updated = await UserModel.findOneAndUpdate({ id, version: current.version }, { $set: update }, { new: true }).lean<UserRecord>();
-  if (!updated) throw new AppError(412, "precondition-failed", "Data telah diubah oleh pengguna lain.");
+  if (!updated) throw preconditionFailed(await getUser(id));
   return serializeUser(updated);
 }

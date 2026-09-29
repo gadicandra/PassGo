@@ -4,14 +4,9 @@ import { createAccessToken } from "../lib/auth-tokens";
 import { UserModel, type UserRecord } from "./auth-repository";
 import { getUserById, issueRefreshToken, revokeAllSessions, serializeUser } from "./auth-service";
 import { AppError } from "../utils/app-error";
+import { assertVersion, ifMatchVersion, preconditionFailed } from "../utils/if-match";
 
 function now(): Date { return new Date(); }
-
-function ifMatchVersion(header: string | undefined): number {
-  const match = /^"(\d+)"$/.exec(header ?? "");
-  if (!match || header === "*") throw new AppError(428, "precondition-required", "If-Match wajib dikirim.");
-  return Number(match[1]);
-}
 
 export async function getMe(userId: string): Promise<UserRecord> {
   const user = await getUserById(userId);
@@ -22,13 +17,13 @@ export async function getMe(userId: string): Promise<UserRecord> {
 export async function updateMe(userId: string, ifMatch: string | undefined, input: { name?: string; phone?: string | null }): Promise<UserRecord> {
   const version = ifMatchVersion(ifMatch);
   const user = await getMe(userId);
-  if (user.version !== version) throw new AppError(412, "precondition-failed", "Data telah diubah oleh pengguna lain.", { current: serializeUser(user) });
+  assertVersion(version, user.version, serializeUser(user));
   const updated = await UserModel.findOneAndUpdate(
     { id: userId, version },
     { $set: { ...input, updatedAt: now(), version: version + 1 } },
     { new: true },
   ).lean<UserRecord>();
-  if (!updated) throw new AppError(412, "precondition-failed", "Data telah diubah oleh pengguna lain.");
+  if (!updated) throw preconditionFailed(serializeUser(await getMe(userId)));
   return updated;
 }
 

@@ -98,5 +98,7 @@ export const errorHandler: ErrorRequestHandler = (error, request, response, _nex
     const rejected = code === "token-expired" || code === "token-invalid" || code === "token-revoked";
     response.set("WWW-Authenticate", rejected ? `Bearer realm="passgo", error="invalid_token", error_description="${code === "token-expired" ? "token expired" : detail.replace(/"/g, "'")}"` : 'Bearer realm="passgo"');
   }
+  const currentVersion = (extra.current as { version?: unknown } | undefined)?.version;
+  if (status === 412 && typeof currentVersion === "number") response.set("ETag", `"${currentVersion}"`);
   sendProblem(request, response, status, code, detail, extra);
 };

@@ -6,6 +6,7 @@ import {
   cancelEvent, createEvent, createTicketType, deleteEvent, deleteTicketType, getEvent, listEvents, listTicketTypes, publishEvent, updateEvent, updateTicketType,
 } from "../services/event-service";
 import { AppError } from "../utils/app-error";
+import { assignEventStaff, listEventStaff, removeEventStaff } from "../services/event-staff-service";
 
 const router = Router();
 const date = z.coerce.date();
@@ -44,6 +45,18 @@ router.post("/:eventId/publish", authorize("ORGANIZER"), async (request, respons
 
 router.post("/:eventId/cancel", authorize("ORGANIZER"), async (request, response, next) => {
   try { const event = await cancelEvent(String(request.params.eventId), request.get("if-match"), cancelBody.parse(request.body).reason); response.set("ETag", `"${event.version}"`).json({ data: event }); } catch (error) { next(error); }
+});
+
+router.get("/:eventId/staff", authorize("ORGANIZER"), async (request, response, next) => {
+  try { response.json({ data: await listEventStaff(String(request.params.eventId)) }); } catch (error) { next(error); }
+});
+
+router.put("/:eventId/staff/:userId", authorize("ORGANIZER"), async (request, response, next) => {
+  try { const result = await assignEventStaff(String(request.params.eventId), String(request.params.userId), (request as AuthenticatedRequest).user.sub); response.status(result.status).json({ data: result.assignment }); } catch (error) { next(error); }
+});
+
+router.delete("/:eventId/staff/:userId", authorize("ORGANIZER"), async (request, response, next) => {
+  try { await removeEventStaff(String(request.params.eventId), String(request.params.userId)); response.status(204).send(); } catch (error) { next(error); }
 });
 
 router.get("/:eventId/ticket-types", async (request, response, next) => {

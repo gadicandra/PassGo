@@ -43,9 +43,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 type OrderItemInput = OrderInput["items"][number];
 
-// Langkah 3 kontrak POST /orders — dievaluasi dari snapshot sebelum reservasi agar kode error bisa dibedakan;
-// reservasi atomik tetap menjadi penentu akhir kuota.
-export function validateOrderItems(items: OrderItemInput[], types: TicketTypeRecord[], at: Date): void {
+// Aturan field kontrak (422) — dicek sebelum langkah transaksi 1–3 agar input tidak valid selalu 422, bukan 409.
+export function validateOrderShape(items: OrderItemInput[], types: TicketTypeRecord[]): void {
   const byId = new Map(types.map((type) => [type.id, type]));
   const indexed = items.map((item, index) => ({ item, index })).sort((left, right) => left.item.ticketTypeId.localeCompare(right.item.ticketTypeId));
   const missing = indexed.filter(({ item }) => !byId.has(item.ticketTypeId));
@@ -54,6 +53,14 @@ export function validateOrderItems(items: OrderItemInput[], types: TicketTypeRec
     const type = byId.get(item.ticketTypeId)!;
     if (item.quantity > type.maxPerOrder) throw new AppError(422, "max-per-order-exceeded", `Maksimal ${type.maxPerOrder} tiket ${type.name} per pesanan.`, { errors: [{ pointer: `#/items/${index}/quantity`, detail: `Maksimal ${type.maxPerOrder}`, ticketTypeId: type.id, maxPerOrder: type.maxPerOrder }] });
   }
+}
+
+// Langkah 3 kontrak POST /orders — dievaluasi dari snapshot sebelum reservasi agar kode error bisa dibedakan;
+// reservasi atomik tetap menjadi penentu akhir kuota.
+export function validateOrderItems(items: OrderItemInput[], types: TicketTypeRecord[], at: Date): void {
+  validateOrderShape(items, types);
+  const byId = new Map(types.map((type) => [type.id, type]));
+  const indexed = items.map((item, index) => ({ item, index })).sort((left, right) => left.item.ticketTypeId.localeCompare(right.item.ticketTypeId));
   for (const { item, index } of indexed) {
     const type = byId.get(item.ticketTypeId)!;
     if (!type.isActive || type.salesStartAt > at || type.salesEndAt <= at) throw new AppError(409, "ticket-type-not-on-sale", `Tiket ${type.name} tidak sedang dijual.`, { errors: [{ pointer: `#/items/${index}/ticketTypeId`, detail: "Tidak sedang dijual", ticketTypeId: type.id }] });
@@ -127,6 +134,9 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
       const event = await EventModel.findOne({ id: input.eventId }).session(session).lean();
       if (!event || event.status !== "PUBLISHED" || event.endAt <= at) throw new AppError(409, "event-not-on-sale", "Acara tidak sedang dijual.");
 
+      const types = await TicketTypeModel.find({ id: { $in: input.items.map((item) => item.ticketTypeId) }, eventId: input.eventId }).session(session).lean<TicketTypeRecord[]>();
+      validateOrderShape(input.items, types);
+
       const pending = await OrderModel.findOne({ userId, eventId: input.eventId, status: "PENDING_PAYMENT" }).session(session).lean();
       if (pending) throw new AppError(409, "pending-order-exists", "Masih ada pesanan yang belum dibayar.", { orderId: pending.id });
 
@@ -137,7 +147,6 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
         if (remaining !== null) throw new AppError(409, "max-per-user-exceeded", `Maksimal ${event.maxTicketsPerUser} tiket per akun untuk acara ini.`, { remaining });
       }
 
-      const types = await TicketTypeModel.find({ id: { $in: input.items.map((item) => item.ticketTypeId) }, eventId: input.eventId }).session(session).lean<TicketTypeRecord[]>();
       validateOrderItems(input.items, types, at);
 
       const items: OrderItemRecord[] = [];

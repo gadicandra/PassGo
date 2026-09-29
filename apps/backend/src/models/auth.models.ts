@@ -17,7 +17,7 @@ const userSchema = new Schema(
     passwordHash: { type: String, required: true },
     role: { type: String, enum: [...USER_ROLES], required: true },
     isActive: { type: Boolean, default: true },
-    emailVerifiedAt: { type: Date, default: null },
+    emailVerified: { type: Boolean, default: false },
     tokenVersion: { type: Number, default: 0 },
     version: { type: Number, default: 0 },
   },
@@ -27,11 +27,7 @@ userSchema.index(
   { email: 1 },
   { unique: true, collation: { locale: "en", strength: 2 } },
 );
-userSchema.virtual("emailVerified").get(function (this: {
-  emailVerifiedAt: Date | null;
-}) {
-  return this.emailVerifiedAt != null;
-});
+
 export const User = model("User", userSchema);
 
 const refreshTokenSchema = new Schema(
@@ -42,7 +38,7 @@ const refreshTokenSchema = new Schema(
     familyId: { type: String, required: true, index: true },
     expiresAt: { type: Date, required: true },
     revokedAt: { type: Date, default: null },
-    replacedBy: { type: String, ref: "RefreshToken", default: null },
+    replacedById: { type: String, ref: "RefreshToken", default: null },
     userAgent: { type: String, maxlength: 300, default: null },
     ip: { type: String, maxlength: 64, default: null },
   },

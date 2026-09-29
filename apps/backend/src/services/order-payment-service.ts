@@ -1,3 +1,4 @@
+/// <reference path="../types/midtrans-client.d.ts" />
 import mongoose from "mongoose";
 import { EmailOutbox, Payment, Ticket } from "../models";
 import { snapClient } from "../lib/midtrans";

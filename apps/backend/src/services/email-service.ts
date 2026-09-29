@@ -1,3 +1,4 @@
+/// <reference path="../types/nodemailer.d.ts" />
 import nodemailer, { type Transporter } from "nodemailer";
 import { EmailOutbox, Order } from "../models";
 import { renderEmail, type OutboxRow } from "./email-templates";

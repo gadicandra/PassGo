@@ -1,3 +1,5 @@
+/// <reference path="../types/nodemailer.d.ts" />
+/// <reference path="../types/qrcode.d.ts" />
 import type { Attachment } from "nodemailer";
 import { toBuffer } from "qrcode";
 import { Event, Order, Ticket } from "../models";

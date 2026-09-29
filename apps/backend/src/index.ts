@@ -4,6 +4,7 @@ dns.setServers(["8.8.8.8", "1.1.1.1"]);
 import dotenv from "dotenv";
 import app from "./app";
 import { connectDatabase, disconnectDatabase } from "./lib/database";
+import { initModels } from "./models";
 
 dotenv.config();
 
@@ -11,6 +12,7 @@ const PORT = process.env.PORT || 3000;
 
 async function startServer(): Promise<void> {
   await connectDatabase();
+  await initModels();
 
   const server = app.listen(PORT, () => {
     console.log(`Backend server running on port ${PORT}`);

@@ -12,7 +12,8 @@
     "start": "node dist/index.js",
     "test": "tsx --test \"tests/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "db:seed": "tsx --env-file-if-exists=.env scripts/seed-organizer.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

@@ -1463,7 +1463,7 @@
       },
       "item": [
         {
-          "name": "(BLM) GET /tickets",
+          "name": "GET /tickets",
           "request": {
             "method": "GET",
             "header": [],
@@ -1486,7 +1486,7 @@
           ]
         },
         {
-          "name": "(BLM) GET /tickets/:ticketId (qrPayload)",
+          "name": "GET /tickets/:ticketId (qrPayload)",
           "request": {
             "method": "GET",
             "header": [],
@@ -1511,7 +1511,7 @@
           ]
         },
         {
-          "name": "(BLM) PATCH /tickets/:ticketId (ubah holderName) 🔒",
+          "name": "PATCH /tickets/:ticketId (ubah holderName) 🔒",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1536,14 +1536,18 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"holderName berubah\", () => pm.expect(pm.response.json().data.holderName).to.eql(\"Teman Rina\"));",
+                  "  pm.environment.set(\"etag_ticket\", pm.response.headers.get(\"ETag\"));",
+                  "}"
                 ]
               }
             }
           ]
         },
         {
-          "name": "(BLM) POST /tickets/:ticketId/reissue (organizer) 🔒",
+          "name": "POST /tickets/:ticketId/reissue (organizer) 🔒",
           "request": {
             "auth": {
               "type": "bearer",
@@ -1560,9 +1564,17 @@
               {
                 "key": "If-Match",
                 "value": "{{etag_ticket}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/reissue"
+            "url": "{{baseUrl}}/tickets/{{ticketId}}/reissue",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Kode tiket bocor di grup WhatsApp\"\n}"
+            }
           },
           "event": [
             {
@@ -1570,14 +1582,38 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
                   "if (pm.response.code === 200) {",
                   "  const payload = pm.response.json().data;",
-                  "  pm.test('kode berubah, codeVersion naik', () => {",
-                  "    pm.expect(payload.code).to.not.eql(pm.environment.get('ticketCode'));",
+                  "  pm.test(\"codeVersion naik, organizer hanya melihat kode ter-mask\", () => {",
                   "    pm.expect(payload.codeVersion).to.be.at.least(2);",
+                  "    pm.expect(payload.codeMasked).to.match(/^[••]+-.*-[0-9A-Z]{4}$/);",
+                  "    pm.expect(payload).to.not.have.property(\"code\");",
                   "  });",
-                  "  pm.environment.set('ticketCode', payload.code);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /tickets/:ticketId (kode baru setelah reissue)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/tickets/{{ticketId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const payload = pm.response.json().data;",
+                  "  pm.test(\"kode berbeda dari sebelum reissue\", () => pm.expect(payload.code).to.not.eql(pm.environment.get(\"ticketCode\")));",
+                  "  pm.environment.set(\"ticketCode\", payload.code);",
                   "}"
                 ]
               }
@@ -1600,7 +1636,59 @@
       },
       "item": [
         {
-          "name": "(BLM) POST check-ins (QR valid → 201 ACCEPTED)",
+          "name": "Buka jendela check-in (organizer)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etag_event}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checkInOpensAt\": \"{{checkInOpensAt}}\"\n}"
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set(\"checkInOpensAt\", new Date(Date.now() - 60 * 60 * 1000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) pm.environment.set(\"etag_event\", pm.response.headers.get(\"ETag\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST check-ins (QR valid → 201 ACCEPTED)",
           "request": {
             "method": "POST",
             "header": [
@@ -1637,7 +1725,7 @@
           ]
         },
         {
-          "name": "(BLM) POST check-ins ulang tiket sama → 409",
+          "name": "POST check-ins ulang tiket sama → 409",
           "request": {
             "method": "POST",
             "header": [
@@ -1666,7 +1754,7 @@
           ]
         },
         {
-          "name": "(BLM) POST check-ins kode acak → 404",
+          "name": "POST check-ins kode acak → 404",
           "request": {
             "method": "POST",
             "header": [
@@ -1695,7 +1783,7 @@
           ]
         },
         {
-          "name": "(BLM) GET /events/:eventId/check-ins",
+          "name": "GET /events/:eventId/check-ins",
           "request": {
             "method": "GET",
             "header": [],
@@ -1714,7 +1802,7 @@
           ]
         },
         {
-          "name": "(BLM) GET /events/:eventId/check-ins/:checkInId",
+          "name": "GET /events/:eventId/check-ins/:checkInId",
           "request": {
             "method": "GET",
             "header": [],
@@ -1733,7 +1821,7 @@
           ]
         },
         {
-          "name": "(BLM) POST check-ins/:checkInId/revert (organizer)",
+          "name": "POST check-ins/:checkInId/revert (organizer)",
           "request": {
             "auth": {
               "type": "bearer",
@@ -1787,7 +1875,7 @@
       },
       "item": [
         {
-          "name": "(BLM) GET attendees (organizer — kode lengkap)",
+          "name": "GET attendees (organizer — kode lengkap)",
           "request": {
             "method": "GET",
             "header": [],
@@ -1807,7 +1895,7 @@
           ]
         },
         {
-          "name": "(BLM) GET attendees (staff — field di-mask)",
+          "name": "GET attendees (staff — field di-mask)",
           "request": {
             "auth": {
               "type": "bearer",
@@ -1845,7 +1933,7 @@
           ]
         },
         {
-          "name": "(M2) GET attendees/export?format=csv",
+          "name": "GET attendees/export?format=csv",
           "request": {
             "method": "GET",
             "header": [],
@@ -2542,7 +2630,7 @@
           ]
         },
         {
-          "name": "(BLM) Staff tidak ditugaskan buka attendees acara lain → 404 event-not-found",
+          "name": "Staff tidak ditugaskan buka attendees acara lain → 404 event-not-found",
           "request": {
             "auth": {
               "type": "bearer",

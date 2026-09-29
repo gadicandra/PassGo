@@ -11,7 +11,7 @@
     "build:backend": "npm run build --workspace=apps/backend",
     "build:frontend": "npm run build --workspace=apps/frontend",
     "db:seed": "npm run db:seed --workspace=apps/backend",
-    "test:api": "npx newman run postman/PassGo.postman_collection.json -e postman/PassGo.local.postman_environment.json"
+    "test:api": "node postman/run.mjs"
   },
   "repository": {
     "type": "git",

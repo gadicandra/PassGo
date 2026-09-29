@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
 import mongoose from "mongoose";
+import { Payment } from "../models";
+import { snapClient } from "../lib/midtrans";
+import { issueTicketsForOrder } from "./ticket-issuance-service";
 import { AppError } from "../utils/app-error";
 import { getUserById } from "./auth-service";
 import { EventModel, OrderModel, releaseReservation, reserveTicketType, type OrderItemRecord, type OrderRecord } from "./order-repository";
@@ -18,6 +21,7 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
   const user = await getUserById(userId);
   if (!user || !user.isActive) throw new AppError(401, "token-revoked", "Akun tidak aktif.");
   if (!user.emailVerified) throw new AppError(403, "email-not-verified", "Email harus diverifikasi terlebih dahulu.");
+  if (user.role !== "ATTENDEE") throw new AppError(403, "forbidden", "Hanya peserta yang dapat membuat pesanan.");
 
   const session = await mongoose.startSession();
   let created: OrderRecord | undefined;
@@ -40,9 +44,25 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
 
       const total = items.reduce((sum, item) => sum + item.lineTotal, 0);
       const createdAt = new Date();
+      const id = randomUUID();
+      const number = orderNumber();
+      let payment: { snapToken: string; snapRedirectUrl: string } | undefined;
+      if (total > 0) {
+        try {
+          const snap = await snapClient().createTransaction({
+            transaction_details: { order_id: number, gross_amount: total },
+            item_details: items.map((item) => ({ id: item.ticketTypeId, price: item.unitPrice, quantity: item.quantity, name: item.ticketTypeName.slice(0, 50) })),
+            customer_details: { first_name: user.name, email: user.email, phone: input.buyerPhone ?? user.phone ?? undefined },
+            custom_field1: id,
+          } as any);
+          payment = { snapToken: snap.token, snapRedirectUrl: snap.redirect_url };
+        } catch (error) {
+          throw new AppError(502, "payment-gateway-error", "Payment gateway gagal.", { cause: error instanceof Error ? error.message : undefined });
+        }
+      }
       created = await OrderModel.create([{
-        id: randomUUID(),
-        orderNumber: orderNumber(),
+        id,
+        orderNumber: number,
         userId,
         eventId: input.eventId,
         status: total === 0 ? "PAID" : "PENDING_PAYMENT",
@@ -60,6 +80,11 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
         createdAt,
         updatedAt: createdAt,
       }], { session }).then((documents) => documents[0].toObject() as OrderRecord);
+      if (payment) {
+        await Payment.create([{ id: randomUUID(), orderId: id, provider: "MIDTRANS", providerOrderId: number, snapToken: payment.snapToken, snapRedirectUrl: payment.snapRedirectUrl, status: "PENDING", amount: total }], { session });
+      } else if (created) {
+        await issueTicketsForOrder(created, session);
+      }
     });
   } finally {
     await session.endSession();
@@ -68,29 +93,45 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
   return created;
 }
 
-export async function listOrders(userId: string): Promise<OrderRecord[]> {
-  return OrderModel.find({ userId }).sort({ createdAt: -1 }).lean<OrderRecord[]>();
+export async function listOrders(userId: string, role: string): Promise<OrderRecord[]> {
+  return OrderModel.find(role === "ORGANIZER" ? {} : { userId }).sort({ createdAt: -1 }).lean<OrderRecord[]>();
 }
 
-export async function getOrder(userId: string, orderId: string): Promise<OrderRecord> {
-  const order = await OrderModel.findOne({ id: orderId, userId }).lean<OrderRecord>();
+export async function getOrder(userId: string, role: string, orderId: string): Promise<OrderRecord> {
+  const order = await OrderModel.findOne(role === "ORGANIZER" ? { id: orderId } : { id: orderId, userId }).lean<OrderRecord>();
   if (!order) throw new AppError(404, "order-not-found", "Pesanan tidak ditemukan.");
   return order;
 }
 
-export async function cancelOrder(userId: string, orderId: string, reason: string | undefined): Promise<OrderRecord> {
+export async function cancelOrder(userId: string, role: string, orderId: string, reason: string | undefined): Promise<OrderRecord> {
   const session = await mongoose.startSession();
   let cancelled: OrderRecord | undefined;
   try {
     await session.withTransaction(async () => {
-      const order = await OrderModel.findOne({ id: orderId, userId }).session(session).lean<OrderRecord>();
+      const scope = role === "ORGANIZER" ? { id: orderId } : { id: orderId, userId };
+      const order = await OrderModel.findOne(scope).session(session).lean<OrderRecord>();
       if (!order) throw new AppError(404, "order-not-found", "Pesanan tidak ditemukan.");
       if (order.status !== "PENDING_PAYMENT") throw new AppError(409, "order-not-cancellable", "Pesanan tidak dapat dibatalkan.");
       for (const item of order.items) await releaseReservation(item, session);
-      const updated = await OrderModel.findOneAndUpdate({ id: orderId, userId, status: "PENDING_PAYMENT" }, { $set: { status: "CANCELLED", cancelledAt: new Date(), cancelReason: reason ?? null, expiresAt: null, updatedAt: new Date() } }, { new: true, session }).lean<OrderRecord>();
+      const updated = await OrderModel.findOneAndUpdate({ ...scope, status: "PENDING_PAYMENT" }, { $set: { status: "CANCELLED", cancelledAt: new Date(), cancelReason: reason ?? null, expiresAt: null, updatedAt: new Date() } }, { new: true, session }).lean<OrderRecord>();
       cancelled = updated ?? undefined;
     });
   } finally { await session.endSession(); }
   if (!cancelled) throw new Error("Order cancellation did not update an order");
   return cancelled;
+}
+
+export async function settleOrder(orderNumberValue: string, paymentInput: { transactionId?: string; paymentType?: string; providerStatus?: string }): Promise<void> {
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const order = await OrderModel.findOne({ orderNumber: orderNumberValue }).session(session).lean<OrderRecord>();
+      if (!order || order.status === "PAID") return;
+      if (!["PENDING_PAYMENT", "EXPIRED", "CANCELLED"].includes(order.status)) return;
+      const updated = await OrderModel.findOneAndUpdate({ id: order.id, status: { $in: ["PENDING_PAYMENT", "EXPIRED", "CANCELLED"] } }, { $set: { status: "PAID", paidAt: new Date(), updatedAt: new Date() } }, { new: true, session }).lean<OrderRecord>();
+      if (!updated) return;
+      await Payment.updateOne({ orderId: order.id }, { $set: { status: "SETTLED", providerTransactionId: paymentInput.transactionId ?? null, paymentType: paymentInput.paymentType ?? null, providerStatus: paymentInput.providerStatus ?? null, settledAt: new Date(), lastSyncedAt: new Date() } }, { session });
+      await issueTicketsForOrder(updated, session);
+    });
+  } finally { await session.endSession(); }
 }

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { authenticate, type AuthenticatedRequest } from "../middlewares/authenticate";
 import { cancelOrder, createOrder, getOrder, listOrders } from "../services/order-service";
+import { runIdempotent } from "../services/idempotency-service";
 
 const router = Router();
 const orderBody = z.object({
@@ -19,19 +20,24 @@ const cancelBody = z.object({ reason: z.string().trim().max(500).optional() }).s
 router.use(authenticate);
 
 router.post("/", async (request, response, next) => {
-  try { response.status(201).json({ data: await createOrder((request as AuthenticatedRequest).user.sub, orderBody.parse(request.body)) }); } catch (error) { next(error); }
+  try {
+    const input = orderBody.parse(request.body);
+    const result = await runIdempotent({ userId: (request as AuthenticatedRequest).user.sub, method: request.method, path: request.baseUrl + request.path, keyHeader: request.get("idempotency-key"), body: input, handler: async () => ({ status: 201, body: { data: await createOrder((request as AuthenticatedRequest).user.sub, input) } }) });
+    for (const [name, value] of Object.entries(result.headers)) response.set(name, value);
+    response.status(result.status).json(result.body);
+  } catch (error) { next(error); }
 });
 
 router.get("/", async (request, response, next) => {
-  try { response.json({ data: await listOrders((request as AuthenticatedRequest).user.sub) }); } catch (error) { next(error); }
+  try { const user = (request as AuthenticatedRequest).user; response.json({ data: await listOrders(user.sub, user.role) }); } catch (error) { next(error); }
 });
 
 router.get("/:orderId", async (request, response, next) => {
-  try { response.json({ data: await getOrder((request as unknown as AuthenticatedRequest).user.sub, request.params.orderId) }); } catch (error) { next(error); }
+  try { const user = (request as unknown as AuthenticatedRequest).user; response.json({ data: await getOrder(user.sub, user.role, request.params.orderId) }); } catch (error) { next(error); }
 });
 
 router.post("/:orderId/cancel", async (request, response, next) => {
-  try { const body = cancelBody.parse(request.body); response.json({ data: await cancelOrder((request as unknown as AuthenticatedRequest).user.sub, request.params.orderId, body.reason) }); } catch (error) { next(error); }
+  try { const body = cancelBody.parse(request.body); const user = (request as unknown as AuthenticatedRequest).user; response.json({ data: await cancelOrder(user.sub, user.role, request.params.orderId, body.reason) }); } catch (error) { next(error); }
 });
 
 export default router;

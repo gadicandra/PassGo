@@ -1290,6 +1290,86 @@
               }
             }
           ]
+        },
+        {
+          "name": "(negatif) POST /orders dengan expectedUnitPrice salah → 409 price-changed",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{attendeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"items\": [\n    { \"ticketTypeId\": \"{{ticketTypeId}}\", \"quantity\": 1, \"expectedUnitPrice\": 1000 }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/orders"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('code price-changed', () => pm.expect(pm.response.json().code).to.eql('price-changed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "(negatif) POST /orders quantity > maxPerOrder → ditolak",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{attendeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"items\": [\n    { \"ticketTypeId\": \"{{ticketTypeId}}\", \"quantity\": 99, \"expectedUnitPrice\": 75000 }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/orders"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ditolak', () => pm.expect(pm.response.code).to.be.oneOf([409, 422]));",
+                  "pm.test('[kontrak] code max-per-order-exceeded', () => {",
+                  "  pm.expect(pm.response.json().code).to.eql('max-per-order-exceeded');",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -2425,86 +2505,6 @@
                   "pm.test('400 idempotency-key-required', () => {",
                   "  pm.expect(pm.response.code).to.eql(400);",
                   "  pm.expect(pm.response.json().code).to.eql('idempotency-key-required');",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST /orders dengan expectedUnitPrice salah → 409 price-changed",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{attendeeToken}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"items\": [\n    { \"ticketTypeId\": \"{{ticketTypeId}}\", \"quantity\": 1, \"expectedUnitPrice\": 1000 }\n  ]\n}"
-            },
-            "url": "{{baseUrl}}/orders"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
-                  "pm.test('code price-changed', () => pm.expect(pm.response.json().code).to.eql('price-changed'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST /orders quantity > maxPerOrder → ditolak",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{attendeeToken}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"items\": [\n    { \"ticketTypeId\": \"{{ticketTypeId}}\", \"quantity\": 99, \"expectedUnitPrice\": 75000 }\n  ]\n}"
-            },
-            "url": "{{baseUrl}}/orders"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('ditolak', () => pm.expect(pm.response.code).to.be.oneOf([409, 422]));",
-                  "pm.test('[kontrak] code max-per-order-exceeded', () => {",
-                  "  pm.expect(pm.response.json().code).to.eql('max-per-order-exceeded');",
                   "});"
                 ]
               }

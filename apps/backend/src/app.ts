@@ -11,6 +11,8 @@ import meRouter from "./routes/me";
 import eventsRouter from "./routes/events";
 import paymentsRouter from "./routes/payments";
 import ticketsRouter from "./routes/tickets";
+import auditLogsRouter from "./routes/audit-logs";
+import jobsRouter from "./routes/jobs";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler";
 import { requestContext } from "./middlewares/request-context";
 
@@ -63,6 +65,9 @@ app.use("/api/v1/events", eventsRouter);
 if (usesLocalStorage) app.use("/uploads", express.static(join(process.cwd(), "uploads"), { maxAge: "1y", index: false }));
 app.use("/api/v1/payments", paymentsRouter);
 app.use("/api/v1/tickets", ticketsRouter);
+app.use("/api/v1/audit-logs", auditLogsRouter);
+// Endpoint internal untuk cron (Vercel Cron / scheduler eksternal); bukan bagian kontrak publik.
+app.use("/api/v1/internal/jobs", jobsRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

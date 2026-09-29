@@ -11,6 +11,7 @@ import { AppError } from "../utils/app-error";
 import { assignEventStaff, listEventStaff, removeEventStaff } from "../services/event-staff-service";
 import { getCheckIn, listCheckIns, revertCheckIn, scanTicket } from "../services/check-in-service";
 import { exportAttendeesCsv, listAttendees } from "../services/attendee-service";
+import { attendanceReport, salesReport } from "../services/report-service";
 
 const router = Router();
 // Kontrak §9.5: tepat satu berkas `poster`, tanpa field teks, maksimal 2 MB.
@@ -72,7 +73,7 @@ router.post("/:eventId/publish", authorize("ORGANIZER"), async (request, respons
 });
 
 router.post("/:eventId/cancel", authorize("ORGANIZER"), async (request, response, next) => {
-  try { const event = await cancelEvent(String(request.params.eventId), request.get("if-match"), cancelBody.parse(request.body).reason); response.set("ETag", `"${event.version}"`).json({ data: event }); } catch (error) { next(error); }
+  try { const result = await cancelEvent(String(request.params.eventId), request.get("if-match"), cancelBody.parse(request.body).reason, auditOf(request)); response.set("ETag", `"${result.event.version}"`).json({ data: result }); } catch (error) { next(error); }
 });
 
 router.put("/:eventId/poster", authorize("ORGANIZER"), uploadPoster, async (request, response, next) => {
@@ -160,6 +161,14 @@ router.get("/:eventId/attendees/export", authorize("ORGANIZER"), async (request,
     const file = await exportAttendeesCsv(String(request.params.eventId), viewerOf(request), query.status, auditOf(request));
     response.set("Content-Type", "text/csv; charset=utf-8").set("Content-Disposition", `attachment; filename="${file.filename}"`).send(file.body);
   } catch (error) { next(error); }
+});
+
+router.get("/:eventId/reports/sales", authorize("ORGANIZER"), async (request, response, next) => {
+  try { response.json(await salesReport(String(request.params.eventId), viewerOf(request))); } catch (error) { next(error); }
+});
+
+router.get("/:eventId/reports/attendance", eventAccess, async (request, response, next) => {
+  try { response.json(await attendanceReport(String(request.params.eventId), viewerOf(request))); } catch (error) { next(error); }
 });
 
 router.get("/:eventId", optionalAuthenticate, async (request, response, next) => {

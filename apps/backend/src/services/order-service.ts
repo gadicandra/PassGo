@@ -1,12 +1,14 @@
 import { uuidv7 } from "../utils/uuid";
 import { randomUUID } from "node:crypto";
 import mongoose from "mongoose";
-import { Payment, Ticket } from "../models";
+import { EmailOutbox, Payment, Ticket } from "../models";
 import { snapClient } from "../lib/midtrans";
 import { issueTicketsForOrder } from "./ticket-issuance-service";
 import { AppError } from "../utils/app-error";
 import { maskTicketCode } from "../utils/ticket-code";
 import { getUserById } from "./auth-service";
+import { recordAudit, type AuditContext } from "./audit-service";
+import { expireDueOrders, expireOrder } from "./order-expiry-service";
 import { EventModel, OrderModel, TicketTypeModel, releaseReservation, reserveTicketType, type OrderItemRecord, type OrderRecord, type TicketTypeRecord } from "./order-repository";
 import type { SnapTransactionParameters } from "midtrans-client";
 
@@ -23,6 +25,13 @@ interface MidtransOrderPayload {
   custom_field1: string;
   expiry: { start_time: string; unit: "minutes"; duration: number };
   callbacks?: { finish: string };
+}
+
+const SYSTEM: AuditContext = { actorId: null, actorRole: "SYSTEM" };
+
+// Email e-ticket lewat outbox (dikirim job send-emails); kode tiket dibaca saat kirim, bukan saat antre.
+export async function queueTicketEmail(order: Pick<OrderRecord, "id" | "orderNumber" | "buyerEmail">, session: mongoose.ClientSession): Promise<void> {
+  await EmailOutbox.create([{ id: uuidv7(), type: "ORDER_TICKETS", to: order.buyerEmail, payload: { orderId: order.id, orderNumber: order.orderNumber }, orderId: order.id }], { session });
 }
 
 const holdMinutes = () => Number(process.env.ORDER_HOLD_MINUTES ?? 30) || 30;
@@ -198,6 +207,7 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
         buyerPhone: input.buyerPhone ?? user.phone,
         expiresAt: total === 0 ? null : new Date(createdAt.getTime() + holdMinutes() * 60 * 1000),
         paidAt: total === 0 ? createdAt : null,
+        ticketEmailStatus: total === 0 ? "PENDING" : "NOT_APPLICABLE",
         expiredAt: null,
         cancelledAt: null,
         cancelReason: null,
@@ -208,6 +218,7 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
         await Payment.create([{ id: uuidv7(), orderId: id, provider: "MIDTRANS", providerOrderId: number, snapToken: payment.snapToken, snapRedirectUrl: payment.snapRedirectUrl, status: "PENDING", amount: total }], { session });
       } else if (created) {
         await issueTicketsForOrder(created, session);
+        await queueTicketEmail(created, session);
       }
     });
   } finally {
@@ -218,12 +229,17 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
 }
 
 export async function listOrders(userId: string, role: string): Promise<OrderRecord[]> {
+  // Lazy expiry: status yang dibaca klien tidak boleh tertinggal dari job terjadwal.
+  await expireDueOrders(role === "ORGANIZER" ? {} : { userId });
   return OrderModel.find(role === "ORGANIZER" ? {} : { userId }).sort({ createdAt: -1 }).lean<OrderRecord[]>();
 }
 
 export async function getOrder(userId: string, role: string, orderId: string): Promise<OrderView> {
   const order = await OrderModel.findOne(role === "ORGANIZER" ? { id: orderId } : { id: orderId, userId }).lean<OrderRecord>();
   if (!order) throw new AppError(404, "order-not-found", "Pesanan tidak ditemukan.");
+  if (order.status === "PENDING_PAYMENT" && order.expiresAt && order.expiresAt <= new Date() && (await expireOrder(order))) {
+    return loadOrderView((await OrderModel.findOne({ id: order.id }).lean<OrderRecord>())!, userId);
+  }
   return loadOrderView(order, userId);
 }
 
@@ -277,14 +293,47 @@ export async function settleOrder(orderNumberValue: string, paymentInput: { tran
       const paymentSet = { status: "SETTLED", providerTransactionId: paymentInput.transactionId ?? null, paymentType: paymentInput.paymentType ?? null, providerStatus: paymentInput.providerStatus ?? null, settledAt: at, lastSyncedAt: at };
       const late = order.status !== "PENDING_PAYMENT";
       if (late && !(await reReserve(order, session))) {
-        await OrderModel.updateOne({ id: order.id, status: order.status, refundStatus: "NOT_REQUIRED" }, { $set: { refundStatus: "REQUIRED", updatedAt: at } }, { session });
+        const flagged = await OrderModel.updateOne({ id: order.id, status: order.status, refundStatus: "NOT_REQUIRED" }, { $set: { refundStatus: "REQUIRED", updatedAt: at } }, { session });
         await Payment.updateOne({ orderId: order.id }, { $set: paymentSet }, { session });
+        if (flagged.modifiedCount === 1) {
+          await EmailOutbox.create([{ id: uuidv7(), type: "REFUND_REQUIRED", to: order.buyerEmail, payload: { orderId: order.id, orderNumber: order.orderNumber }, orderId: order.id }], { session });
+          await recordAudit(SYSTEM, { action: "ORDER_REFUND_REQUIRED", entityType: "Order", entityId: order.id, eventId: order.eventId, before: { status: order.status, refundStatus: "NOT_REQUIRED" }, after: { refundStatus: "REQUIRED" } }, session);
+        }
         return;
       }
-      const updated = await OrderModel.findOneAndUpdate({ id: order.id, status: order.status }, { $set: { status: "PAID", paidAt: at, expiresAt: null, updatedAt: at } }, { new: true, session }).lean<OrderRecord>();
+      const updated = await OrderModel.findOneAndUpdate({ id: order.id, status: order.status }, { $set: { status: "PAID", paidAt: at, expiresAt: null, ticketEmailStatus: "PENDING", updatedAt: at } }, { new: true, session }).lean<OrderRecord>();
       if (!updated) throw new AppError(409, "order-state-changed", "Status pesanan berubah saat diproses.");
       await Payment.updateOne({ orderId: order.id }, { $set: paymentSet }, { session });
       await issueTicketsForOrder(updated, session);
+      await queueTicketEmail(updated, session);
+      if (late) await recordAudit(SYSTEM, { action: "ORDER_PAID_LATE", entityType: "Order", entityId: order.id, eventId: order.eventId, before: { status: order.status }, after: { status: "PAID" } }, session);
     });
   } finally { await session.endSession(); }
+}
+
+const TICKET_EMAIL_LIMIT = 3;
+const TICKET_EMAIL_WINDOW_MS = 60 * 60 * 1000;
+
+// §9.8 ticket-email. Rate limit `ticket-email` (3/jam per pesanan) dihitung dari baris outbox, bukan memori proses,
+// sehingga tetap berlaku di serverless multi-instance.
+export async function resendTicketEmail(userId: string, role: string, orderId: string): Promise<{ ticketEmailStatus: "PENDING" }> {
+  const order = await OrderModel.findOne(role === "ORGANIZER" ? { id: orderId } : { id: orderId, userId }).lean<OrderRecord>();
+  if (!order) throw new AppError(404, "order-not-found", "Pesanan tidak ditemukan.");
+  if (order.status !== "PAID" || !(await Ticket.exists({ orderId, status: "VALID" }))) {
+    throw new AppError(409, "ticket-email-unavailable", "E-ticket hanya dapat dikirim untuk pesanan lunas dengan tiket aktif.");
+  }
+  const since = new Date(Date.now() - TICKET_EMAIL_WINDOW_MS);
+  const recent = await EmailOutbox.find({ orderId, type: "ORDER_TICKETS", createdAt: { $gt: since } }, { createdAt: 1 }).sort({ createdAt: 1 }).lean<Array<{ createdAt: Date }>>();
+  if (recent.length >= TICKET_EMAIL_LIMIT) {
+    const retryAfter = Math.max(1, Math.ceil((recent[recent.length - TICKET_EMAIL_LIMIT].createdAt.getTime() + TICKET_EMAIL_WINDOW_MS - Date.now()) / 1000));
+    throw new AppError(429, "rate-limited", "Email e-ticket untuk pesanan ini sudah dikirim 3 kali dalam satu jam.", { retryAfter });
+  }
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      await OrderModel.updateOne({ id: orderId }, { $set: { ticketEmailStatus: "PENDING", updatedAt: new Date() } }, { session });
+      await queueTicketEmail(order, session);
+    });
+  } finally { await session.endSession(); }
+  return { ticketEmailStatus: "PENDING" };
 }

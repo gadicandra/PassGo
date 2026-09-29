@@ -1,6 +1,8 @@
 import sharp from "sharp";
 import { randomBytes } from "node:crypto";
-import { Event, EventStaff, Order, Ticket, TicketType } from "../models";
+import mongoose from "mongoose";
+import { EmailOutbox, Event, EventStaff, Order, Payment, Ticket, TicketType } from "../models";
+import { recordAudit, type AuditContext } from "./audit-service";
 import { uuidv7 } from "../utils/uuid";
 import { AppError } from "../utils/app-error";
 import { assertVersion, ifMatchVersion, preconditionFailed } from "../utils/if-match";
@@ -208,17 +210,45 @@ export async function publishEvent(id: string, header: string | undefined) {
   return eventResponse(updated, types);
 }
 
-export async function cancelEvent(id: string, header: string | undefined, reason: string) {
+// §9.5: seluruh efek dalam satu transaksi. Midtrans `cancel` tidak dipanggil — pembayaran yang tetap masuk
+// setelah ini menjadi late settlement (acara CANCELLED → reReserve gagal → refundStatus REQUIRED).
+export async function cancelEvent(id: string, header: string | undefined, reason: string, audit: AuditContext) {
   const version = ifMatchVersion(header);
   const event = await Event.findOne({ id }).lean<EventRecord>();
   if (!event) throw new AppError(404, "event-not-found", "Acara tidak ditemukan.");
   assertVersion(version, event.version, await currentEventView(id));
   if (event.status !== "PUBLISHED" || event.endAt <= now()) throw new AppError(409, "event-not-cancellable", "Acara tidak dapat dibatalkan.");
-  const updated = await Event.findOneAndUpdate({ id, version, status: "PUBLISHED", endAt: { $gt: now() } }, { $set: { status: "CANCELLED", cancelledAt: now(), cancelReason: reason, updatedAt: now(), version: version + 1 } }, { new: true }).lean<EventRecord>();
+  const affected = { pendingOrdersCancelled: 0, paidOrdersRequiringRefund: 0, ticketsVoided: 0 };
+  let updated: EventRecord | null = null;
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const at = now();
+      updated = await Event.findOneAndUpdate({ id, version, status: "PUBLISHED", endAt: { $gt: at } }, { $set: { status: "CANCELLED", cancelledAt: at, cancelReason: reason, updatedAt: at, version: version + 1 } }, { new: true, session }).lean<EventRecord>();
+      if (!updated) return;
+      const orders = await Order.find({ eventId: id, status: { $in: ["PENDING_PAYMENT", "PAID"] } }, { id: 1, status: 1, total: 1, buyerEmail: 1, orderNumber: 1, refundStatus: 1, items: 1 }).session(session).lean<Array<{ id: string; status: string; total: number; buyerEmail: string; orderNumber: string; refundStatus: string; items: Array<{ ticketTypeId: string; quantity: number }> }>>();
+      const pending = orders.filter((order) => order.status === "PENDING_PAYMENT");
+      const refundable = orders.filter((order) => order.status === "PAID" && order.total > 0 && order.refundStatus === "NOT_REQUIRED");
+      for (const order of pending) {
+        const moved = await Order.updateOne({ id: order.id, status: "PENDING_PAYMENT" }, { $set: { status: "CANCELLED", cancelledAt: at, cancelReason: "EVENT_CANCELLED", expiresAt: null, updatedAt: at } }, { session });
+        if (moved.modifiedCount !== 1) continue;
+        affected.pendingOrdersCancelled += 1;
+        for (const item of order.items) await TicketType.updateOne({ id: item.ticketTypeId }, { $inc: { reservedCount: -item.quantity } }, { session });
+        await Payment.updateOne({ orderId: order.id, status: "PENDING" }, { $set: { status: "CANCELLED" } }, { session });
+      }
+      if (refundable.length) {
+        const flagged = await Order.updateMany({ id: { $in: refundable.map((order) => order.id) }, refundStatus: "NOT_REQUIRED" }, { $set: { refundStatus: "REQUIRED", updatedAt: at } }, { session });
+        affected.paidOrdersRequiringRefund = flagged.modifiedCount;
+      }
+      const voided = await Ticket.updateMany({ eventId: id, status: { $in: ["VALID", "CHECKED_IN"] } }, { $set: { status: "VOID", voidReason: "EVENT_CANCELLED", voidedAt: at }, $inc: { version: 1 } }, { session });
+      affected.ticketsVoided = voided.modifiedCount;
+      if (orders.length) await EmailOutbox.create(orders.map((order) => ({ id: uuidv7(), type: "EVENT_CANCELLED", to: order.buyerEmail, payload: { orderId: order.id, orderNumber: order.orderNumber, eventId: id }, orderId: order.id })), { session, ordered: true });
+      await recordAudit(audit, { action: "EVENT_CANCELLED", entityType: "Event", entityId: id, eventId: id, before: { status: "PUBLISHED" }, after: { status: "CANCELLED", cancelReason: reason, ...affected } }, session);
+    });
+  } finally { await session.endSession(); }
   if (!updated) throw preconditionFailed(await currentEventView(id));
   const types = await TicketType.find({ eventId: id }).lean<TicketTypeRecord[]>();
-  await Ticket.updateMany({ eventId: id, status: { $in: ["VALID", "CHECKED_IN"] } }, { $set: { status: "VOID", voidReason: "EVENT_CANCELLED", voidedAt: now() } });
-  return eventResponse(updated, types);
+  return { event: eventResponse(updated, types), affected };
 }
 
 export async function listTicketTypes(eventId: string, organizer: boolean) {

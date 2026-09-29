@@ -9,7 +9,9 @@
     "dev:backend": "npm run dev --workspace=apps/backend",
     "dev:frontend": "npm run dev --workspace=apps/frontend",
     "build:backend": "npm run build --workspace=apps/backend",
-    "build:frontend": "npm run build --workspace=apps/frontend"
+    "build:frontend": "npm run build --workspace=apps/frontend",
+    "db:seed": "npm run db:seed --workspace=apps/backend",
+    "test:api": "node postman/run.mjs"
   },
   "repository": {
     "type": "git",
@@ -26,5 +28,8 @@
   "bugs": {
     "url": "https://github.com/gadicandra/passgo/issues"
   },
-  "homepage": "https://github.com/gadicandra/passgo#readme"
+  "homepage": "https://github.com/gadicandra/passgo#readme",
+  "devDependencies": {
+    "@types/midtrans-client": "^1.4.0"
+  }
 }

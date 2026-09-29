@@ -1,7 +1,44 @@
+# Dependencies & build
 node_modules/
-.env
-.env.local
 dist/
 .next/
-apps/backend/src/generated/
 coverage/
+*.tsbuildinfo
+apps/backend/src/generated/
+
+# Env (contoh .env.example tetap di-commit)
+.env
+.env.*
+!.env.example
+
+# Tooling lokal (gstack QA report, Claude, graphify)
+.gstack/
+.claude/
+graphify-out/
+
+# Log & artefak run
+*.log
+npm-debug.log*
+newman/
+
+# OS & editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Fixture Postman (poster uji) tidak di-commit
+postman/fixtures/*
+!postman/fixtures/poster.jpg
+
+# Dokumen tugas lokal
+docs/RPL.pdf
+docs/Assignment.png
+docs/laporan
+
+# Poster yang disimpan lokal saat Supabase tidak dikonfigurasi
+apps/backend/uploads/
+
+# Berkas workspace aplikasi Postman (lokal, bukan bagian collection)
+.postman/
+postman/globals/

@@ -142,6 +142,7 @@ Aturan antar-lapisan:
 ```
 apps/backend/
 ├── src/
+│   ├── lib/database.ts        # koneksi Mongoose dan lifecycle shutdown
 │   ├── config/                # env loader + validasi env (Zod), konstanta
 │   ├── models/                # Mongoose schemas & models (user, event, ticket-type, order, ticket, check-in, dll.)
 │   ├── controllers/           # health, auth, me, users, events, ticket-types, event-staff, orders, payments, tickets, check-ins, attendees, reports, audit-logs

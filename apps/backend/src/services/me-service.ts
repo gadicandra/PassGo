@@ -1,0 +1,88 @@
+import bcrypt from "bcryptjs";
+import { Event, EventStaff, Ticket, TicketType } from "../models";
+import { createAccessToken } from "../lib/auth-tokens";
+import { UserModel, type UserRecord } from "./auth-repository";
+import { getUserById, issueRefreshToken, revokeAllSessions, serializeUser } from "./auth-service";
+import { AppError } from "../utils/app-error";
+import { assertVersion, ifMatchVersion, preconditionFailed } from "../utils/if-match";
+
+function now(): Date { return new Date(); }
+
+export async function getMe(userId: string): Promise<UserRecord> {
+  const user = await getUserById(userId);
+  if (!user) throw new AppError(404, "user-not-found", "User tidak ditemukan.");
+  return user;
+}
+
+export async function updateMe(userId: string, ifMatch: string | undefined, input: { name?: string; phone?: string | null }): Promise<UserRecord> {
+  const version = ifMatchVersion(ifMatch);
+  const user = await getMe(userId);
+  assertVersion(version, user.version, serializeUser(user));
+  const updated = await UserModel.findOneAndUpdate(
+    { id: userId, version },
+    { $set: { ...input, updatedAt: now(), version: version + 1 } },
+    { new: true },
+  ).lean<UserRecord>();
+  if (!updated) throw preconditionFailed(serializeUser(await getMe(userId)));
+  return updated;
+}
+
+export async function changePassword(userId: string, currentPassword: string, newPassword: string): Promise<{ user: UserRecord; accessToken: string; refreshToken: string }> {
+  const user = await getMe(userId);
+  if (!(await bcrypt.compare(currentPassword, user.passwordHash))) throw new AppError(422, "current-password-invalid", "Password saat ini tidak valid.");
+  const updated = await UserModel.findOneAndUpdate(
+    { id: userId, version: user.version },
+    { $set: { passwordHash: await bcrypt.hash(newPassword, 12), updatedAt: now(), version: user.version + 1 }, $inc: { tokenVersion: 1 } },
+    { new: true },
+  ).lean<UserRecord>();
+  if (!updated) throw new AppError(412, "precondition-failed", "Data telah diubah oleh pengguna lain.");
+  await revokeAllSessions(userId);
+  const refreshed = await getMe(userId);
+  return { user: refreshed, accessToken: createAccessToken(refreshed), refreshToken: await issueRefreshToken(refreshed, {}) };
+}
+
+export async function assignedEvents(userId: string, when: "upcoming" | "past" | "all"): Promise<unknown[]> {
+  const assignments = await EventStaff.find({ userId }).lean();
+  const eventIds = assignments.map((assignment) => assignment.eventId);
+  const dateFilter = when === "upcoming" ? { endAt: { $gte: now() } } : when === "past" ? { endAt: { $lt: now() } } : {};
+  const events = await Event.find({ id: { $in: eventIds }, status: { $in: ["PUBLISHED", "CANCELLED"] }, ...dateFilter }).sort({ startAt: 1 }).lean<Array<{
+    id: string; slug: string; title: string; startAt: Date; endAt: Date; timezone: string; venueName: string; posterUrl: string | null; status: "PUBLISHED" | "CANCELLED";
+  }>>();
+  return Promise.all(events.map(async (event) => {
+    const [ticketTypes, ticketsSold, checkedIn] = await Promise.all([
+      TicketType.find({ eventId: event.id }).select({ price: 1, quota: 1, soldCount: 1, reservedCount: 1, salesStartAt: 1, salesEndAt: 1, isActive: 1 }).lean<Array<{ price: number; quota: number; soldCount: number; reservedCount: number; salesStartAt: Date; salesEndAt: Date; isActive: boolean }>>(),
+      Ticket.countDocuments({ eventId: event.id, status: { $in: ["VALID", "CHECKED_IN"] } }),
+      Ticket.countDocuments({ eventId: event.id, status: "CHECKED_IN" }),
+    ]);
+    const eventNow = now();
+    const activeTypes = ticketTypes.filter((type) => type.isActive);
+    const availableTypes = activeTypes.map((type) => ({
+      ...type,
+      available: Math.max(0, type.quota - type.soldCount - type.reservedCount),
+    }));
+    const onSale = availableTypes.some((type) => type.salesStartAt <= eventNow && type.salesEndAt > eventNow && type.available > 0);
+    const upcoming = availableTypes.some((type) => type.salesStartAt > eventNow);
+    const soldOut = activeTypes.length > 0 && availableTypes.every((type) => type.available === 0);
+    const salesStatus = event.status === "CANCELLED" ? "ENDED" : onSale ? "ON_SALE" : upcoming ? "UPCOMING" : soldOut ? "SOLD_OUT" : "ENDED";
+    return {
+      id: event.id,
+      slug: event.slug,
+      title: event.title,
+      startAt: event.startAt,
+      endAt: event.endAt,
+      timezone: event.timezone,
+      venueName: event.venueName,
+      posterUrl: event.posterUrl,
+      status: event.status,
+      isEnded: event.endAt < eventNow,
+      priceFrom: activeTypes.length ? Math.min(...activeTypes.map((type) => type.price)) : null,
+      salesStatus,
+      stats: {
+        ticketsSold,
+        ticketsReserved: ticketTypes.reduce((sum, item) => sum + item.reservedCount, 0),
+        totalQuota: ticketTypes.reduce((sum, item) => sum + item.quota, 0),
+        checkedIn,
+      },
+    };
+  }));
+}

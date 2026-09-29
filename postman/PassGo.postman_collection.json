@@ -1,0 +1,2961 @@
+{
+  "info": {
+    "_postman_id": "0192a3b4-5c6d-7e8f-9a0b-1c2d3e4f5a6b",
+    "name": "PassGo API v1",
+    "description": "Tes kontrak PassGo API v1 (docs/api-contract.md).\n\nUrutan folder = alur end-to-end, jalankan dari atas ke bawah.\nPenanda nama request: (BLM) endpoint M1 belum ada, (M2) fitur Milestone 2.\n\nnpm run test:api",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.request.headers.upsert({ key: 'X-Request-Id', value: pm.variables.replaceIn('{{$guid}}') });",
+          "",
+          "const skip = pm.request.headers.get('X-No-Idempotency');",
+          "pm.request.headers.remove('X-No-Idempotency');",
+          "if (!skip && ['POST', 'PUT', 'PATCH'].includes(pm.request.method) && !pm.request.headers.has('Idempotency-Key')) {",
+          "  pm.request.headers.upsert({ key: 'Idempotency-Key', value: pm.variables.replaceIn('{{$guid}}') });",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const status = pm.response.code;",
+          "const contentType = pm.response.headers.get('Content-Type') || '';",
+          "",
+          "pm.test('[kontrak] X-Request-Id ada di response', function () {",
+          "  pm.expect(pm.response.headers.has('X-Request-Id'), 'header X-Request-Id').to.be.true;",
+          "});",
+          "",
+          "if (status >= 200 && status < 300 && status !== 204 && contentType.includes('json')) {",
+          "  pm.test('2xx berbentuk { data, meta? }', function () {",
+          "    pm.expect(pm.response.json()).to.have.property('data');",
+          "  });",
+          "}",
+          "",
+          "if (status >= 400) {",
+          "  pm.test('error memakai RFC 9457 problem+json', function () {",
+          "    pm.expect(contentType).to.include('application/problem+json');",
+          "    const body = pm.response.json();",
+          "    pm.expect(body).to.have.property('code');",
+          "    pm.expect(body).to.have.property('status', status);",
+          "  });",
+          "}",
+          "",
+          "const etag = pm.response.headers.get('ETag');",
+          "if (etag) pm.collectionVariables.set('lastEtag', etag);"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "lastEtag",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('status ok', () => pm.expect(pm.response.json().data.status).to.eql('ok'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /health/ready",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health/ready"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 bila DB siap, 503 bila tidak', () => pm.expect(pm.response.code).to.be.oneOf([200, 503]));",
+                  "pm.test('DB terhubung', () => pm.expect(pm.response.json().data.checks.database).to.eql('ok'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 Auth: Organizer",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{organizerToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "POST /auth/login (organizer seed)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{organizerEmail}}\",\n  \"password\": \"{{organizerPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const payload = pm.response.json().data;",
+                  "pm.test('peran ORGANIZER', () => pm.expect(payload.user.role).to.eql('ORGANIZER'));",
+                  "pm.test('accessToken Bearer 900 detik', () => {",
+                  "  pm.expect(payload.tokenType).to.eql('Bearer');",
+                  "  pm.expect(payload.expiresIn).to.eql(900);",
+                  "});",
+                  "pm.environment.set('organizerToken', payload.accessToken);",
+                  "pm.environment.set('accessToken', payload.accessToken);",
+                  "pm.environment.set('organizerUserId', payload.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('ETag dikirim', () => pm.expect(pm.response.headers.has('ETag')).to.be.true);",
+                  "pm.test('passwordHash tidak bocor', () => pm.expect(pm.response.json().data).to.not.have.property('passwordHash'));",
+                  "pm.environment.set('etag_me', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /me (If-Match) 🔒",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etag_me}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Organizer PassGo\",\n  \"phone\": \"+628123456789\"\n}"
+            },
+            "url": "{{baseUrl}}/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('version naik', () => pm.expect(pm.response.json().data.version).to.be.a('number'));",
+                  "pm.environment.set('etag_me', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Users",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{organizerToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "POST /users (buat STAFF) 🔁",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Budi Panitia\",\n  \"email\": \"{{staffEmail}}\",\n  \"phone\": \"+628111222333\",\n  \"role\": \"STAFF\",\n  \"password\": \"{{staffPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 bila baru, 409 email-taken bila diulang', () => pm.expect(pm.response.code).to.be.oneOf([201, 409]));",
+                  "if (pm.response.code === 201) {",
+                  "  const payload = pm.response.json().data;",
+                  "  pm.test('STAFF langsung terverifikasi', () => pm.expect(payload.emailVerified).to.be.true);",
+                  "  pm.test('header Location ada', () => pm.expect(pm.response.headers.has('Location')).to.be.true);",
+                  "  pm.environment.set('staffUserId', payload.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /users?role=STAFF (offset)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users?page=1&pageSize=20&role=STAFF"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('meta offset lengkap', () => {",
+                  "  pm.expect(body.meta).to.include.all.keys('page', 'pageSize', 'totalItems', 'totalPages');",
+                  "});",
+                  "if (!pm.environment.get('staffUserId') && body.data.length) pm.environment.set('staffUserId', body.data[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /users/:userId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{staffUserId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('etag_user', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /users/:userId (If-Match) 🔒",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etag_user}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Budi Panitia Senior\"\n}"
+            },
+            "url": "{{baseUrl}}/users/{{staffUserId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('etag_user', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/login (staff)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{staffEmail}}\",\n  \"password\": \"{{staffPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const payload = pm.response.json().data;",
+                  "pm.test('peran STAFF', () => pm.expect(payload.user.role).to.eql('STAFF'));",
+                  "pm.environment.set('staffToken', payload.accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Events",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{organizerToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "POST /events (DRAFT)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Workshop Cetak Cukil\",\n  \"description\": \"Belajar teknik cetak cukil dari nol. Alat & bahan disediakan.\",\n  \"venueName\": \"Ruang Kreatif Kotabaru\",\n  \"venueAddress\": \"Jl. Faridan M. Noto No. 21, Yogyakarta\",\n  \"mapsUrl\": null,\n  \"startAt\": \"{{startAt}}\",\n  \"endAt\": \"{{endAt}}\",\n  \"timezone\": \"Asia/Jakarta\",\n  \"checkInOpensAt\": null,\n  \"capacity\": 80,\n  \"maxTicketsPerUser\": 4\n}"
+            },
+            "url": "{{baseUrl}}/events"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const start = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);",
+                  "const end = new Date(start.getTime() + 4 * 60 * 60 * 1000);",
+                  "pm.environment.set('startAt', start.toISOString());",
+                  "pm.environment.set('endAt', end.toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const payload = pm.response.json().data;",
+                  "pm.test('status DRAFT', () => pm.expect(payload.status).to.eql('DRAFT'));",
+                  "pm.test('slug dibuat otomatis', () => pm.expect(payload.slug).to.be.a('string').and.not.empty);",
+                  "pm.environment.set('eventId', payload.id);",
+                  "pm.environment.set('eventSlug', payload.slug);",
+                  "pm.environment.set('etag_event', '\"' + payload.version + '\"');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /events/:eventId (If-Match) 🔒",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etag_event}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Belajar teknik cetak cukil dari nol. Alat & bahan disediakan. Kuota terbatas.\"\n}"
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('etag_event', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /events/:eventId/poster 🔒",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag_event}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "poster",
+                  "type": "file",
+                  "src": "fixtures/poster.jpg"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}/poster"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const payload = pm.response.json().data;",
+                  "  pm.test(\"posterUrl terisi dan sudah di-reencode ke WebP\", () => {",
+                  "    pm.expect(payload.posterUrl).to.be.a(\"string\").and.match(/.webp$/);",
+                  "  });",
+                  "  pm.environment.set(\"etag_event\", pm.response.headers.get(\"ETag\"));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /events/:eventId/poster 🔒",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag_event}}"
+              }
+            ],
+            "url": "{{baseUrl}}/events/{{eventId}}/poster"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"posterUrl kembali null\", () => pm.expect(pm.response.json().data.posterUrl).to.be.null);",
+                  "  pm.environment.set(\"etag_event\", pm.response.headers.get(\"ETag\"));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Ticket Types",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{organizerToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "POST ticket-types (Presale, berbayar)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Presale\",\n  \"description\": \"Termasuk totebag\",\n  \"price\": 75000,\n  \"quota\": 30,\n  \"salesStartAt\": \"{{salesStartAt}}\",\n  \"salesEndAt\": \"{{salesEndAt}}\",\n  \"maxPerOrder\": 5,\n  \"isActive\": true,\n  \"sortOrder\": 0\n}"
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}/ticket-types"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('salesStartAt', new Date(Date.now() - 60 * 1000).toISOString());",
+                  "pm.environment.set('salesEndAt', new Date(Date.parse(pm.environment.get('endAt')) - 60 * 60 * 1000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created — tipe tiket boleh dibuat saat acara DRAFT (kontrak §9.6)', () => pm.response.to.have.status(201));",
+                  "const payload = pm.response.json().data;",
+                  "pm.test('available = quota saat baru', () => pm.expect(payload.available).to.eql(payload.quota));",
+                  "pm.test('salesStatus ON_SALE', () => pm.expect(payload.salesStatus).to.eql('ON_SALE'));",
+                  "pm.environment.set('ticketTypeId', payload.id);",
+                  "pm.environment.set('etag_ticketType', '\"' + payload.version + '\"');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST ticket-types (Gratis)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gratis\",\n  \"description\": \"Tiket komunitas tanpa biaya\",\n  \"price\": 0,\n  \"quota\": 10,\n  \"salesStartAt\": \"{{salesStartAt}}\",\n  \"salesEndAt\": \"{{salesEndAt}}\",\n  \"maxPerOrder\": 2,\n  \"isActive\": true,\n  \"sortOrder\": 1\n}"
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}/ticket-types"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const payload = pm.response.json().data;",
+                  "pm.test('harga 0', () => pm.expect(payload.price).to.eql(0));",
+                  "pm.environment.set('ticketTypeFreeId', payload.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET ticket-types (organizer melihat semua)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/ticket-types"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('dua tipe tiket terbaca', () => pm.expect(pm.response.json().data.length).to.be.at.least(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET ticket-types/:ticketTypeId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/ticket-types/{{ticketTypeId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('etag_ticketType', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH ticket-types/:ticketTypeId (If-Match) 🔒",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etag_ticketType}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quota\": 40\n}"
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}/ticket-types/{{ticketTypeId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('quota jadi 40', () => pm.expect(pm.response.json().data.quota).to.eql(40));",
+                  "pm.environment.set('etag_ticketType', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Publish & Staff",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{organizerToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "POST /events/:eventId/publish 🔒",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag_event}}"
+              }
+            ],
+            "url": "{{baseUrl}}/events/{{eventId}}/publish"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const payload = pm.response.json().data;",
+                  "pm.test('status PUBLISHED', () => pm.expect(payload.status).to.eql('PUBLISHED'));",
+                  "pm.test('publishedAt terisi', () => pm.expect(payload.publishedAt).to.not.be.null);",
+                  "pm.environment.set('etag_event', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /events/:eventId/staff/:userId (201 baru)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/staff/{{staffUserId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created saat penugasan baru', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT staff lagi (idempoten, 200)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/staff/{{staffUserId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK saat diulang — PUT idempoten', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /events/:eventId/staff",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/staff"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('staff terdaftar', () => pm.expect(pm.response.json().data.length).to.be.at.least(1));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 Katalog Publik (tanpa token)",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "GET /events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events?page=1&pageSize=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"acara yang dipublikasikan muncul\", () => {",
+                  "  pm.expect(body.data.map(e => e.id)).to.include(pm.environment.get(\"eventId\"));",
+                  "});",
+                  "pm.test(\"tidak ada acara DRAFT\", () => {",
+                  "  pm.expect(body.data.filter(e => e.status === \"DRAFT\")).to.be.empty;",
+                  "});",
+                  "pm.test(\"meta offset lengkap (kontrak §4.1)\", () => {",
+                  "  pm.expect(body.meta).to.include.all.keys(\"page\", \"pageSize\", \"totalItems\", \"totalPages\", \"sort\", \"appliedFilters\");",
+                  "  pm.expect(body.meta.page).to.eql(1);",
+                  "  pm.expect(body.meta.pageSize).to.eql(20);",
+                  "});",
+                  "pm.test(\"_id MongoDB tidak bocor ke response\", () => {",
+                  "  body.data.forEach((event) => {",
+                  "    pm.expect(event).to.not.have.property(\"_id\");",
+                  "    (event.ticketTypes || []).forEach((type) => pm.expect(type).to.not.have.property(\"_id\"));",
+                  "  });",
+                  "});",
+                  "pm.test(\"[kontrak] Cache-Control public max-age=60\", () => {",
+                  "  pm.expect(pm.response.headers.get(\"Cache-Control\") || \"\").to.include(\"max-age=60\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /events/by-slug/:slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/by-slug/{{eventSlug}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('slug cocok', () => pm.expect(pm.response.json().data.slug).to.eql(pm.environment.get('eventSlug')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /events/:eventId/ticket-types (hanya tipe aktif)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/ticket-types"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('semua tipe yang tampil aktif', () => {",
+                  "  pm.expect(pm.response.json().data.every(t => t.isActive)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 Auth: Attendee",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "POST /auth/register (202, anti user-enumeration)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rina Kusuma\",\n  \"email\": \"rina+{{$randomInt}}@example.com\",\n  \"phone\": \"+628123456780\",\n  \"password\": \"rahasia123\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/register"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('202 Accepted', () => pm.response.to.have.status(202));",
+                  "pm.test('tidak membocorkan apakah email terdaftar', () => {",
+                  "  pm.expect(pm.response.json().data.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "(M2) GET Mailpit — ambil token verifikasi",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{mailpitUrl}}/api/v1/messages?limit=1"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
+                  "pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Mailpit menerima email verifikasi', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const messages = pm.response.json().messages || [];",
+                  "  if (messages.length) pm.environment.set('mailpitMessageId', messages[0].ID);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "(M2) POST /auth/email-verification/confirm (204)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{verificationToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/email-verification/confirm"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
+                  "pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/login (attendee seed, sudah terverifikasi)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{attendeeEmail}}\",\n  \"password\": \"{{attendeePassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const payload = pm.response.json().data;",
+                  "pm.test('peran ATTENDEE', () => pm.expect(payload.user.role).to.eql('ATTENDEE'));",
+                  "pm.test('email terverifikasi — syarat POST /orders', () => pm.expect(payload.user.emailVerified).to.be.true);",
+                  "pm.environment.set('attendeeToken', payload.accessToken);",
+                  "pm.environment.set('attendeeUserId', payload.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/refresh 🍪 (Origin + X-Requested-With)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              },
+              {
+                "key": "X-Requested-With",
+                "value": "fetch"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/refresh"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK — access token dirotasi', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) pm.environment.set('attendeeToken', pm.response.json().data.accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 Orders: Gratis",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{attendeeToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "POST /orders (tiket gratis → langsung PAID) 🔁",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"items\": [\n    { \"ticketTypeId\": \"{{ticketTypeFreeId}}\", \"quantity\": 2, \"expectedUnitPrice\": 0 }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/orders"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const payload = pm.response.json().data;",
+                  "pm.test(\"id berformat UUID v7 dan _id tidak bocor\", () => {",
+                  "  pm.expect(pm.response.json().data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);",
+                  "  pm.expect(pm.response.json().data).to.not.have.property(\"_id\");",
+                  "});",
+                  "pm.test('total 0 langsung PAID', () => {",
+                  "  pm.expect(payload.total).to.eql(0);",
+                  "  pm.expect(payload.status).to.eql('PAID');",
+                  "});",
+                  "pm.test('orderNumber berformat PG-XXXXXXXXXX', () => pm.expect(payload.orderNumber).to.match(/^PG-[0-9A-Z]{10}$/));",
+                  "pm.test('tiket terbit untuk pesanan PAID', () => {",
+                  "  pm.expect(payload.tickets, 'data.tickets').to.be.an('array').with.length.of.at.least(1);",
+                  "});",
+                  "pm.environment.set('freeOrderId', payload.id);",
+                  "if (payload.tickets && payload.tickets.length) {",
+                  "  pm.environment.set('ticketId', payload.tickets[0].id);",
+                  "  pm.environment.set('ticketCode', payload.tickets[0].code);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "09 Orders: Berbayar",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{attendeeToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "POST /orders (berbayar → PENDING_PAYMENT) 🔁",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{paidOrderKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"items\": [\n    { \"ticketTypeId\": \"{{ticketTypeId}}\", \"quantity\": 1, \"expectedUnitPrice\": 75000 }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/orders"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('paidOrderKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const payload = pm.response.json().data;",
+                  "pm.test('status PENDING_PAYMENT', () => pm.expect(payload.status).to.eql('PENDING_PAYMENT'));",
+                  "pm.test('kuota ditahan sampai expiresAt', () => pm.expect(payload.expiresAt).to.not.be.null);",
+                  "pm.test('snapToken diterbitkan Midtrans', () => {",
+                  "  pm.expect(payload.payment && payload.payment.snapToken, 'payment.snapToken').to.be.a('string');",
+                  "});",
+                  "pm.environment.set('orderId', payload.id);",
+                  "pm.environment.set('orderNumber', payload.orderNumber);",
+                  "pm.environment.set('orderTotal', String(payload.total));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /orders replay (Idempotency-Key sama)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{paidOrderKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"items\": [\n    { \"ticketTypeId\": \"{{ticketTypeId}}\", \"quantity\": 1, \"expectedUnitPrice\": 75000 }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/orders"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('replay mengembalikan pesanan yang sama, bukan pesanan baru', () => {",
+                  "  pm.expect(pm.response.code).to.eql(201);",
+                  "  pm.expect(pm.response.json().data.id).to.eql(pm.environment.get('orderId'));",
+                  "});",
+                  "pm.test('header Idempotent-Replayed: true', () => {",
+                  "  pm.expect(pm.response.headers.get('Idempotent-Replayed')).to.eql('true');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /orders (milik sendiri)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/orders"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('hanya pesanan milik sendiri', () => {",
+                  "  const me = pm.environment.get('attendeeUserId');",
+                  "  pm.expect(pm.response.json().data.every(o => o.userId === me || o.userId === undefined)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /orders/:orderId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/orders/{{orderId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /orders/:orderId/payment/sync",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/orders/{{orderId}}/payment/sync"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /orders/:orderId/cancel (melepas kuota)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Berubah pikiran\"\n}"
+            },
+            "url": "{{baseUrl}}/orders/{{orderId}}/cancel"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('status CANCELLED', () => pm.expect(pm.response.json().data.status).to.eql('CANCELLED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "(negatif) POST /orders dengan expectedUnitPrice salah → 409 price-changed",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{attendeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"items\": [\n    { \"ticketTypeId\": \"{{ticketTypeId}}\", \"quantity\": 1, \"expectedUnitPrice\": 1000 }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/orders"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('code price-changed', () => pm.expect(pm.response.json().code).to.eql('price-changed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "(negatif) POST /orders quantity > maxPerOrder → ditolak",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{attendeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"items\": [\n    { \"ticketTypeId\": \"{{ticketTypeId}}\", \"quantity\": 99, \"expectedUnitPrice\": 75000 }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/orders"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ditolak', () => pm.expect(pm.response.code).to.be.oneOf([409, 422]));",
+                  "pm.test('[kontrak] code max-per-order-exceeded', () => {",
+                  "  pm.expect(pm.response.json().code).to.eql('max-per-order-exceeded');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10 Webhook Midtrans",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "POST /payments/midtrans/notifications (settlement)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{orderNumber}}\",\n  \"status_code\": \"200\",\n  \"gross_amount\": \"{{grossAmount}}\",\n  \"transaction_status\": \"settlement\",\n  \"payment_type\": \"qris\",\n  \"transaction_id\": \"{{$guid}}\",\n  \"signature_key\": \"{{midtransSignature}}\"\n}"
+            },
+            "url": "{{baseUrl}}/payments/midtrans/notifications"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const grossAmount = Number(pm.environment.get('orderTotal') || 0).toFixed(2);",
+                  "pm.environment.set('grossAmount', grossAmount);",
+                  "const raw = pm.environment.get('orderNumber') + '200' + grossAmount + pm.environment.get('midtransServerKey');",
+                  "pm.environment.set('midtransSignature', CryptoJS.SHA512(raw).toString(CryptoJS.enc.Hex));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST notifications dengan signature salah → 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{orderNumber}}\",\n  \"status_code\": \"200\",\n  \"gross_amount\": \"{{grossAmount}}\",\n  \"transaction_status\": \"settlement\",\n  \"payment_type\": \"qris\",\n  \"transaction_id\": \"{{$guid}}\",\n  \"signature_key\": \"0000000000000000000000000000000000000000000000000000000000000000\"\n}"
+            },
+            "url": "{{baseUrl}}/payments/midtrans/notifications"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11 Tickets",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{attendeeToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "GET /tickets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/tickets?eventId={{eventId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const payload = pm.response.json().data;",
+                  "// ticketId dipasang oleh pesanan gratis di folder 08; list hanya diverifikasi, tidak menimpanya",
+                  "// (urutan id menurun bisa menaruh tiket lama dari run sebelumnya di posisi pertama).",
+                  "pm.test('tiket dari pesanan gratis ada di daftar', () => {",
+                  "  pm.expect(payload.map((ticket) => ticket.id)).to.include(pm.environment.get('ticketId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /tickets/:ticketId (qrPayload)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/tickets/{{ticketId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const payload = pm.response.json().data;",
+                  "  pm.test('qrPayload berformat PASSGO1:<kode>', () => pm.expect(payload.qrPayload).to.match(/^PASSGO1:[0-9A-Z]{16}$/));",
+                  "  pm.environment.set('ticketCode', payload.code);",
+                  "  pm.environment.set('etag_ticket', pm.response.headers.get('ETag'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /tickets/:ticketId (ubah holderName) 🔒",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etag_ticket}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"holderName\": \"Teman Rina\"\n}"
+            },
+            "url": "{{baseUrl}}/tickets/{{ticketId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"holderName berubah\", () => pm.expect(pm.response.json().data.holderName).to.eql(\"Teman Rina\"));",
+                  "  pm.environment.set(\"etag_ticket\", pm.response.headers.get(\"ETag\"));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /tickets/:ticketId/reissue (organizer) 🔒",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag_ticket}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tickets/{{ticketId}}/reissue",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Kode tiket bocor di grup WhatsApp\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const payload = pm.response.json().data;",
+                  "  pm.test(\"codeVersion naik, organizer hanya melihat kode ter-mask\", () => {",
+                  "    pm.expect(payload.codeVersion).to.be.at.least(2);",
+                  "    pm.expect(payload.codeMasked).to.match(/^[••]+-.*-[0-9A-Z]{4}$/);",
+                  "    pm.expect(payload).to.not.have.property(\"code\");",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /tickets/:ticketId (kode baru setelah reissue)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/tickets/{{ticketId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const payload = pm.response.json().data;",
+                  "  pm.test(\"kode berbeda dari sebelum reissue\", () => pm.expect(payload.code).to.not.eql(pm.environment.get(\"ticketCode\")));",
+                  "  pm.environment.set(\"ticketCode\", payload.code);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "12 Check-ins",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{staffToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "Buka jendela check-in (organizer)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etag_event}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checkInOpensAt\": \"{{checkInOpensAt}}\"\n}"
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set(\"checkInOpensAt\", new Date(Date.now() - 60 * 60 * 1000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) pm.environment.set(\"etag_event\", pm.response.headers.get(\"ETag\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST check-ins (QR valid → 201 ACCEPTED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"PASSGO1:{{ticketCode}}\"\n}"
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}/check-ins"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const payload = pm.response.json().data;",
+                  "  pm.test('result ACCEPTED, tiket jadi CHECKED_IN', () => {",
+                  "    pm.expect(payload.result).to.eql('ACCEPTED');",
+                  "    pm.expect(payload.ticket.status).to.eql('CHECKED_IN');",
+                  "  });",
+                  "  pm.test('kode tiket di-mask untuk panitia', () => pm.expect(payload.ticket.codeMasked).to.be.a('string'));",
+                  "  pm.environment.set('checkInId', payload.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST check-ins ulang tiket sama → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"PASSGO1:{{ticketCode}}\"\n}"
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}/check-ins"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('code ticket-already-checked-in', () => pm.expect(pm.response.json().code).to.eql('ticket-already-checked-in'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST check-ins kode acak → 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"PASSGO1:ZZZZZZZZZZZZZZZZ\"\n}"
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}/check-ins"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                  "pm.test('code ticket-not-found', () => pm.expect(pm.response.json().code).to.eql('ticket-not-found'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /events/:eventId/check-ins",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/check-ins"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /events/:eventId/check-ins/:checkInId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/check-ins/{{checkInId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST check-ins/:checkInId/revert (organizer)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Salah pindai di pintu barat\"\n}"
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}/check-ins/{{checkInId}}/revert"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) pm.test('tiket kembali VALID', () => pm.expect(pm.response.json().data.ticket.status).to.eql('VALID'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "13 Attendees & Reports",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{organizerToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "GET attendees (organizer — kode lengkap)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/attendees?page=1&pageSize=50"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) pm.test('meta.counts ada', () => pm.expect(pm.response.json().meta).to.have.property('counts'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET attendees (staff — field di-mask)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/attendees?page=1&pageSize=50"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const rows = pm.response.json().data;",
+                  "  pm.test('buyerEmail di-mask, orderNumber disembunyikan', () => {",
+                  "    rows.forEach(r => {",
+                  "      pm.expect(r.buyerEmail || '').to.include('*');",
+                  "      pm.expect(r.orderNumber).to.be.oneOf([null, undefined]);",
+                  "    });",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET attendees/export?format=csv",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/attendees/export?format=csv"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) pm.test('Content-Type text/csv', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('csv'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET reports/sales",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/reports/sales"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET reports/attendance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/{{eventId}}/reports/attendance"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "14 Audit Logs",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{organizerToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "GET /audit-logs?eventId=",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/audit-logs?eventId={{eventId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "15 Cancel & Cleanup",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{organizerToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "POST /orders (pesanan untuk refund)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{refundOrderKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"items\": [\n    { \"ticketTypeId\": \"{{ticketTypeId}}\", \"quantity\": 1, \"expectedUnitPrice\": 75000 }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/orders",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{attendeeToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('refundOrderKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const payload = pm.response.json().data;",
+                  "pm.environment.set('refundOrderId', payload.id);",
+                  "pm.environment.set('refundOrderNumber', payload.orderNumber);",
+                  "pm.environment.set('refundOrderTotal', String(payload.total));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /payments/midtrans/notifications (settlement pesanan refund)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{refundOrderNumber}}\",\n  \"status_code\": \"200\",\n  \"gross_amount\": \"{{grossAmount}}\",\n  \"transaction_status\": \"settlement\",\n  \"payment_type\": \"qris\",\n  \"transaction_id\": \"{{$guid}}\",\n  \"signature_key\": \"{{midtransSignature}}\"\n}"
+            },
+            "url": "{{baseUrl}}/payments/midtrans/notifications",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const grossAmount = Number(pm.environment.get('refundOrderTotal') || 0).toFixed(2);",
+                  "pm.environment.set('grossAmount', grossAmount);",
+                  "const raw = pm.environment.get('refundOrderNumber') + '200' + grossAmount + pm.environment.get('midtransServerKey');",
+                  "pm.environment.set('midtransSignature', CryptoJS.SHA512(raw).toString(CryptoJS.enc.Hex));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /orders/:orderId/ticket-email (kirim ulang e-ticket)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{attendeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/orders/{{refundOrderId}}/ticket-email"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('202 Accepted', () => pm.response.to.have.status(202));",
+                  "pm.test('ticketEmailStatus PENDING', () => pm.expect(pm.response.json().data.ticketEmailStatus).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /orders/:orderId/refund 🔁",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": {{refundOrderTotal}},\n  \"note\": \"Dikembalikan manual lewat transfer\"\n}"
+            },
+            "url": "{{baseUrl}}/orders/{{refundOrderId}}/refund"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /events/:eventId/cancel 🔒 🔁",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etag_event}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Narasumber berhalangan hadir\"\n}"
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}/cancel"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const payload = pm.response.json().data;",
+                  "pm.test('status CANCELLED + alasan tercatat', () => {",
+                  "  pm.expect(payload.event.status).to.eql('CANCELLED');",
+                  "  pm.expect(payload.event.cancelReason).to.be.a('string');",
+                  "});",
+                  "pm.test('ringkasan dampak dikembalikan', () => {",
+                  "  pm.expect(payload.affected).to.have.all.keys('pendingOrdersCancelled', 'paidOrdersRequiringRefund', 'ticketsVoided');",
+                  "});",
+                  "pm.environment.set('etag_event', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /events (draft kedua, untuk uji DELETE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Draft Sementara\",\n  \"venueName\": \"Ruang Uji\",\n  \"startAt\": \"{{startAt}}\",\n  \"endAt\": \"{{endAt}}\"\n}"
+            },
+            "url": "{{baseUrl}}/events"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const payload = pm.response.json().data;",
+                  "pm.environment.set('draftEventId', payload.id);",
+                  "pm.environment.set('etag_draftEvent', '\"' + payload.version + '\"');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /events/:eventId (DRAFT) 🔒",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag_draftEvent}}"
+              }
+            ],
+            "url": "{{baseUrl}}/events/{{draftEventId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/logout 🍪",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{attendeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              },
+              {
+                "key": "X-Requested-With",
+                "value": "fetch"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/logout"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/logout-all",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{attendeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/logout-all"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "99 Negative / RBAC",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "POST /auth/login (attendee ulang — token lama dicabut logout-all di folder 15)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{attendeeEmail}}\",\n  \"password\": \"{{attendeePassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('attendeeToken', pm.response.json().data.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tamu POST /events → 401 + WWW-Authenticate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{baseUrl}}/events"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('code unauthenticated', () => pm.expect(pm.response.json().code).to.eql('unauthenticated'));",
+                  "pm.test('[kontrak §2.2] header WWW-Authenticate ada', () => {",
+                  "  pm.expect(pm.response.headers.has('WWW-Authenticate')).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Attendee POST /events → 403 forbidden",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{attendeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{baseUrl}}/events"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+                  "pm.test('code forbidden', () => pm.expect(pm.response.json().code).to.eql('forbidden'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Staff GET /users → 403 (bukan peran organizer)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Token rusak di endpoint publik → 401 (bukan dilayani sebagai tamu)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer token.yang.rusak"
+              }
+            ],
+            "url": "{{baseUrl}}/events"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tamu GET /events?status=DRAFT → acara draft tidak bocor",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events?status=DRAFT&when=all"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('§2.5 dipaksa PUBLISHED,CANCELLED — tidak ada DRAFT', () => {",
+                  "  pm.expect(pm.response.json().data.filter(e => e.status === 'DRAFT')).to.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /events?status=SECRET → 422 validation-error",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events?status=SECRET"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 Unprocessable', () => pm.response.to.have.status(422));",
+                  "pm.test('code validation-error', () => pm.expect(pm.response.json().code).to.eql('validation-error'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /events/:eventId tanpa If-Match → 428",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Tanpa If-Match\"\n}"
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('428 Precondition Required', () => pm.response.to.have.status(428));",
+                  "pm.test('code precondition-required', () => pm.expect(pm.response.json().code).to.eql('precondition-required'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /events/:eventId dengan ETag basi → 412",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"0\""
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"ETag basi\"\n}"
+            },
+            "url": "{{baseUrl}}/events/{{eventId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('412 Precondition Failed', () => pm.response.to.have.status(412));",
+                  "pm.test('code precondition-failed', () => pm.expect(pm.response.json().code).to.eql('precondition-failed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /me dengan If-Match: * → 428",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "*"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Wildcard\"\n}"
+            },
+            "url": "{{baseUrl}}/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('428 Precondition Required', () => pm.response.to.have.status(428));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /orders tanpa Idempotency-Key → 400",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{attendeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-No-Idempotency",
+                "value": "1"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"items\": [\n    { \"ticketTypeId\": \"{{ticketTypeId}}\", \"quantity\": 1, \"expectedUnitPrice\": 75000 }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/orders"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 idempotency-key-required', () => {",
+                  "  pm.expect(pm.response.code).to.eql(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('idempotency-key-required');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Attendee membuka pesanan orang lain → 404 order-not-found",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{attendeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/orders/0192a3b4-5c6d-7e8f-9a0b-1c2d3e4f5a6b"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 Not Found (bukan 403, agar keberadaan resource tidak bocor)', () => pm.response.to.have.status(404));",
+                  "pm.test('code order-not-found', () => pm.expect(pm.response.json().code).to.eql('order-not-found'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Staff tidak ditugaskan buka attendees acara lain → 404 event-not-found",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/events/0192a3b4-5c6d-7e8f-9a0b-1c2d3e4f5a6b/attendees"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                  "pm.test('code event-not-found', () => pm.expect(pm.response.json().code).to.eql('event-not-found'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login password salah → 401 invalid-credentials",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{organizerEmail}}\",\n  \"password\": \"password-yang-salah\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('code invalid-credentials', () => pm.expect(pm.response.json().code).to.eql('invalid-credentials'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Field tak dikenal (mass assignment) → 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rina\",\n  \"email\": \"rina2@example.com\",\n  \"password\": \"rahasia123\",\n  \"role\": \"ORGANIZER\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/register"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 — Zod strict menolak field tak dikenal', () => pm.response.to.have.status(422));",
+                  "pm.test('code validation-error', () => pm.expect(pm.response.json().code).to.eql('validation-error'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/refresh tanpa Origin → 403 csrf-check-failed",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/refresh"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+                  "pm.test('code csrf-check-failed', () => pm.expect(pm.response.json().code).to.eql('csrf-check-failed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Route tidak ada → 404 route-not-found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/tidak-ada"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                  "pm.test('code route-not-found', () => pm.expect(pm.response.json().code).to.eql('route-not-found'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Method salah → 405 + header Allow",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[kontrak §1.4] 405 Method Not Allowed + header Allow', () => {",
+                  "  pm.expect(pm.response.code).to.eql(405);",
+                  "  pm.expect(pm.response.headers.has('Allow')).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

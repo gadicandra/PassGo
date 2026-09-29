@@ -55,10 +55,20 @@ export async function assignedEvents(userId: string, when: "upcoming" | "past" |
   }>>();
   return Promise.all(events.map(async (event) => {
     const [ticketTypes, ticketsSold, checkedIn] = await Promise.all([
-      TicketType.find({ eventId: event.id }).select({ quota: 1, reservedCount: 1 }).lean<Array<{ quota: number; reservedCount: number }>>(),
+      TicketType.find({ eventId: event.id }).select({ price: 1, quota: 1, soldCount: 1, reservedCount: 1, salesStartAt: 1, salesEndAt: 1, isActive: 1 }).lean<Array<{ price: number; quota: number; soldCount: number; reservedCount: number; salesStartAt: Date; salesEndAt: Date; isActive: boolean }>>(),
       Ticket.countDocuments({ eventId: event.id, status: { $in: ["VALID", "CHECKED_IN"] } }),
       Ticket.countDocuments({ eventId: event.id, status: "CHECKED_IN" }),
     ]);
+    const eventNow = now();
+    const activeTypes = ticketTypes.filter((type) => type.isActive);
+    const availableTypes = activeTypes.map((type) => ({
+      ...type,
+      available: Math.max(0, type.quota - type.soldCount - type.reservedCount),
+    }));
+    const onSale = availableTypes.some((type) => type.salesStartAt <= eventNow && type.salesEndAt > eventNow && type.available > 0);
+    const upcoming = availableTypes.some((type) => type.salesStartAt > eventNow);
+    const soldOut = activeTypes.length > 0 && availableTypes.every((type) => type.available === 0);
+    const salesStatus = event.status === "CANCELLED" ? "ENDED" : onSale ? "ON_SALE" : upcoming ? "UPCOMING" : soldOut ? "SOLD_OUT" : "ENDED";
     return {
       id: event.id,
       slug: event.slug,
@@ -69,10 +79,15 @@ export async function assignedEvents(userId: string, when: "upcoming" | "past" |
       venueName: event.venueName,
       posterUrl: event.posterUrl,
       status: event.status,
-      isEnded: event.endAt < now(),
-      priceFrom: null,
-      salesStatus: event.status === "CANCELLED" ? "ENDED" : "ON_SALE",
-      stats: { ticketsSold, ticketsReserved: ticketTypes.reduce((sum, item) => sum + (item.reservedCount ?? 0), 0), totalQuota: ticketTypes.reduce((sum, item) => sum + item.quota, 0), checkedIn },
+      isEnded: event.endAt < eventNow,
+      priceFrom: activeTypes.length ? Math.min(...activeTypes.map((type) => type.price)) : null,
+      salesStatus,
+      stats: {
+        ticketsSold,
+        ticketsReserved: ticketTypes.reduce((sum, item) => sum + item.reservedCount, 0),
+        totalQuota: ticketTypes.reduce((sum, item) => sum + item.quota, 0),
+        checkedIn,
+      },
     };
   }));
 }

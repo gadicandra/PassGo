@@ -1,11 +1,8 @@
-import { randomUUID } from "node:crypto";
 import type { ClientSession } from "mongoose";
 import { Ticket, TicketType } from "../models";
+import { generateTicketCode } from "../utils/ticket-code";
+import { uuidv7 } from "../utils/uuid";
 import type { OrderItemRecord, OrderRecord } from "./order-repository";
-
-function ticketCode(): string {
-  return randomUUID().replaceAll("-", "").slice(0, 16).toUpperCase();
-}
 
 export async function issueTicketsForOrder(order: OrderRecord, session: ClientSession): Promise<void> {
   for (const item of order.items) {
@@ -15,8 +12,8 @@ export async function issueTicketsForOrder(order: OrderRecord, session: ClientSe
       { session },
     );
     const tickets = Array.from({ length: item.quantity }, () => ({
-      id: randomUUID(),
-      code: ticketCode(),
+      id: uuidv7(),
+      code: generateTicketCode(),
       orderId: order.id,
       eventId: order.eventId,
       ticketTypeId: item.ticketTypeId,

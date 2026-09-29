@@ -4,6 +4,7 @@ import { Payment, Ticket } from "../models";
 import { snapClient } from "../lib/midtrans";
 import { issueTicketsForOrder } from "./ticket-issuance-service";
 import { AppError } from "../utils/app-error";
+import { maskTicketCode } from "../utils/ticket-code";
 import { getUserById } from "./auth-service";
 import { EventModel, OrderModel, TicketTypeModel, releaseReservation, reserveTicketType, type OrderItemRecord, type OrderRecord, type TicketTypeRecord } from "./order-repository";
 import type { SnapTransactionParameters } from "midtrans-client";
@@ -87,9 +88,7 @@ export function remainingForUser(limit: number | null, owned: number, requested:
 interface PaymentRecord { provider: string; status: string; paymentType: string | null; snapToken: string | null; snapRedirectUrl: string | null; settledAt: Date | null; lastSyncedAt: Date | null }
 interface TicketRecord { id: string; code: string; holderName: string; ticketTypeId: string; status: string; checkedInAt: Date | null }
 
-export function maskTicketCode(code: string): string {
-  return `••••-••••-••••-${code.slice(-4)}`;
-}
+export { maskTicketCode };
 
 // Bentuk `Order` §8: payment null untuk pesanan gratis, snapToken hanya untuk pemilik saat PENDING_PAYMENT, tickets berisi TicketSummary.
 export function orderView(order: OrderRecord, payment: PaymentRecord | null, tickets: TicketRecord[], viewerIsOwner: boolean) {

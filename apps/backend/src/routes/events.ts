@@ -8,6 +8,8 @@ import {
 import type { EventInput, TicketTypeInput, TicketTypeView } from "../services/event-service";
 import { AppError } from "../utils/app-error";
 import { assignEventStaff, listEventStaff, removeEventStaff } from "../services/event-staff-service";
+import { getCheckIn, listCheckIns, revertCheckIn, scanTicket } from "../services/check-in-service";
+import { exportAttendeesCsv, listAttendees } from "../services/attendee-service";
 
 const router = Router();
 const date = z.coerce.date();
@@ -84,6 +86,53 @@ router.patch("/:eventId/ticket-types/:ticketTypeId", authorize("ORGANIZER"), asy
 
 router.delete("/:eventId/ticket-types/:ticketTypeId", authorize("ORGANIZER"), async (request, response, next) => {
   try { await deleteTicketType(String(request.params.eventId), String(request.params.ticketTypeId), request.get("if-match")); response.status(204).send(); } catch (error) { next(error); }
+});
+
+const eventAccess = authorize("ORGANIZER", "STAFF");
+const viewerOf = (request: unknown) => (request as AuthenticatedRequest).user as { sub: string; role: "ORGANIZER" | "STAFF" | "ATTENDEE" };
+const auditOf = (request: import("express").Request) => ({ actorId: viewerOf(request).sub, actorRole: viewerOf(request).role, ip: request.ip, userAgent: request.get("user-agent") });
+const ticketStatusList = z.string().transform((value) => value.split(",")).pipe(z.array(z.enum(["VALID", "CHECKED_IN", "VOID"])));
+export const checkInBody = z.object({ code: z.string().min(1).max(64).optional(), ticketId: z.string().uuid().optional() }).strict()
+  .refine((body) => (body.code === undefined) !== (body.ticketId === undefined), { message: "Kirim tepat satu dari code atau ticketId.", path: ["code"] });
+export const checkInListQuery = z.object({
+  result: z.string().transform((value) => value.split(",")).pipe(z.array(z.enum(["ACCEPTED", "ALREADY_CHECKED_IN", "TICKET_VOID", "WRONG_EVENT", "NOT_FOUND", "CHECK_IN_CLOSED"]))).optional(),
+  method: z.enum(["QR", "MANUAL"]).optional(), scannedById: z.string().uuid().optional(), ticketId: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50), cursor: z.string().optional(),
+}).strict();
+export const attendeeQuery = z.object({
+  status: ticketStatusList.default(["VALID", "CHECKED_IN"]), ticketTypeId: z.string().uuid().optional(), q: z.string().trim().min(2).optional(),
+  sort: z.enum(["holderName", "checkedInAt", "-checkedInAt", "ticketTypeName"]).default("holderName"),
+  page: z.coerce.number().int().min(1).default(1), pageSize: z.coerce.number().int().min(1).max(100).default(20),
+}).strict();
+const exportQuery = z.object({ format: z.enum(["csv", "xlsx"]), status: ticketStatusList.default(["VALID", "CHECKED_IN"]) }).strict();
+
+router.post("/:eventId/check-ins", eventAccess, async (request, response, next) => {
+  try { const eventId = String(request.params.eventId); const checkIn = await scanTicket(eventId, viewerOf(request), checkInBody.parse(request.body)); response.status(201).location(`/api/v1/events/${eventId}/check-ins/${checkIn.id}`).json({ data: checkIn }); } catch (error) { next(error); }
+});
+
+router.get("/:eventId/check-ins", eventAccess, async (request, response, next) => {
+  try { response.json(await listCheckIns(String(request.params.eventId), viewerOf(request), checkInListQuery.parse(request.query))); } catch (error) { next(error); }
+});
+
+router.get("/:eventId/check-ins/:checkInId", eventAccess, async (request, response, next) => {
+  try { response.json({ data: await getCheckIn(String(request.params.eventId), viewerOf(request), String(request.params.checkInId)) }); } catch (error) { next(error); }
+});
+
+router.post("/:eventId/check-ins/:checkInId/revert", authorize("ORGANIZER"), async (request, response, next) => {
+  try { response.json({ data: await revertCheckIn(String(request.params.eventId), String(request.params.checkInId), cancelBody.parse(request.body).reason, auditOf(request)) }); } catch (error) { next(error); }
+});
+
+router.get("/:eventId/attendees", eventAccess, async (request, response, next) => {
+  try { response.json(await listAttendees(String(request.params.eventId), viewerOf(request), attendeeQuery.parse(request.query))); } catch (error) { next(error); }
+});
+
+router.get("/:eventId/attendees/export", authorize("ORGANIZER"), async (request, response, next) => {
+  try {
+    const query = exportQuery.parse(request.query);
+    if (query.format === "xlsx") throw new AppError(422, "validation-error", "Format xlsx belum didukung; gunakan csv.", { errors: [{ parameter: "format", detail: "Gunakan csv." }] });
+    const file = await exportAttendeesCsv(String(request.params.eventId), viewerOf(request), query.status, auditOf(request));
+    response.set("Content-Type", "text/csv; charset=utf-8").set("Content-Disposition", `attachment; filename="${file.filename}"`).send(file.body);
+  } catch (error) { next(error); }
 });
 
 router.get("/:eventId", optionalAuthenticate, async (request, response, next) => {

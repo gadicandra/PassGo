@@ -8,6 +8,7 @@ import usersRouter from "./routes/users";
 import meRouter from "./routes/me";
 import eventsRouter from "./routes/events";
 import paymentsRouter from "./routes/payments";
+import ticketsRouter from "./routes/tickets";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler";
 import { requestContext } from "./middlewares/request-context";
 
@@ -57,6 +58,7 @@ app.use("/api/v1/users", usersRouter);
 app.use("/api/v1/me", meRouter);
 app.use("/api/v1/events", eventsRouter);
 app.use("/api/v1/payments", paymentsRouter);
+app.use("/api/v1/tickets", ticketsRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

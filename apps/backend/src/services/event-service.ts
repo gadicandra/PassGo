@@ -102,6 +102,20 @@ function eventResponse(event: EventRecord, types: TicketTypeRecord[] = []) {
   };
 }
 
+// `EventSummary` §8 tanpa stats (stats hanya untuk organizer/staff di endpoint acara) — dipakai proyeksi Ticket.
+export async function eventSummaries(eventIds: string[]) {
+  const events = await Event.find({ id: { $in: [...new Set(eventIds)] } }).lean<EventRecord[]>();
+  const types = await TicketType.find({ eventId: { $in: events.map((event) => event.id) }, isActive: true }).lean<TicketTypeRecord[]>();
+  return new Map(events.map((event) => {
+    const full = eventResponse(event, types.filter((type) => type.eventId === event.id));
+    return [event.id, {
+      id: full.id, slug: full.slug, title: full.title, startAt: full.startAt, endAt: full.endAt, timezone: full.timezone, venueName: full.venueName,
+      posterUrl: full.posterUrl, status: full.status, isEnded: full.isEnded, priceFrom: full.priceFrom, salesStatus: full.salesStatus, stats: null,
+      checkInOpensAt: full.checkInOpensAt,
+    }];
+  }));
+}
+
 export async function getEvent(idOrSlug: string, role?: UserRole, bySlug = false) {
   const event = await Event.findOne(bySlug ? { slug: idOrSlug } : { id: idOrSlug }).lean<EventRecord>();
   if (!event || (event.status === "DRAFT" && role !== "ORGANIZER")) throw new AppError(404, "event-not-found", "Acara tidak ditemukan.");

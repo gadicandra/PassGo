@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "0192a3b4-5c6d-7e8f-9a0b-1c2d3e4f5a6b",
     "name": "PassGo API v1",
-    "description": "Tes kontrak untuk PassGo (docs/api-contract.md, 58 endpoint).\n\nCollection disusun DARI KONTRAK, bukan dari kode, sesuai docs/postman-plan.md. Folder yang endpoint-nya belum diimplementasikan akan merah dan menjadi hijau satu per satu seiring implementasi.\n\nUrutan folder = alur end-to-end, jadi bisa dijalankan dari atas ke bawah dengan Collection Runner atau Newman.\n\nPenanda pada nama request:\n- (M2)  : fitur Milestone 2, belum diimplementasikan\n- (BLM) : endpoint Milestone 1 yang belum ada di kode\n\nJalankan: npm run test:api",
+    "description": "Tes kontrak PassGo API v1 (docs/api-contract.md).\n\nUrutan folder = alur end-to-end, jalankan dari atas ke bawah.\nPenanda nama request: (BLM) endpoint M1 belum ada, (M2) fitur Milestone 2.\n\nnpm run test:api",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -21,11 +21,8 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// Kontrak §1.1: setiap request membawa X-Request-Id.",
           "pm.request.headers.upsert({ key: 'X-Request-Id', value: pm.variables.replaceIn('{{$guid}}') });",
           "",
-          "// Kontrak §5: Idempotency-Key untuk operasi yang tidak boleh terulang.",
-          "// Request negatif menandai dirinya dengan X-No-Idempotency agar key ini TIDAK dipasang.",
           "const skip = pm.request.headers.get('X-No-Idempotency');",
           "pm.request.headers.remove('X-No-Idempotency');",
           "if (!skip && ['POST', 'PUT', 'PATCH'].includes(pm.request.method)) {",
@@ -42,8 +39,6 @@
           "const status = pm.response.code;",
           "const contentType = pm.response.headers.get('Content-Type') || '';",
           "",
-          "// Kontrak §1.1 — belum diimplementasikan di backend, sengaja dibiarkan merah",
-          "// sebagai penanda gap. Hapus test ini setelah middleware requestId dibuat.",
           "pm.test('[kontrak] X-Request-Id ada di response', function () {",
           "  pm.expect(pm.response.headers.has('X-Request-Id'), 'header X-Request-Id').to.be.true;",
           "});",
@@ -63,7 +58,6 @@
           "  });",
           "}",
           "",
-          "// Simpan ETag otomatis bila ada, untuk dipakai request 🔒 berikutnya.",
           "const etag = pm.response.headers.get('ETag');",
           "if (etag) pm.collectionVariables.set('lastEtag', etag);"
         ]
@@ -434,7 +428,6 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Acara harus di masa depan agar lolos syarat publish.",
                   "const start = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);",
                   "const end = new Date(start.getTime() + 4 * 60 * 60 * 1000);",
                   "pm.environment.set('startAt', start.toISOString());",
@@ -590,7 +583,6 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Penjualan dibuka sekarang dan ditutup sebelum acara berakhir.",
                   "pm.environment.set('salesStartAt', new Date(Date.now() - 60 * 1000).toISOString());",
                   "pm.environment.set('salesEndAt', new Date(Date.parse(pm.environment.get('endAt')) - 60 * 60 * 1000).toISOString());"
                 ]
@@ -949,8 +941,6 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Butuh job email-outbox (Milestone 2). Sampai itu ada, tidak ada email",
-                  "// yang pernah terkirim dan token verifikasi hanya ada di koleksi EmailOutbox.",
                   "pm.test('Mailpit menerima email verifikasi', () => pm.response.to.have.status(200));",
                   "if (pm.response.code === 200) {",
                   "  const messages = pm.response.json().messages || [];",
@@ -1044,9 +1034,6 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Catatan: cookie bernama __Secure-refresh_token hanya dikirim lewat HTTPS.",
-                  "// Lewat http://localhost cookie jar Postman/Newman bisa tidak mengirimkannya,",
-                  "// sehingga request ini wajar gagal 401 (lihat postman-plan.md §7.3).",
                   "pm.test('200 OK — access token dirotasi', () => pm.response.to.have.status(200));",
                   "if (pm.response.code === 200) pm.environment.set('attendeeToken', pm.response.json().data.accessToken);"
                 ]
@@ -1098,7 +1085,6 @@
                   "  pm.expect(payload.status).to.eql('PAID');",
                   "});",
                   "pm.test('orderNumber berformat PG-XXXXXXXXXX', () => pm.expect(payload.orderNumber).to.match(/^PG-[0-9A-Z]{10}$/));",
-                  "// BELUM: createOrder tidak menerbitkan Ticket, jadi tickets[] tidak ada.",
                   "pm.test('[kontrak] tiket terbit untuk pesanan PAID', () => {",
                   "  pm.expect(payload.tickets, 'data.tickets').to.be.an('array').with.length.of.at.least(1);",
                   "});",
@@ -1335,7 +1321,6 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// signature_key = SHA512(order_id + status_code + gross_amount + serverKey)",
                   "const grossAmount = Number(pm.environment.get('orderTotal') || 0).toFixed(2);",
                   "pm.environment.set('grossAmount', grossAmount);",
                   "const raw = pm.environment.get('orderNumber') + '200' + grossAmount + pm.environment.get('midtransServerKey');",
@@ -2488,8 +2473,6 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Kontrak §9.8 meminta 422 max-per-order-exceeded. Implementasi sekarang",
-                  "// menolaknya lewat filter reservasi sehingga jatuh ke 409 quota-exceeded.",
                   "pm.test('ditolak', () => pm.expect(pm.response.code).to.be.oneOf([409, 422]));",
                   "pm.test('[kontrak] code max-per-order-exceeded', () => {",
                   "  pm.expect(pm.response.json().code).to.eql('max-per-order-exceeded');",
@@ -2670,7 +2653,6 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Kontrak §1.4 meminta 405 + Allow; Express menjawab 404 route-not-found.",
                   "pm.test('[kontrak §1.4] 405 Method Not Allowed + header Allow', () => {",
                   "  pm.expect(pm.response.code).to.eql(405);",
                   "  pm.expect(pm.response.headers.has('Allow')).to.be.true;",

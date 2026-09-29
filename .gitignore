@@ -5,6 +5,12 @@ dist/
 .next/
 apps/backend/src/generated/
 coverage/
+<<<<<<< Updated upstream
 
 # Fixture Postman (poster uji) tidak di-commit
 postman/fixtures/
+=======
+docs/RPL.pdf
+docs/Assignment.png
+docs/laporan
+>>>>>>> Stashed changes

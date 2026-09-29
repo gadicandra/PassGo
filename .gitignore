@@ -38,3 +38,7 @@ docs/laporan
 
 # Poster yang disimpan lokal saat Supabase tidak dikonfigurasi
 apps/backend/uploads/
+
+# Berkas workspace aplikasi Postman (lokal, bukan bagian collection)
+.postman/
+postman/globals/

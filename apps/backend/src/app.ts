@@ -9,11 +9,13 @@ import meRouter from "./routes/me";
 import eventsRouter from "./routes/events";
 import paymentsRouter from "./routes/payments";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler";
+import { requestContext } from "./middlewares/request-context";
 
 const app = express();
 
 app.disable("x-powered-by");
 app.set("etag", false);
+app.use(requestContext);
 app.use(helmet());
 app.use(
   cors({

@@ -27,11 +27,11 @@ const ticketTypeBody = z.object({ ...ticketTypeFields, description: ticketTypeFi
 export const ticketTypePatch = z.object(ticketTypeFields).partial().strict();
 
 router.get("/", optionalAuthenticate, async (request, response, next) => {
-  try { const query = z.object({ status: z.string().optional(), when: z.enum(["upcoming", "past", "all"]).default("upcoming"), q: z.string().min(2).optional() }).parse(request.query); const statuses = query.status?.split(",").map((value) => eventStatus.parse(value)); response.json(await listEvents({ status: statuses, when: query.when, q: query.q, role: roleOf(request) })); } catch (error) { next(error); }
+  try { const query = z.object({ status: z.string().optional(), when: z.enum(["upcoming", "past", "all"]).default("upcoming"), q: z.string().min(2).optional() }).parse(request.query); const statuses = query.status?.split(",").map((value) => eventStatus.parse(value)); response.vary("Authorization"); if (!request.header("authorization")) response.set("Cache-Control", "public, max-age=60"); response.json(await listEvents({ status: statuses, when: query.when, q: query.q, role: roleOf(request) })); } catch (error) { next(error); }
 });
 
 router.get("/by-slug/:slug", optionalAuthenticate, async (request, response, next) => {
-  try { response.json({ data: await getEvent(String(request.params.slug), roleOf(request), true) }); } catch (error) { next(error); }
+  try { response.vary("Authorization"); response.json({ data: await getEvent(String(request.params.slug), roleOf(request), true) }); } catch (error) { next(error); }
 });
 
 router.post("/", authorize("ORGANIZER"), async (request, response, next) => {
@@ -67,7 +67,7 @@ router.delete("/:eventId/staff/:userId", authorize("ORGANIZER"), async (request,
 });
 
 router.get("/:eventId/ticket-types", optionalAuthenticate, async (request, response, next) => {
-  try { response.json(await listTicketTypes(String(request.params.eventId), roleOf(request) === "ORGANIZER")); } catch (error) { next(error); }
+  try { response.vary("Authorization"); response.json(await listTicketTypes(String(request.params.eventId), roleOf(request) === "ORGANIZER")); } catch (error) { next(error); }
 });
 
 router.post("/:eventId/ticket-types", authorize("ORGANIZER"), async (request, response, next) => {
@@ -75,7 +75,7 @@ router.post("/:eventId/ticket-types", authorize("ORGANIZER"), async (request, re
 });
 
 router.get("/:eventId/ticket-types/:ticketTypeId", optionalAuthenticate, async (request, response, next) => {
-  try { const result = await listTicketTypes(String(request.params.eventId), roleOf(request) === "ORGANIZER"); const type = result.data.find((item: TicketTypeView) => item.id === request.params.ticketTypeId); if (!type) return next(new AppError(404, "ticket-type-not-found", "Tipe tiket tidak ditemukan.")); response.set("ETag", `"${type.version}"`).json({ data: type }); } catch (error) { next(error); }
+  try { response.vary("Authorization"); const result = await listTicketTypes(String(request.params.eventId), roleOf(request) === "ORGANIZER"); const type = result.data.find((item: TicketTypeView) => item.id === request.params.ticketTypeId); if (!type) return next(new AppError(404, "ticket-type-not-found", "Tipe tiket tidak ditemukan.")); response.set("ETag", `"${type.version}"`).json({ data: type }); } catch (error) { next(error); }
 });
 
 router.patch("/:eventId/ticket-types/:ticketTypeId", authorize("ORGANIZER"), async (request, response, next) => {
@@ -87,7 +87,7 @@ router.delete("/:eventId/ticket-types/:ticketTypeId", authorize("ORGANIZER"), as
 });
 
 router.get("/:eventId", optionalAuthenticate, async (request, response, next) => {
-  try { const event = await getEvent(String(request.params.eventId), roleOf(request)); response.set("ETag", `"${event.version}"`).json({ data: event }); } catch (error) { next(error); }
+  try { response.vary("Authorization"); const event = await getEvent(String(request.params.eventId), roleOf(request)); response.set("ETag", `"${event.version}"`).json({ data: event }); } catch (error) { next(error); }
 });
 
 export default router;

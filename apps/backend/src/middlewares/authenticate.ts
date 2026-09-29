@@ -1,3 +1,4 @@
+import jwt from "jsonwebtoken";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { verifyAccessToken, type AccessTokenClaims } from "../lib/auth-tokens";
 import { getUserById } from "../services/auth-service";
@@ -19,7 +20,9 @@ export async function authenticate(request: Request, _response: Response, next: 
     (request as AuthenticatedRequest).user = claims;
     next();
   } catch (error) {
-    next(error instanceof AppError ? error : new AppError(401, "token-invalid", "Access token tidak valid."));
+    if (error instanceof AppError) next(error);
+    else if (error instanceof jwt.TokenExpiredError) next(new AppError(401, "token-expired", "Access token kedaluwarsa."));
+    else next(new AppError(401, "token-invalid", "Access token tidak valid."));
   }
 }
 

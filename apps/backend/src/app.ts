@@ -6,6 +6,7 @@ import authRouter from "./routes/auth";
 import ordersRouter from "./routes/orders";
 import usersRouter from "./routes/users";
 import meRouter from "./routes/me";
+import eventsRouter from "./routes/events";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler";
 
 const app = express();
@@ -51,6 +52,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/orders", ordersRouter);
 app.use("/api/v1/users", usersRouter);
 app.use("/api/v1/me", meRouter);
+app.use("/api/v1/events", eventsRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

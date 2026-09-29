@@ -23,16 +23,16 @@ async function requireCurrentVersion(id: string, header: string | undefined): Pr
   return user;
 }
 
-export async function listUsers(query: { page: number; pageSize: number; role?: UserRole; isActive?: boolean; q?: string }): Promise<{ data: UserResponse[]; meta: Record<string, unknown> }> {
+export async function listUsers(query: { page: number; pageSize: number; role?: UserRole; isActive?: boolean; q?: string; sort: "name" | "-name" | "createdAt" | "-createdAt" }): Promise<{ data: UserResponse[]; meta: Record<string, unknown> }> {
   const filter: Record<string, unknown> = {};
   if (query.role) filter.role = query.role;
   if (query.isActive !== undefined) filter.isActive = query.isActive;
   if (query.q) filter.$or = [{ name: { $regex: query.q, $options: "i" } }, { email: { $regex: query.q, $options: "i" } }];
   const [users, totalItems] = await Promise.all([
-    UserModel.find(filter).sort({ createdAt: -1 }).skip((query.page - 1) * query.pageSize).limit(query.pageSize).lean<UserRecord[]>(),
+    UserModel.find(filter).sort({ [query.sort.replace(/^-/, "")]: query.sort.startsWith("-") ? -1 : 1, id: -1 }).skip((query.page - 1) * query.pageSize).limit(query.pageSize).lean<UserRecord[]>(),
     UserModel.countDocuments(filter),
   ]);
-  return { data: users.map(serializeUser), meta: { page: query.page, pageSize: query.pageSize, totalItems, totalPages: Math.ceil(totalItems / query.pageSize) } };
+  return { data: users.map(serializeUser), meta: { page: query.page, pageSize: query.pageSize, totalItems, totalPages: Math.ceil(totalItems / query.pageSize), sort: query.sort } };
 }
 
 export async function getUser(id: string): Promise<UserResponse> {

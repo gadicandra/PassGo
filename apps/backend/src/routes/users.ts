@@ -5,6 +5,7 @@ import { createManagedUser, getUser, listUsers, updateManagedUser } from "../ser
 import type { UserRole } from "../services/auth-repository";
 import { type AuthenticatedRequest } from "../middlewares/authenticate";
 import { AppError } from "../utils/app-error";
+import { runIdempotent } from "../services/idempotency-service";
 
 const router = Router();
 const role = z.enum(["ORGANIZER", "STAFF", "ATTENDEE"]);
@@ -17,15 +18,23 @@ router.get("/", async (request, response, next) => {
   try {
     const page = Number(request.query.page ?? 1);
     const pageSize = Number(request.query.pageSize ?? 20);
-    const query = z.object({ role: role.optional(), isActive: z.enum(["true", "false"]).optional(), q: z.string().min(2).optional() }).parse(request.query);
+    const query = z.object({ role: role.optional(), isActive: z.enum(["true", "false"]).optional(), q: z.string().min(2).optional(), sort: z.enum(["name", "-name", "createdAt", "-createdAt"]).default("-createdAt") }).parse(request.query);
     if (!Number.isInteger(page) || page < 1 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100) throw new AppError(422, "validation-error", "Pagination tidak valid.");
-    const result = await listUsers({ page, pageSize, role: query.role as UserRole | undefined, isActive: query.isActive === undefined ? undefined : query.isActive === "true", q: query.q });
+    const result = await listUsers({ page, pageSize, role: query.role as UserRole | undefined, isActive: query.isActive === undefined ? undefined : query.isActive === "true", q: query.q, sort: query.sort });
     response.json(result);
   } catch (error) { next(error); }
 });
 
 router.post("/", async (request, response, next) => {
-  try { const user = await createManagedUser(createSchema.parse(request.body)); response.status(201).location(`/api/v1/users/${user.id}`).json({ data: user }); } catch (error) { next(error); }
+  try {
+    const input = createSchema.parse(request.body);
+    const result = await runIdempotent({ userId: (request as AuthenticatedRequest).user.sub, method: request.method, path: request.path, keyHeader: request.get("idempotency-key"), body: input, handler: async () => {
+      const user = await createManagedUser(input);
+      return { status: 201, body: { data: user }, headers: { Location: `/api/v1/users/${user.id}` } };
+    } });
+    for (const [name, value] of Object.entries(result.headers)) response.set(name, value);
+    response.status(result.status).json(result.body);
+  } catch (error) { next(error); }
 });
 
 router.get("/:userId", async (request, response, next) => {

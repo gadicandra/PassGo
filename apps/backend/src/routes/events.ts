@@ -17,6 +17,16 @@ const router = Router();
 const uploadPoster = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 0, parts: 1 } }).single("poster");
 const date = z.coerce.date();
 const eventStatus = z.enum(["DRAFT", "PUBLISHED", "CANCELLED"]);
+const listQuery = z.object({
+  status: z.string().optional(),
+  when: z.enum(["upcoming", "past", "all"]).default("upcoming"),
+  q: z.string().min(2).optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  sort: z.enum(["startAt", "-startAt", "createdAt", "title"]).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+}).strict();
 // Field tanpa default: .partial() di Zod 4 tetap menjalankan .default(), sehingga PATCH parsial akan menimpa field yang tidak dikirim.
 const eventFields = {
   title: z.string().trim().min(3).max(150), description: z.string().max(10000), venueName: z.string().trim().min(2).max(150), venueAddress: z.string().max(300), mapsUrl: z.string().url().nullable(), startAt: date, endAt: date, timezone: z.string().max(40), checkInOpensAt: date.nullable(), capacity: z.number().int().min(1).max(100000).nullable(), maxTicketsPerUser: z.number().int().min(1).max(100).nullable(),
@@ -32,7 +42,13 @@ const ticketTypeBody = z.object({ ...ticketTypeFields, description: ticketTypeFi
 export const ticketTypePatch = z.object(ticketTypeFields).partial().strict();
 
 router.get("/", optionalAuthenticate, async (request, response, next) => {
-  try { const query = z.object({ status: z.string().optional(), when: z.enum(["upcoming", "past", "all"]).default("upcoming"), q: z.string().min(2).optional() }).parse(request.query); const statuses = query.status?.split(",").map((value) => eventStatus.parse(value)); response.vary("Authorization"); if (!request.header("authorization")) response.set("Cache-Control", "public, max-age=60"); response.json(await listEvents({ status: statuses, when: query.when, q: query.q, role: roleOf(request) })); } catch (error) { next(error); }
+  try {
+    const query = listQuery.parse(request.query);
+    const statuses = query.status?.split(",").map((value) => eventStatus.parse(value));
+    response.vary("Authorization");
+    if (!request.header("authorization")) response.set("Cache-Control", "public, max-age=60");
+    response.json(await listEvents({ ...query, status: statuses, role: roleOf(request) }));
+  } catch (error) { next(error); }
 });
 
 router.get("/by-slug/:slug", optionalAuthenticate, async (request, response, next) => {

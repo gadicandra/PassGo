@@ -1,5 +1,5 @@
+import { uuidv7 } from "../utils/uuid";
 import bcrypt from "bcryptjs";
-import { randomUUID } from "node:crypto";
 import {
   createAccessToken,
   createOpaqueToken,
@@ -43,7 +43,7 @@ function toUserRecord(user: UserRecord): UserRecord {
 
 async function queueTokenEmail(user: UserRecord, type: string, token: string): Promise<void> {
   await EmailOutboxModel.create({
-    id: randomUUID(),
+    id: uuidv7(),
     type,
     to: user.email,
     payload: { token, userId: user.id },
@@ -65,7 +65,7 @@ export async function register(input: {
 
   if (!existing) {
     const user: UserRecord = {
-      id: randomUUID(),
+      id: uuidv7(),
       name: input.name.trim(),
       email,
       phone: input.phone ?? null,
@@ -81,7 +81,7 @@ export async function register(input: {
     await UserModel.create(user);
     const token = createOpaqueToken();
     await AuthTokenModel.create({
-      id: randomUUID(),
+      id: uuidv7(),
       userId: user.id,
       purpose: "EMAIL_VERIFICATION" satisfies AuthPurpose,
       tokenHash: hashToken(token),
@@ -110,10 +110,10 @@ export async function login(input: { email: string; password: string }): Promise
 export async function issueRefreshToken(user: UserRecord, metadata: { userAgent?: string; ip?: string }): Promise<string> {
   const token = createOpaqueToken();
   await RefreshTokenModel.create({
-    id: randomUUID(),
+    id: uuidv7(),
     userId: user.id,
     tokenHash: hashToken(token),
-    familyId: randomUUID(),
+    familyId: uuidv7(),
     expiresAt: new Date(Date.now() + durationFromEnv("REFRESH_TOKEN_TTL", "7d")),
     revokedAt: null,
     replacedById: null,
@@ -140,7 +140,7 @@ export async function refreshSession(token: string, metadata: { userAgent?: stri
   }
 
   const replacement = createOpaqueToken();
-  const replacementId = randomUUID();
+  const replacementId = uuidv7();
   await RefreshTokenModel.updateOne({ id: record.id }, { $set: { revokedAt: now(), replacedById: replacementId } });
   await RefreshTokenModel.create({
     id: replacementId,
@@ -183,7 +183,7 @@ export async function requestPasswordReset(emailInput: string): Promise<void> {
   await AuthTokenModel.updateMany({ userId: user.id, purpose: "PASSWORD_RESET", usedAt: null }, { $set: { usedAt: now() } });
   const token = createOpaqueToken();
   await AuthTokenModel.create({
-    id: randomUUID(),
+    id: uuidv7(),
     userId: user.id,
     purpose: "PASSWORD_RESET" satisfies AuthPurpose,
     tokenHash: hashToken(token),
@@ -226,6 +226,6 @@ export async function resendVerification(userId: string): Promise<void> {
   }
   const token = createOpaqueToken();
   await AuthTokenModel.updateMany({ userId, purpose: "EMAIL_VERIFICATION", usedAt: null }, { $set: { usedAt: now() } });
-  await AuthTokenModel.create({ id: randomUUID(), userId, purpose: "EMAIL_VERIFICATION", tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), usedAt: null, createdAt: now() });
+  await AuthTokenModel.create({ id: uuidv7(), userId, purpose: "EMAIL_VERIFICATION", tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), usedAt: null, createdAt: now() });
   await queueTokenEmail(user, "EMAIL_VERIFICATION", token);
 }

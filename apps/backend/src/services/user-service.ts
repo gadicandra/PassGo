@@ -1,5 +1,5 @@
+import { uuidv7 } from "../utils/uuid";
 import bcrypt from "bcryptjs";
-import { randomUUID } from "node:crypto";
 import { UserModel, type UserRecord, type UserRole } from "./auth-repository";
 import { serializeUser } from "./auth-service";
 import { AppError } from "../utils/app-error";
@@ -39,7 +39,7 @@ export async function createManagedUser(input: { name: string; email: string; ph
   const email = input.email.trim().toLowerCase();
   if (await UserModel.exists({ email })) throw new AppError(409, "email-taken", "Email sudah digunakan.");
   const created = await UserModel.create({
-    id: randomUUID(), name: input.name.trim(), email, phone: input.phone ?? null,
+    id: uuidv7(), name: input.name.trim(), email, phone: input.phone ?? null,
     passwordHash: await bcrypt.hash(input.password, 12), role: input.role,
     isActive: true, emailVerified: true, tokenVersion: 0, version: 1, createdAt: now(), updatedAt: now(),
   });

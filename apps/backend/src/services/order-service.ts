@@ -1,3 +1,4 @@
+import { uuidv7 } from "../utils/uuid";
 import { randomUUID } from "node:crypto";
 import mongoose from "mongoose";
 import { Payment, Ticket } from "../models";
@@ -94,8 +95,10 @@ export { maskTicketCode };
 export function orderView(order: OrderRecord, payment: PaymentRecord | null, tickets: TicketRecord[], viewerIsOwner: boolean) {
   const names = new Map(order.items.map((item) => [item.ticketTypeId, item.ticketTypeName]));
   const exposeSnap = viewerIsOwner && order.status === "PENDING_PAYMENT";
+  // .lean() melewati transform toJSON, jadi _id Mongo harus dibuang manual.
+  const { _id, ...rest } = order as OrderRecord & { _id?: unknown };
   return {
-    ...order,
+    ...rest,
     payment: payment && {
       provider: payment.provider, status: payment.status, paymentType: payment.paymentType ?? null,
       snapToken: exposeSnap ? payment.snapToken : null, snapRedirectUrl: exposeSnap ? payment.snapRedirectUrl : null,
@@ -161,7 +164,7 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
 
       const total = items.reduce((sum, item) => sum + item.lineTotal, 0);
       const createdAt = new Date();
-      const id = randomUUID();
+      const id = uuidv7();
       const number = orderNumber();
       let payment: { snapToken: string; snapRedirectUrl: string } | undefined;
       if (total > 0) {
@@ -202,7 +205,7 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
         updatedAt: createdAt,
       }], { session }).then((documents) => documents[0].toObject() as OrderRecord);
       if (payment) {
-        await Payment.create([{ id: randomUUID(), orderId: id, provider: "MIDTRANS", providerOrderId: number, snapToken: payment.snapToken, snapRedirectUrl: payment.snapRedirectUrl, status: "PENDING", amount: total }], { session });
+        await Payment.create([{ id: uuidv7(), orderId: id, provider: "MIDTRANS", providerOrderId: number, snapToken: payment.snapToken, snapRedirectUrl: payment.snapRedirectUrl, status: "PENDING", amount: total }], { session });
       } else if (created) {
         await issueTicketsForOrder(created, session);
       }

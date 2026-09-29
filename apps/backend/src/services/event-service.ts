@@ -44,7 +44,9 @@ function statusForTicketType(type: { isActive: boolean; salesStartAt: Date; sale
 }
 
 function ticketTypeResponse(type: TicketTypeRecord, eventStatus: EventStatus, eventEnded = false): TicketTypeView {
-  return { ...type, available: Math.max(0, type.quota - type.soldCount - type.reservedCount), salesStatus: statusForTicketType(type, eventStatus, eventEnded) };
+  // .lean() melewati transform toJSON, jadi _id Mongo harus dibuang manual.
+  const { _id, ...rest } = type as TicketTypeRecord & { _id?: unknown };
+  return { ...rest, available: Math.max(0, type.quota - type.soldCount - type.reservedCount), salesStatus: statusForTicketType(type, eventStatus, eventEnded) };
 }
 
 // Representasi terbaru untuk body 412 (`current`) — kontrak §6.
@@ -65,17 +67,47 @@ export function allowedStatuses(requested: EventStatus[] | undefined, role?: Use
   return (requested ?? allowed).filter((status) => allowed.includes(status));
 }
 
-export async function listEvents(input: { status?: EventStatus[]; when: "upcoming" | "past" | "all"; q?: string; role?: UserRole }) {
-  const filter: Record<string, unknown> = { status: { $in: allowedStatuses(input.status, input.role) } };
+export type EventSort = "startAt" | "-startAt" | "createdAt" | "title";
+
+export interface ListEventsInput {
+  status?: EventStatus[];
+  when: "upcoming" | "past" | "all";
+  q?: string;
+  from?: Date;
+  to?: Date;
+  sort?: EventSort;
+  page: number;
+  pageSize: number;
+  role?: UserRole;
+}
+
+export async function listEvents(input: ListEventsInput) {
+  const status = allowedStatuses(input.status, input.role);
+  const filter: Record<string, unknown> = { status: { $in: status } };
   if (input.when === "upcoming") filter.endAt = { $gte: now() };
   if (input.when === "past") filter.endAt = { $lt: now() };
   if (input.q) filter.$or = [{ title: { $regex: input.q, $options: "i" } }, { venueName: { $regex: input.q, $options: "i" } }];
-  const events = await Event.find(filter).sort({ startAt: 1 }).lean<EventRecord[]>();
+  if (input.from || input.to) filter.startAt = { ...(input.from ? { $gte: input.from } : {}), ...(input.to ? { $lte: input.to } : {}) };
+
+  // Default §9.5: startAt naik untuk upcoming, turun untuk past.
+  const sort: EventSort = input.sort ?? (input.when === "past" ? "-startAt" : "startAt");
+  const order: Record<string, 1 | -1> = sort === "-startAt" ? { startAt: -1 } : sort === "title" ? { title: 1 } : sort === "createdAt" ? { createdAt: -1 } : { startAt: 1 };
+
+  const [events, totalItems] = await Promise.all([
+    Event.find(filter).sort({ ...order, id: 1 }).skip((input.page - 1) * input.pageSize).limit(input.pageSize).lean<EventRecord[]>(),
+    Event.countDocuments(filter),
+  ]);
   const data = await Promise.all(events.map(async (event) => {
     const types = await TicketType.find({ eventId: event.id, ...(input.role === "ORGANIZER" ? {} : { isActive: true }) }).sort({ sortOrder: 1, price: 1 }).lean() as unknown as TicketTypeRecord[];
     return eventResponse(event, types);
   }));
-  return { data, meta: { totalItems: data.length } };
+  return {
+    data,
+    meta: {
+      page: input.page, pageSize: input.pageSize, totalItems, totalPages: Math.max(1, Math.ceil(totalItems / input.pageSize)), sort,
+      appliedFilters: { status, when: input.when, q: input.q ?? null, from: input.from ?? null, to: input.to ?? null },
+    },
+  };
 }
 
 // Agregat §4 EventSummary: ON_SALE > UPCOMING > SOLD_OUT (semua tipe aktif habis) > ENDED; acara CANCELLED selalu ENDED.

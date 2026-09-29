@@ -28,6 +28,7 @@ const publicUser = (user: UserRecord) => ({
   isActive: user.isActive,
   emailVerified: user.emailVerified,
   tokenVersion: user.tokenVersion,
+  version: user.version,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });
@@ -73,6 +74,7 @@ export async function register(input: {
       isActive: true,
       emailVerified: false,
       tokenVersion: 0,
+      version: 1,
       createdAt: now(),
       updatedAt: now(),
     };

@@ -14,6 +14,7 @@ export interface UserRecord {
   isActive: boolean;
   emailVerified: boolean;
   tokenVersion: number;
+  version: number;
   createdAt: Date;
   updatedAt: Date;
 }

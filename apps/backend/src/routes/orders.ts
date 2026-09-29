@@ -3,6 +3,7 @@ import { z } from "zod";
 import { authenticate, type AuthenticatedRequest } from "../middlewares/authenticate";
 import { cancelOrder, createOrder, getOrder, listOrders } from "../services/order-service";
 import { runIdempotent } from "../services/idempotency-service";
+import { authorize } from "../middlewares/authorize";
 
 const router = Router();
 const orderBody = z.object({
@@ -18,6 +19,8 @@ const orderBody = z.object({
 const cancelBody = z.object({ reason: z.string().trim().max(500).optional() }).strict();
 
 router.use(authenticate);
+// Kontrak §9.8: GET/cancel hanya untuk ATTENDEE (miliknya) dan ORGANIZER; STAFF tidak punya pesanan.
+const buyerOrOrganizer = authorize("ATTENDEE", "ORGANIZER");
 
 router.post("/", async (request, response, next) => {
   try {
@@ -30,16 +33,16 @@ router.post("/", async (request, response, next) => {
   } catch (error) { next(error); }
 });
 
-router.get("/", async (request, response, next) => {
+router.get("/", buyerOrOrganizer, async (request, response, next) => {
   try { const user = (request as AuthenticatedRequest).user; response.json({ data: await listOrders(user.sub, user.role) }); } catch (error) { next(error); }
 });
 
-router.get("/:orderId", async (request, response, next) => {
-  try { const user = (request as unknown as AuthenticatedRequest).user; response.json({ data: await getOrder(user.sub, user.role, request.params.orderId) }); } catch (error) { next(error); }
+router.get("/:orderId", buyerOrOrganizer, async (request, response, next) => {
+  try { const user = (request as unknown as AuthenticatedRequest).user; response.json({ data: await getOrder(user.sub, user.role, String(request.params.orderId)) }); } catch (error) { next(error); }
 });
 
-router.post("/:orderId/cancel", async (request, response, next) => {
-  try { const body = cancelBody.parse(request.body); const user = (request as unknown as AuthenticatedRequest).user; response.json({ data: await cancelOrder(user.sub, user.role, request.params.orderId, body.reason) }); } catch (error) { next(error); }
+router.post("/:orderId/cancel", buyerOrOrganizer, async (request, response, next) => {
+  try { const body = cancelBody.parse(request.body); const user = (request as unknown as AuthenticatedRequest).user; response.json({ data: await cancelOrder(user.sub, user.role, String(request.params.orderId), body.reason) }); } catch (error) { next(error); }
 });
 
 export default router;

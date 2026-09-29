@@ -234,16 +234,45 @@ export async function cancelOrder(userId: string, role: string, orderId: string,
   return loadOrderView(cancelled, userId);
 }
 
+// Late settlement (arsitektur §7.2): pesanan EXPIRED/CANCELLED sudah melepas reservasinya, jadi kuota harus
+// direservasi ulang secara kondisional sebelum tiket terbit. Gagal (kuota habis / acara batal / berakhir) →
+// status tetap, refundStatus = REQUIRED. Dengan begitu overselling tetap mustahil.
+async function reReserve(order: OrderRecord, session: mongoose.ClientSession): Promise<boolean> {
+  const event = await EventModel.findOne({ id: order.eventId }).session(session).lean();
+  if (!event || event.status !== "PUBLISHED" || event.endAt <= new Date()) return false;
+  const done: OrderItemRecord[] = [];
+  for (const item of order.items) {
+    const reserved = await TicketTypeModel.updateOne(
+      { id: item.ticketTypeId, eventId: order.eventId, $expr: { $lte: [{ $add: ["$soldCount", "$reservedCount", item.quantity] }, "$quota"] } },
+      { $inc: { reservedCount: item.quantity } },
+      { session },
+    );
+    if (reserved.modifiedCount !== 1) {
+      for (const previous of done) await releaseReservation(previous, session);
+      return false;
+    }
+    done.push(item);
+  }
+  return true;
+}
+
 export async function settleOrder(orderNumberValue: string, paymentInput: { transactionId?: string; paymentType?: string; providerStatus?: string }): Promise<void> {
   const session = await mongoose.startSession();
   try {
     await session.withTransaction(async () => {
       const order = await OrderModel.findOne({ orderNumber: orderNumberValue }).session(session).lean<OrderRecord>();
-      if (!order || order.status === "PAID") return;
-      if (!["PENDING_PAYMENT", "EXPIRED", "CANCELLED"].includes(order.status)) return;
-      const updated = await OrderModel.findOneAndUpdate({ id: order.id, status: { $in: ["PENDING_PAYMENT", "EXPIRED", "CANCELLED"] } }, { $set: { status: "PAID", paidAt: new Date(), updatedAt: new Date() } }, { new: true, session }).lean<OrderRecord>();
-      if (!updated) return;
-      await Payment.updateOne({ orderId: order.id }, { $set: { status: "SETTLED", providerTransactionId: paymentInput.transactionId ?? null, paymentType: paymentInput.paymentType ?? null, providerStatus: paymentInput.providerStatus ?? null, settledAt: new Date(), lastSyncedAt: new Date() } }, { session });
+      if (!order || !["PENDING_PAYMENT", "EXPIRED", "CANCELLED"].includes(order.status)) return;
+      const at = new Date();
+      const paymentSet = { status: "SETTLED", providerTransactionId: paymentInput.transactionId ?? null, paymentType: paymentInput.paymentType ?? null, providerStatus: paymentInput.providerStatus ?? null, settledAt: at, lastSyncedAt: at };
+      const late = order.status !== "PENDING_PAYMENT";
+      if (late && !(await reReserve(order, session))) {
+        await OrderModel.updateOne({ id: order.id, status: order.status, refundStatus: "NOT_REQUIRED" }, { $set: { refundStatus: "REQUIRED", updatedAt: at } }, { session });
+        await Payment.updateOne({ orderId: order.id }, { $set: paymentSet }, { session });
+        return;
+      }
+      const updated = await OrderModel.findOneAndUpdate({ id: order.id, status: order.status }, { $set: { status: "PAID", paidAt: at, expiresAt: null, updatedAt: at } }, { new: true, session }).lean<OrderRecord>();
+      if (!updated) throw new AppError(409, "order-state-changed", "Status pesanan berubah saat diproses.");
+      await Payment.updateOne({ orderId: order.id }, { $set: paymentSet }, { session });
       await issueTicketsForOrder(updated, session);
     });
   } finally { await session.endSession(); }

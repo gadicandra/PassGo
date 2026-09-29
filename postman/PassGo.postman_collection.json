@@ -1287,23 +1287,13 @@
           ]
         },
         {
-          "name": "(M2) POST /orders/:orderId/payment/sync",
+          "name": "POST /orders/:orderId/payment/sync",
           "request": {
             "method": "POST",
             "header": [],
             "url": "{{baseUrl}}/orders/{{orderId}}/payment/sync"
           },
           "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
-                  "pm.execution.skipRequest();"
-                ]
-              }
-            },
             {
               "listen": "test",
               "script": {
@@ -1520,7 +1510,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/tickets"
+            "url": "{{baseUrl}}/tickets?eventId={{eventId}}"
           },
           "event": [
             {
@@ -1529,10 +1519,12 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "if (pm.response.code === 200) {",
-                  "  const payload = pm.response.json().data;",
-                  "  if (payload.length) pm.environment.set('ticketId', payload[0].id);",
-                  "}"
+                  "const payload = pm.response.json().data;",
+                  "// ticketId dipasang oleh pesanan gratis di folder 08; list hanya diverifikasi, tidak menimpanya",
+                  "// (urutan id menurun bisa menaruh tiket lama dari run sebelumnya di posisi pertama).",
+                  "pm.test('tiket dari pesanan gratis ada di daftar', () => {",
+                  "  pm.expect(payload.map((ticket) => ticket.id)).to.include(pm.environment.get('ticketId'));",
+                  "});"
                 ]
               }
             }
@@ -2006,23 +1998,13 @@
           ]
         },
         {
-          "name": "(M2) GET reports/sales",
+          "name": "GET reports/sales",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/events/{{eventId}}/reports/sales"
           },
           "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
-                  "pm.execution.skipRequest();"
-                ]
-              }
-            },
             {
               "listen": "test",
               "script": {
@@ -2035,23 +2017,13 @@
           ]
         },
         {
-          "name": "(M2) GET reports/attendance",
+          "name": "GET reports/attendance",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/events/{{eventId}}/reports/attendance"
           },
           "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
-                  "pm.execution.skipRequest();"
-                ]
-              }
-            },
             {
               "listen": "test",
               "script": {
@@ -2079,23 +2051,13 @@
       },
       "item": [
         {
-          "name": "(M2) GET /audit-logs?eventId=",
+          "name": "GET /audit-logs?eventId=",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/audit-logs?eventId={{eventId}}"
           },
           "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
-                  "pm.execution.skipRequest();"
-                ]
-              }
-            },
             {
               "listen": "test",
               "script": {
@@ -2123,7 +2085,62 @@
       },
       "item": [
         {
-          "name": "(M2) POST /orders/:orderId/refund 🔁",
+          "name": "POST /orders (pesanan untuk refund)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{refundOrderKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"items\": [\n    { \"ticketTypeId\": \"{{ticketTypeId}}\", \"quantity\": 1, \"expectedUnitPrice\": 75000 }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/orders",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{attendeeToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('refundOrderKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const payload = pm.response.json().data;",
+                  "pm.environment.set('refundOrderId', payload.id);",
+                  "pm.environment.set('refundOrderNumber', payload.orderNumber);",
+                  "pm.environment.set('refundOrderTotal', String(payload.total));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /payments/midtrans/notifications (settlement pesanan refund)",
           "request": {
             "method": "POST",
             "header": [
@@ -2134,9 +2151,12 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"amount\": 75000,\n  \"note\": \"Dikembalikan manual lewat transfer\"\n}"
+              "raw": "{\n  \"order_id\": \"{{refundOrderNumber}}\",\n  \"status_code\": \"200\",\n  \"gross_amount\": \"{{grossAmount}}\",\n  \"transaction_status\": \"settlement\",\n  \"payment_type\": \"qris\",\n  \"transaction_id\": \"{{$guid}}\",\n  \"signature_key\": \"{{midtransSignature}}\"\n}"
             },
-            "url": "{{baseUrl}}/orders/{{orderId}}/refund"
+            "url": "{{baseUrl}}/payments/midtrans/notifications",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -2144,11 +2164,71 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Fitur Milestone 2, belum dibangun. Hapus baris ini setelah endpoint-nya ada.",
-                  "pm.execution.skipRequest();"
+                  "const grossAmount = Number(pm.environment.get('refundOrderTotal') || 0).toFixed(2);",
+                  "pm.environment.set('grossAmount', grossAmount);",
+                  "const raw = pm.environment.get('refundOrderNumber') + '200' + grossAmount + pm.environment.get('midtransServerKey');",
+                  "pm.environment.set('midtransSignature', CryptoJS.SHA512(raw).toString(CryptoJS.enc.Hex));"
                 ]
               }
             },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /orders/:orderId/ticket-email (kirim ulang e-ticket)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{attendeeToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/orders/{{refundOrderId}}/ticket-email"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('202 Accepted', () => pm.response.to.have.status(202));",
+                  "pm.test('ticketEmailStatus PENDING', () => pm.expect(pm.response.json().data.ticketEmailStatus).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /orders/:orderId/refund 🔁",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": {{refundOrderTotal}},\n  \"note\": \"Dikembalikan manual lewat transfer\"\n}"
+            },
+            "url": "{{baseUrl}}/orders/{{refundOrderId}}/refund"
+          },
+          "event": [
             {
               "listen": "test",
               "script": {
@@ -2189,8 +2269,11 @@
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
                   "const payload = pm.response.json().data;",
                   "pm.test('status CANCELLED + alasan tercatat', () => {",
-                  "  pm.expect(payload.status).to.eql('CANCELLED');",
-                  "  pm.expect(payload.cancelReason).to.be.a('string');",
+                  "  pm.expect(payload.event.status).to.eql('CANCELLED');",
+                  "  pm.expect(payload.event.cancelReason).to.be.a('string');",
+                  "});",
+                  "pm.test('ringkasan dampak dikembalikan', () => {",
+                  "  pm.expect(payload.affected).to.have.all.keys('pendingOrdersCancelled', 'paidOrdersRequiringRefund', 'ticketsVoided');",
                   "});",
                   "pm.environment.set('etag_event', pm.response.headers.get('ETag'));"
                 ]

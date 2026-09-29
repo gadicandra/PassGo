@@ -4,10 +4,19 @@ import bcrypt from "bcryptjs";
 import { connectDatabase, disconnectDatabase } from "../src/lib/database";
 import { User, initModels } from "../src/models";
 
+const RESET_PASSWORD = process.argv.includes("--reset-password");
+
 async function seedUser(name: string, rawEmail: string, password: string, role: "ORGANIZER" | "ATTENDEE"): Promise<void> {
   const email = rawEmail.trim().toLowerCase();
-  if (await User.findOne({ email })) {
-    console.log(`${role} ${email} sudah ada, dilewati.`);
+  const existing = await User.findOne({ email });
+  if (existing) {
+    // --reset-password: samakan password akun seed dengan .env, dan cabut semua sesi lamanya.
+    if (!RESET_PASSWORD) {
+      console.log(`${role} ${email} sudah ada, dilewati (pakai --reset-password untuk menyamakan password dengan .env).`);
+      return;
+    }
+    await User.updateOne({ email }, { $set: { passwordHash: await bcrypt.hash(password, 12), isActive: true }, $inc: { tokenVersion: 1, version: 1 } });
+    console.log(`${role} ${email} sudah ada, password disamakan dengan .env.`);
     return;
   }
   await User.create({

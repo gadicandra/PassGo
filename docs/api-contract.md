@@ -289,7 +289,7 @@ Resource yang bisa diedit bersamaan (**User, Event, TicketType, Ticket**) memili
     }
     ```
 - Response list tidak menyertakan `ETag` per item; gunakan field `version` dari body (§1.2).
-- `X-If-Match` adalah alias `If-Match` dengan format & aturan identik (dipakai bila `If-Match` absen). **Wajib dipakai pada deployment Vercel**: edge Vercel mengevaluasi sendiri setiap request ber-`If-Match` dan membalas `412 PRECONDITION_FAILED` (`text/plain`, header `x-vercel-error`) — bahkan untuk GET — sementara function tetap dijalankan sehingga write-nya tersimpan.
+- `X-If-Match` adalah alias `If-Match` dengan format & aturan identik (dipakai bila `If-Match` absen). **Wajib dipakai pada deployment Vercel**: edge Vercel mengevaluasi sendiri setiap request ber-`If-Match` dan membalas `412 PRECONDITION_FAILED` (`text/plain`, header `x-vercel-error`) — bahkan untuk GET — sementara function tetap dijalankan sehingga write-nya tersimpan. Edge juga melemahkan `ETag` menjadi `W/"n"` saat mengompresi response (gzip/br), jadi klien sebaiknya membentuk `If-Match`/`X-If-Match` dari field `version` di body, bukan menyalin header `ETag`.
 
 **Kuota dan check-in tidak memakai mekanisme ini.** `soldCount`/`reservedCount` dan status check-in diubah secara atomik oleh server (`findOneAndUpdate` kondisional) dan **tidak menaikkan `version`**, sehingga organizer yang sedang mengedit deskripsi tipe tiket tidak terkena `412` hanya karena ada penjualan.
 

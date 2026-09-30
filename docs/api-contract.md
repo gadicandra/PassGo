@@ -70,7 +70,7 @@
 - **Frontend dan API wajib *same-site*** (satu *registrable domain*, mis. `passgo.id` + `api.passgo.id`), **atau** (direkomendasikan) FE mem-*proxy* `/api/*` lewat Next.js `rewrites` sehingga *same-origin*. Deployment lintas-site (mis. `*.vercel.app` → `*.railway.app`; `vercel.app` ada di Public Suffix List) **tidak didukung** karena cookie refresh `SameSite=Strict` tidak akan terkirim.
 - Bila tidak di-*proxy* (cross-origin tapi same-site), server mengirim:
   - `Access-Control-Allow-Origin: <origin dari allowlist>` (tidak pernah `*`) dan `Access-Control-Allow-Credentials: true`
-  - `Access-Control-Allow-Headers: Authorization, Content-Type, If-Match, If-None-Match, Idempotency-Key, X-Request-Id, X-Requested-With`
+  - `Access-Control-Allow-Headers: Authorization, Content-Type, If-Match, X-If-Match, If-None-Match, Idempotency-Key, X-Request-Id, X-Requested-With`
   - `Access-Control-Expose-Headers: ETag, Location, RateLimit, RateLimit-Policy, Retry-After, X-Request-Id, Idempotent-Replayed, Deprecation, Sunset, Content-Disposition`
 
   Tanpa `Expose-Headers`, JavaScript tidak bisa membaca `ETag` sehingga alur `If-Match` gagal. Sebagai cadangan, setiap resource ber-versi juga mengembalikan `version` di body, dan `If-Match: "<version>"` boleh dibentuk FE dari field tersebut.
@@ -279,7 +279,7 @@ Resource yang bisa diedit bersamaan (**User, Event, TicketType, Ticket**) memili
 - ETag bawaan Express (weak, hash body) **dimatikan**: `app.set('etag', false)`. ETag hanya diset eksplisit oleh controller dari `version`, sehingga nilai yang dikirim ke `If-Match` selalu cocok dengan versi DB.
 - Endpoint 🔒 wajib `If-Match: "<version>"`, dibandingkan secara *strong* (RFC 9110 §13.1.1); `W/"…"` tidak pernah cocok → `412`.
   - Tidak dikirim, atau `If-Match: *` → `428 precondition-required`. Menolak `*` adalah **kebijakan PassGo** (menyimpang dari RFC 9110, yang menganggap `*` cocok bila resource ada), agar klien tidak bisa melewati *lost-update protection*.
-  - Tidak cocok → `412 precondition-failed`, **tanpa** header `ETag`; versi terkini ada di `current.version` pada body:
+  - Tidak cocok → `412 precondition-failed`, dengan header `ETag` versi terkini dan body:
     ```json
     {
       "type": "…#precondition-failed", "title": "Precondition failed", "status": 412,
@@ -289,7 +289,7 @@ Resource yang bisa diedit bersamaan (**User, Event, TicketType, Ticket**) memili
     }
     ```
 - Response list tidak menyertakan `ETag` per item; gunakan field `version` dari body (§1.2).
-- Response atas request ber-`If-Match` (write 🔒 sukses maupun `412`) **tidak** menyertakan `ETag`; klien membentuk `If-Match` berikutnya dari `data.version` (`current.version` untuk `412`). Alasannya: edge Vercel mengevaluasi ulang `If-Match` terhadap `ETag` response, sehingga write sukses (ETag = versi baru) diganti `412 PRECONDITION_FAILED` polosan walau perubahan sudah tersimpan.
+- `X-If-Match` adalah alias `If-Match` dengan format & aturan identik (dipakai bila `If-Match` absen). **Wajib dipakai pada deployment Vercel**: edge Vercel mengevaluasi sendiri setiap request ber-`If-Match` dan membalas `412 PRECONDITION_FAILED` (`text/plain`, header `x-vercel-error`) — bahkan untuk GET — sementara function tetap dijalankan sehingga write-nya tersimpan.
 
 **Kuota dan check-in tidak memakai mekanisme ini.** `soldCount`/`reservedCount` dan status check-in diubah secara atomik oleh server (`findOneAndUpdate` kondisional) dan **tidak menaikkan `version`**, sehingga organizer yang sedang mengedit deskripsi tipe tiket tidak terkena `412` hanya karena ada penjualan.
 

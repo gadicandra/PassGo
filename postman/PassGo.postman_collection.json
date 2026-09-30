@@ -27,6 +27,13 @@
           "pm.request.headers.remove('X-No-Idempotency');",
           "if (!skip && ['POST', 'PUT', 'PATCH'].includes(pm.request.method) && !pm.request.headers.has('Idempotency-Key')) {",
           "  pm.request.headers.upsert({ key: 'Idempotency-Key', value: pm.variables.replaceIn('{{$guid}}') });",
+          "}",
+          "",
+          "// Edge Vercel menjawab sendiri request ber-If-Match dengan 412; di luar localhost kirim alias X-If-Match (kontrak §6).",
+          "const ifMatch = pm.request.headers.get('If-Match');",
+          "if (ifMatch !== undefined && !/localhost|127\\.0\\.0\\.1/.test(pm.variables.get('baseUrl'))) {",
+          "  pm.request.headers.remove('If-Match');",
+          "  pm.request.headers.upsert({ key: 'X-If-Match', value: pm.variables.replaceIn(ifMatch) });",
           "}"
         ]
       }
@@ -225,7 +232,7 @@
                 "exec": [
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
                   "pm.test('version naik', () => pm.expect(pm.response.json().data.version).to.be.a('number'));",
-                  "pm.environment.set('etag_me', '\"' + pm.response.json().data.version + '\"');"
+                  "pm.environment.set('etag_me', pm.response.headers.get('ETag'));"
                 ]
               }
             }
@@ -351,7 +358,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "pm.environment.set('etag_user', '\"' + pm.response.json().data.version + '\"');"
+                  "pm.environment.set('etag_user', pm.response.headers.get('ETag'));"
                 ]
               }
             }
@@ -479,7 +486,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "pm.environment.set('etag_event', '\"' + pm.response.json().data.version + '\"');"
+                  "pm.environment.set('etag_event', pm.response.headers.get('ETag'));"
                 ]
               }
             }
@@ -519,7 +526,7 @@
                   "  pm.test(\"posterUrl terisi dan sudah di-reencode ke WebP\", () => {",
                   "    pm.expect(payload.posterUrl).to.be.a(\"string\").and.match(/.webp$/);",
                   "  });",
-                  "  pm.environment.set(\"etag_event\", '\"' + pm.response.json().data.version + '\"');",
+                  "  pm.environment.set(\"etag_event\", pm.response.headers.get(\"ETag\"));",
                   "}"
                 ]
               }
@@ -547,7 +554,7 @@
                   "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
                   "if (pm.response.code === 200) {",
                   "  pm.test(\"posterUrl kembali null\", () => pm.expect(pm.response.json().data.posterUrl).to.be.null);",
-                  "  pm.environment.set(\"etag_event\", '\"' + pm.response.json().data.version + '\"');",
+                  "  pm.environment.set(\"etag_event\", pm.response.headers.get(\"ETag\"));",
                   "}"
                 ]
               }
@@ -711,7 +718,7 @@
                 "exec": [
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
                   "pm.test('quota jadi 40', () => pm.expect(pm.response.json().data.quota).to.eql(40));",
-                  "pm.environment.set('etag_ticketType', '\"' + pm.response.json().data.version + '\"');"
+                  "pm.environment.set('etag_ticketType', pm.response.headers.get('ETag'));"
                 ]
               }
             }
@@ -754,7 +761,7 @@
                   "const payload = pm.response.json().data;",
                   "pm.test('status PUBLISHED', () => pm.expect(payload.status).to.eql('PUBLISHED'));",
                   "pm.test('publishedAt terisi', () => pm.expect(payload.publishedAt).to.not.be.null);",
-                  "pm.environment.set('etag_event', '\"' + pm.response.json().data.version + '\"');"
+                  "pm.environment.set('etag_event', pm.response.headers.get('ETag'));"
                 ]
               }
             }
@@ -1584,7 +1591,7 @@
                   "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
                   "if (pm.response.code === 200) {",
                   "  pm.test(\"holderName berubah\", () => pm.expect(pm.response.json().data.holderName).to.eql(\"Teman Rina\"));",
-                  "  pm.environment.set(\"etag_ticket\", '\"' + pm.response.json().data.version + '\"');",
+                  "  pm.environment.set(\"etag_ticket\", pm.response.headers.get(\"ETag\"));",
                   "}"
                 ]
               }
@@ -1726,7 +1733,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
-                  "if (pm.response.code === 200) pm.environment.set(\"etag_event\", '\"' + pm.response.json().data.version + '\"');"
+                  "if (pm.response.code === 200) pm.environment.set(\"etag_event\", pm.response.headers.get(\"ETag\"));"
                 ]
               }
             }
@@ -2275,7 +2282,7 @@
                   "pm.test('ringkasan dampak dikembalikan', () => {",
                   "  pm.expect(payload.affected).to.have.all.keys('pendingOrdersCancelled', 'paidOrdersRequiringRefund', 'ticketsVoided');",
                   "});",
-                  "pm.environment.set('etag_event', '\"' + pm.response.json().data.event.version + '\"');"
+                  "pm.environment.set('etag_event', pm.response.headers.get('ETag'));"
                 ]
               }
             }

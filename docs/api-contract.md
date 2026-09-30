@@ -279,7 +279,7 @@ Resource yang bisa diedit bersamaan (**User, Event, TicketType, Ticket**) memili
 - ETag bawaan Express (weak, hash body) **dimatikan**: `app.set('etag', false)`. ETag hanya diset eksplisit oleh controller dari `version`, sehingga nilai yang dikirim ke `If-Match` selalu cocok dengan versi DB.
 - Endpoint 🔒 wajib `If-Match: "<version>"`, dibandingkan secara *strong* (RFC 9110 §13.1.1); `W/"…"` tidak pernah cocok → `412`.
   - Tidak dikirim, atau `If-Match: *` → `428 precondition-required`. Menolak `*` adalah **kebijakan PassGo** (menyimpang dari RFC 9110, yang menganggap `*` cocok bila resource ada), agar klien tidak bisa melewati *lost-update protection*.
-  - Tidak cocok → `412 precondition-failed`, dengan header `ETag` versi terkini dan body:
+  - Tidak cocok → `412 precondition-failed`, **tanpa** header `ETag`; versi terkini ada di `current.version` pada body:
     ```json
     {
       "type": "…#precondition-failed", "title": "Precondition failed", "status": 412,
@@ -289,6 +289,7 @@ Resource yang bisa diedit bersamaan (**User, Event, TicketType, Ticket**) memili
     }
     ```
 - Response list tidak menyertakan `ETag` per item; gunakan field `version` dari body (§1.2).
+- Response atas request ber-`If-Match` (write 🔒 sukses maupun `412`) **tidak** menyertakan `ETag`; klien membentuk `If-Match` berikutnya dari `data.version` (`current.version` untuk `412`). Alasannya: edge Vercel mengevaluasi ulang `If-Match` terhadap `ETag` response, sehingga write sukses (ETag = versi baru) diganti `412 PRECONDITION_FAILED` polosan walau perubahan sudah tersimpan.
 
 **Kuota dan check-in tidak memakai mekanisme ini.** `soldCount`/`reservedCount` dan status check-in diubah secara atomik oleh server (`findOneAndUpdate` kondisional) dan **tidak menaikkan `version`**, sehingga organizer yang sedang mengedit deskripsi tipe tiket tidak terkena `412` hanya karena ada penjualan.
 

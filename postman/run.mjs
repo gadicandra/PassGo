@@ -10,15 +10,18 @@ const env = Object.fromEntries(
     .map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1).trim()]),
 );
 
+// --prod: pakai environment PassGo Production (baseUrl & origin dari berkasnya); env var tetap bisa menimpa.
+const prod = process.argv.includes("--prod");
+const envFile = prod ? "postman/PassGo.production.postman_environment.json" : "postman/PassGo.local.postman_environment.json";
+
 const overrides = {
   organizerEmail: env.SEED_ORGANIZER_EMAIL,
   organizerPassword: env.SEED_ORGANIZER_PASSWORD,
   attendeeEmail: env.SEED_ATTENDEE_EMAIL,
   attendeePassword: env.SEED_ATTENDEE_PASSWORD ?? env.SEED_ORGANIZER_PASSWORD,
   midtransServerKey: env.MIDTRANS_SERVER_KEY,
-  origin: process.env.API_ORIGIN ?? env.CSRF_ALLOWED_ORIGINS?.split(",")[0],
-  // API_BASE_URL=https://<project>.vercel.app/api/v1 untuk menguji hasil deploy.
-  baseUrl: process.env.API_BASE_URL ?? `http://localhost:${env.PORT ?? 3000}/api/v1`,
+  origin: process.env.API_ORIGIN ?? (prod ? undefined : env.CSRF_ALLOWED_ORIGINS?.split(",")[0]),
+  baseUrl: process.env.API_BASE_URL ?? (prod ? undefined : `http://localhost:${env.PORT ?? 3000}/api/v1`),
 };
 
 const missing = ["organizerEmail", "organizerPassword"].filter((key) => !overrides[key]);
@@ -28,10 +31,10 @@ if (missing.length) {
 }
 
 // --working-dir: src berkas upload di collection relatif terhadap postman/, bukan CWD.
-const args = ["newman", "run", "postman/PassGo.postman_collection.json", "-e", "postman/PassGo.local.postman_environment.json", "--working-dir", "postman"];
+const args = ["newman", "run", "postman/PassGo.postman_collection.json", "-e", envFile, "--working-dir", "postman"];
 for (const [key, value] of Object.entries(overrides)) {
   if (value) args.push("--env-var", `${key}=${value}`);
 }
-args.push(...process.argv.slice(2));
+args.push(...process.argv.slice(2).filter((arg) => arg !== "--prod"));
 
 process.exit(spawnSync("npx", args, { stdio: "inherit", shell: true }).status ?? 1);

@@ -5,7 +5,8 @@
 ```
 postman/
 ├── PassGo.postman_collection.json
-├── PassGo.local.postman_environment.json   # template, tanpa kredensial
+├── PassGo.local.postman_environment.json   # template lokal, tanpa kredensial
+├── PassGo.production.postman_environment.json  # https://pass-go-lime.vercel.app, tanpa kredensial
 ├── run.mjs                                 # menyuntik kredensial dari apps/backend/.env
 └── fixtures/poster.jpg                     # 900x1125, dipakai PUT poster
 ```
@@ -29,6 +30,24 @@ Lewat aplikasi Postman, nilai itu harus diisi manual: import kedua JSON, pilih e
 **PassGo Local**, klik 👁 → **Edit**, isi `organizerEmail`/`organizerPassword` dan
 `attendeeEmail`/`attendeePassword` sesuai seed. Yang Anda isi di aplikasi tidak memengaruhi
 `npm run test:api`, dan sebaliknya — keduanya terpisah.
+
+### Production (Vercel)
+
+```bash
+npm run test:api:prod
+```
+
+Memakai environment **PassGo Production** (`baseUrl` `https://pass-go-lime.vercel.app/api/v1`,
+`origin` `http://localhost:3000`, yang harus ada di `CSRF_ALLOWED_ORIGINS` Vercel). Kredensial
+tetap dari `apps/backend/.env`, jadi password seed di sana harus sama dengan yang ada di database
+Atlas. `API_BASE_URL`/`API_ORIGIN` menimpa nilai berkas bila perlu (mis. preview deployment).
+
+Test ini menulis data sungguhan ke database production (event, pesanan, tiket, audit log).
+
+Edge Vercel membalas sendiri setiap request ber-`If-Match` dengan `412 PRECONDITION_FAILED`,
+jadi pre-request collection otomatis mengganti `If-Match` menjadi `X-If-Match` bila `baseUrl`
+bukan localhost (kontrak §6). Lewat aplikasi Postman, pilih environment **PassGo Production**
+dan isi kredensial seperti di atas; penggantian header berlaku juga di sana.
 
 Jalankan dari folder 00 ke bawah. Tiap folder mengisi variabel (`eventId`, `ticketTypeId`,
 `ticketCode`, `orderId`, …) untuk folder berikutnya, jadi urutannya tidak boleh diloncati.

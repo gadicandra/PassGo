@@ -283,12 +283,13 @@ async function reReserve(order: OrderRecord, session: mongoose.ClientSession): P
   return true;
 }
 
-export async function settleOrder(orderNumberValue: string, paymentInput: { transactionId?: string; paymentType?: string; providerStatus?: string }): Promise<void> {
+export async function settleOrder(orderNumberValue: string, paymentInput: { grossAmount?: string; transactionId?: string; paymentType?: string; providerStatus?: string }): Promise<void> {
   const session = await mongoose.startSession();
   try {
     await session.withTransaction(async () => {
       const order = await OrderModel.findOne({ orderNumber: orderNumberValue }).session(session).lean<OrderRecord>();
       if (!order || !["PENDING_PAYMENT", "EXPIRED", "CANCELLED"].includes(order.status)) return;
+      if (paymentInput.grossAmount !== undefined && Math.round(Number(paymentInput.grossAmount)) !== order.total) throw new AppError(422, "payment-amount-mismatch", "Nominal pembayaran tidak sesuai dengan pesanan.");
       const at = new Date();
       const paymentSet = { status: "SETTLED", providerTransactionId: paymentInput.transactionId ?? null, paymentType: paymentInput.paymentType ?? null, providerStatus: paymentInput.providerStatus ?? null, settledAt: at, lastSyncedAt: at };
       const late = order.status !== "PENDING_PAYMENT";

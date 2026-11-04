@@ -16,7 +16,7 @@ router.post("/midtrans/notifications", async (request, response, next) => {
     const actual = Buffer.from(body.signature_key, "hex");
     const expectedBuffer = Buffer.from(expected, "hex");
     if (actual.length !== expectedBuffer.length || !timingSafeEqual(actual, expectedBuffer)) throw new AppError(403, "webhook-signature-invalid", "Signature Midtrans tidak valid.");
-    if (["settlement", "capture"].includes(body.transaction_status) && (body.transaction_status !== "capture" || body.fraud_status === "accept" || body.fraud_status === undefined)) await settleOrder(body.order_id, { transactionId: body.transaction_id, paymentType: body.payment_type, providerStatus: body.transaction_status });
+    if (["settlement", "capture"].includes(body.transaction_status) && (body.transaction_status !== "capture" || body.fraud_status === "accept" || body.fraud_status === undefined)) await settleOrder(body.order_id, { grossAmount: body.gross_amount, transactionId: body.transaction_id, paymentType: body.payment_type, providerStatus: body.transaction_status });
     response.json({ data: { received: true } });
   } catch (error) { next(error); }
 });

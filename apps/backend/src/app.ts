@@ -61,12 +61,10 @@ app.use("/api/v1/orders", ordersRouter);
 app.use("/api/v1/users", usersRouter);
 app.use("/api/v1/me", meRouter);
 app.use("/api/v1/events", eventsRouter);
-// Tanpa kredensial Supabase, poster disimpan lokal dan dilayani dari sini.
 if (usesLocalStorage) app.use("/uploads", express.static(join(process.cwd(), "uploads"), { maxAge: "1y", index: false }));
 app.use("/api/v1/payments", paymentsRouter);
 app.use("/api/v1/tickets", ticketsRouter);
 app.use("/api/v1/audit-logs", auditLogsRouter);
-// Endpoint internal untuk cron (Vercel Cron / scheduler eksternal); bukan bagian kontrak publik.
 app.use("/api/v1/internal/jobs", jobsRouter);
 
 app.use(notFoundHandler);

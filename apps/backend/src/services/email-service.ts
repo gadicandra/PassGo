@@ -24,7 +24,6 @@ function mailer(): Transporter | null {
   return transporter;
 }
 
-// Backoff eksponensial: 1, 2, 4, 8 menit.
 export const retryDelayMs = (attempts: number) => 60_000 * 2 ** Math.max(0, attempts - 1);
 
 async function claim(now: Date): Promise<(OutboxRow & { attempts: number }) | null> {

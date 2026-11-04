@@ -21,7 +21,6 @@ const cancelBody = z.object({ reason: z.string().trim().max(500).optional() }).s
 export const refundBody = z.object({ amount: z.number().int().min(1), note: z.string().trim().min(5).max(500) }).strict();
 
 router.use(authenticate);
-// Kontrak §9.8: GET/cancel hanya untuk ATTENDEE (miliknya) dan ORGANIZER; STAFF tidak punya pesanan.
 const buyerOrOrganizer = authorize("ATTENDEE", "ORGANIZER");
 
 router.post("/", async (request, response, next) => {

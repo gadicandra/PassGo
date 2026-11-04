@@ -29,7 +29,6 @@ interface MidtransOrderPayload {
 
 const SYSTEM: AuditContext = { actorId: null, actorRole: "SYSTEM" };
 
-// Email e-ticket lewat outbox (dikirim job send-emails); kode tiket dibaca saat kirim, bukan saat antre.
 export async function queueTicketEmail(order: Pick<OrderRecord, "id" | "orderNumber" | "buyerEmail">, session: mongoose.ClientSession): Promise<void> {
   await EmailOutbox.create([{ id: uuidv7(), type: "ORDER_TICKETS", to: order.buyerEmail, payload: { orderId: order.id, orderNumber: order.orderNumber }, orderId: order.id }], { session });
 }
@@ -100,7 +99,6 @@ interface TicketRecord { id: string; code: string; holderName: string; ticketTyp
 
 export { maskTicketCode };
 
-// Bentuk `Order` §8: payment null untuk pesanan gratis, snapToken hanya untuk pemilik saat PENDING_PAYMENT, tickets berisi TicketSummary.
 export function orderView(order: OrderRecord, payment: PaymentRecord | null, tickets: TicketRecord[], viewerIsOwner: boolean) {
   const names = new Map(order.items.map((item) => [item.ticketTypeId, item.ticketTypeName]));
   const exposeSnap = viewerIsOwner && order.status === "PENDING_PAYMENT";
@@ -229,7 +227,6 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
 }
 
 export async function listOrders(userId: string, role: string): Promise<OrderRecord[]> {
-  // Lazy expiry: status yang dibaca klien tidak boleh tertinggal dari job terjadwal.
   await expireDueOrders(role === "ORGANIZER" ? {} : { userId });
   return OrderModel.find(role === "ORGANIZER" ? {} : { userId }).sort({ createdAt: -1 }).lean<OrderRecord[]>();
 }
@@ -283,12 +280,13 @@ async function reReserve(order: OrderRecord, session: mongoose.ClientSession): P
   return true;
 }
 
-export async function settleOrder(orderNumberValue: string, paymentInput: { transactionId?: string; paymentType?: string; providerStatus?: string }): Promise<void> {
+export async function settleOrder(orderNumberValue: string, paymentInput: { grossAmount?: string; transactionId?: string; paymentType?: string; providerStatus?: string }): Promise<void> {
   const session = await mongoose.startSession();
   try {
     await session.withTransaction(async () => {
       const order = await OrderModel.findOne({ orderNumber: orderNumberValue }).session(session).lean<OrderRecord>();
       if (!order || !["PENDING_PAYMENT", "EXPIRED", "CANCELLED"].includes(order.status)) return;
+      if (paymentInput.grossAmount !== undefined && Math.round(Number(paymentInput.grossAmount)) !== order.total) throw new AppError(422, "payment-amount-mismatch", "Nominal pembayaran tidak sesuai dengan pesanan.");
       const at = new Date();
       const paymentSet = { status: "SETTLED", providerTransactionId: paymentInput.transactionId ?? null, paymentType: paymentInput.paymentType ?? null, providerStatus: paymentInput.providerStatus ?? null, settledAt: at, lastSyncedAt: at };
       const late = order.status !== "PENDING_PAYMENT";

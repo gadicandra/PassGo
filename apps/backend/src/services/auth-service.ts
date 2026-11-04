@@ -125,23 +125,24 @@ export async function issueRefreshToken(user: UserRecord, metadata: { userAgent?
 }
 
 export async function refreshSession(token: string, metadata: { userAgent?: string; ip?: string }): Promise<{ accessToken: string; user: ReturnType<typeof publicUser>; refreshToken: string }> {
+  const invalid = () => new AppError(401, "refresh-token-invalid", "Refresh token tidak valid.");
   const record = await RefreshTokenModel.findOne({ tokenHash: hashToken(token) }).lean<RefreshTokenRecord>();
   if (record?.revokedAt && record.replacedById) {
     await RefreshTokenModel.updateMany({ familyId: record.familyId, revokedAt: null }, { $set: { revokedAt: now() } });
     throw new AppError(401, "refresh-token-reused", "Refresh token digunakan ulang.");
   }
-  if (!record || record.expiresAt <= now()) {
-    throw new AppError(401, "refresh-token-invalid", "Refresh token tidak valid.");
-  }
+  if (!record || record.revokedAt || record.expiresAt <= now()) throw invalid();
 
   const user = await getUserById(record.userId);
-  if (!user || !user.isActive) {
-    throw new AppError(401, "refresh-token-invalid", "Refresh token tidak valid.");
-  }
+  if (!user || !user.isActive) throw invalid();
 
   const replacement = createOpaqueToken();
   const replacementId = uuidv7();
-  await RefreshTokenModel.updateOne({ id: record.id }, { $set: { revokedAt: now(), replacedById: replacementId } });
+  const claimed = await RefreshTokenModel.findOneAndUpdate(
+    { id: record.id, revokedAt: null },
+    { $set: { revokedAt: now(), replacedById: replacementId } },
+  );
+  if (!claimed) throw invalid();
   await RefreshTokenModel.create({
     id: replacementId,
     userId: user.id,

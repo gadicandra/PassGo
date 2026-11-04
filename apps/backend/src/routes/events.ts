@@ -14,7 +14,6 @@ import { exportAttendeesCsv, listAttendees } from "../services/attendee-service"
 import { attendanceReport, salesReport } from "../services/report-service";
 
 const router = Router();
-// Kontrak §9.5: tepat satu berkas `poster`, tanpa field teks, maksimal 2 MB.
 const uploadPoster = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 0, parts: 1 } }).single("poster");
 const date = z.coerce.date();
 const eventStatus = z.enum(["DRAFT", "PUBLISHED", "CANCELLED"]);

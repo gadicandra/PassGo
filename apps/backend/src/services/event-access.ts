@@ -7,7 +7,7 @@ export interface Viewer { sub: string; role: "ORGANIZER" | "STAFF" | "ATTENDEE" 
 
 const eventNotFound = () => new AppError(404, "event-not-found", "Acara tidak ditemukan.");
 
-// 🧑‍💼: ORGANIZER, atau STAFF yang ditugaskan. Staff yang tidak ditugaskan mendapat 404 agar keberadaan acara tidak bocor.
+// ORGANIZER, atau STAFF yang ditugaskan. Staff yang tidak ditugaskan mendapat 404 agar keberadaan acara tidak bocor.
 export async function assertEventAccess(eventId: string, viewer: Viewer): Promise<AccessEvent> {
   const event = await Event.findOne({ id: eventId }).lean<AccessEvent>();
   if (!event) throw eventNotFound();

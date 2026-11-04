@@ -29,7 +29,6 @@ interface MidtransOrderPayload {
 
 const SYSTEM: AuditContext = { actorId: null, actorRole: "SYSTEM" };
 
-// Email e-ticket lewat outbox (dikirim job send-emails); kode tiket dibaca saat kirim, bukan saat antre.
 export async function queueTicketEmail(order: Pick<OrderRecord, "id" | "orderNumber" | "buyerEmail">, session: mongoose.ClientSession): Promise<void> {
   await EmailOutbox.create([{ id: uuidv7(), type: "ORDER_TICKETS", to: order.buyerEmail, payload: { orderId: order.id, orderNumber: order.orderNumber }, orderId: order.id }], { session });
 }
@@ -100,7 +99,6 @@ interface TicketRecord { id: string; code: string; holderName: string; ticketTyp
 
 export { maskTicketCode };
 
-// Bentuk `Order` §8: payment null untuk pesanan gratis, snapToken hanya untuk pemilik saat PENDING_PAYMENT, tickets berisi TicketSummary.
 export function orderView(order: OrderRecord, payment: PaymentRecord | null, tickets: TicketRecord[], viewerIsOwner: boolean) {
   const names = new Map(order.items.map((item) => [item.ticketTypeId, item.ticketTypeName]));
   const exposeSnap = viewerIsOwner && order.status === "PENDING_PAYMENT";
@@ -229,7 +227,6 @@ export async function createOrder(userId: string, input: OrderInput): Promise<Or
 }
 
 export async function listOrders(userId: string, role: string): Promise<OrderRecord[]> {
-  // Lazy expiry: status yang dibaca klien tidak boleh tertinggal dari job terjadwal.
   await expireDueOrders(role === "ORGANIZER" ? {} : { userId });
   return OrderModel.find(role === "ORGANIZER" ? {} : { userId }).sort({ createdAt: -1 }).lean<OrderRecord[]>();
 }

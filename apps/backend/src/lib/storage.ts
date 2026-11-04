@@ -11,7 +11,7 @@ const supabase =
     ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
     : null;
 
-// ponytail: tanpa kredensial Supabase, poster ditulis ke ./uploads dan dilayani
+// Tanpa kredensial Supabase, poster ditulis ke ./uploads dan dilayani
 // express.static. Cukup untuk development; di host ephemeral (Vercel/Railway)
 // berkasnya hilang tiap deploy, jadi produksi wajib mengisi SUPABASE_*.
 export const usesLocalStorage = supabase === null;

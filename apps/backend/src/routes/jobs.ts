@@ -6,7 +6,6 @@ import { expireDueOrders } from "../services/order-expiry-service";
 
 const router = Router();
 
-// Vercel Cron mengirim `Authorization: Bearer $CRON_SECRET` (GET); scheduler eksternal boleh GET/POST.
 // Hash dulu agar timingSafeEqual tidak bocor lewat perbedaan panjang.
 const requireCronSecret: RequestHandler = (request, _response, next) => {
   const secret = process.env.CRON_SECRET;

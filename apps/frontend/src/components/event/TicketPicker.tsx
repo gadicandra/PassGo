@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { Event, TicketType } from "@/types/api";
 import { Button } from "@/components/ui/Button";
+import { useToast } from "@/components/ui/Toast";
+import { useAuth } from "@/lib/api/auth";
+import { ApiError, apiFetch } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatRupiah } from "@/lib/format";
 import { Perforation } from "./TicketStub";
@@ -22,8 +25,29 @@ export function encodeItems(quantities: Quantities): string {
 // kebenaran akhir (kuota, harga, batas per akun) tetap ditentukan server saat checkout.
 export function TicketPicker({ event }: { event: Event }) {
   const router = useRouter();
+  const toast = useToast();
+  const { status, user } = useAuth();
   const [quantities, setQuantities] = useState<Quantities>({});
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
+
+  // Varian dari desain: tamu diarahkan masuk dulu, email belum terverifikasi tidak boleh membeli (403 di server),
+  // dan hanya akun peserta yang bisa membeli.
+  const guest = status === "guest";
+  const notAttendee = user !== null && user.role !== "ATTENDEE";
+  const unverified = user !== null && user.role === "ATTENDEE" && !user.emailVerified;
+
+  async function resendVerification() {
+    setResending(true);
+    try {
+      await apiFetch("/auth/email-verification", { method: "POST" });
+      toast.success("Link verifikasi dikirim ke email kamu.");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Gagal mengirim email.");
+    } finally {
+      setResending(false);
+    }
+  }
 
   const total = useMemo(
     () => event.ticketTypes.reduce((sum, type) => sum + type.price * (quantities[type.id] ?? 0), 0),
@@ -55,7 +79,21 @@ export function TicketPicker({ event }: { event: Event }) {
   }
 
   return (
-    <div className="rounded-card border border-navy/15 bg-white p-6 shadow-card">
+    <div className="overflow-hidden rounded-card border border-navy/15 bg-white shadow-card">
+      {unverified && !closedMessage && (
+        <p className="flex flex-wrap items-center justify-between gap-2 bg-sun px-6 py-3 text-[15px]">
+          <span>Verifikasi email dulu.</span>
+          <button
+            type="button"
+            onClick={resendVerification}
+            disabled={resending}
+            className="font-semibold underline underline-offset-4 disabled:opacity-60"
+          >
+            {resending ? "Mengirim" : "Kirim ulang"}
+          </button>
+        </p>
+      )}
+      <div className="p-6">
       <h2 className="text-[20px] font-semibold">Pilih tiket</h2>
 
       {closedMessage ? (
@@ -75,6 +113,7 @@ export function TicketPicker({ event }: { event: Event }) {
 
           <Perforation notchBg="var(--color-cream)" className="-mx-6 my-5" />
 
+
           <div className="flex items-baseline justify-between">
             <span className="font-semibold">Total</span>
             <span className="text-[24px] font-semibold tabular-nums">{formatRupiah(total, { freeLabel: count > 0 })}</span>
@@ -86,14 +125,23 @@ export function TicketPicker({ event }: { event: Event }) {
             </p>
           )}
 
-          <Button className="mt-4 w-full" disabled={count === 0 || overUserLimit} loading={submitting} onClick={buy}>
-            Beli tiket
+          <Button
+            className="mt-4 w-full"
+            disabled={count === 0 || overUserLimit || unverified || notAttendee}
+            loading={submitting}
+            onClick={buy}
+          >
+            {guest ? "Masuk untuk membeli" : "Beli tiket"}
           </Button>
-          {perUserLimit !== null && !overUserLimit && (
-            <p className="mt-3 text-sm text-muted">Maksimal {perUserLimit} tiket per akun.</p>
+          {notAttendee ? (
+            <p className="mt-3 text-sm text-muted">Pembelian hanya untuk akun peserta.</p>
+          ) : (
+            perUserLimit !== null &&
+            !overUserLimit && <p className="mt-3 text-sm text-muted">Maksimal {perUserLimit} tiket per akun.</p>
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

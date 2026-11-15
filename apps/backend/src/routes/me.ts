@@ -2,11 +2,13 @@ import { Router } from "express";
 import { z } from "zod";
 import { authenticate, type AuthenticatedRequest } from "../middlewares/authenticate";
 import { changePassword, assignedEvents, getMe, updateMe } from "../services/me-service";
-import { serializeUser, revokeAllSessions } from "../services/auth-service";
+import { serializeUser } from "../services/auth-service";
+import { limits } from "../middlewares/rate-limit";
+import { password, phone } from "../validators/user-fields";
 
 const router = Router();
-const profileSchema = z.object({ name: z.string().trim().min(2).max(100).optional(), phone: z.string().nullable().optional() }).strict().refine((value) => Object.keys(value).length > 0, "Body tidak boleh kosong.");
-const passwordSchema = z.object({ currentPassword: z.string().min(1), newPassword: z.string().min(8).max(64) }).strict();
+const profileSchema = z.object({ name: z.string().trim().min(2).max(100).optional(), phone }).strict().refine((value) => Object.keys(value).length > 0, "Body tidak boleh kosong.");
+const passwordSchema = z.object({ currentPassword: z.string().min(1), newPassword: password }).strict();
 const refreshCookie = "__Secure-refresh_token";
 
 router.use(authenticate);
@@ -19,7 +21,7 @@ router.patch("/", async (request, response, next) => {
   try { const user = await updateMe((request as AuthenticatedRequest).user.sub, request.get("if-match"), profileSchema.parse(request.body)); response.set("ETag", `"${user.version}"`).json({ data: serializeUser(user) }); } catch (error) { next(error); }
 });
 
-router.post("/password", async (request, response, next) => {
+router.post("/password", limits.passwordChange, async (request, response, next) => {
   try {
     const body = passwordSchema.parse(request.body);
     const result = await changePassword((request as AuthenticatedRequest).user.sub, body.currentPassword, body.newPassword);

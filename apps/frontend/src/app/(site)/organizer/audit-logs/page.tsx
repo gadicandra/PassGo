@@ -19,6 +19,10 @@ const ACTIONS = [
   "TICKET_REISSUED", "CHECK_IN_REVERTED", "ATTENDEES_EXPORTED",
 ];
 
+// Nilai entityType yang benar-benar ditulis backend (audit-service callers).
+const ENTITY_TYPES = ["User", "Event", "Order", "Ticket", "CheckIn"];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 interface CursorMeta {
   nextCursor: string | null;
   hasMore: boolean;
@@ -38,7 +42,7 @@ export default function AuditLogsPage() {
 
 function AuditLogs() {
   const toast = useToast();
-  const [filters, setFilters] = useState({ action: "", from: "", to: "" });
+  const [filters, setFilters] = useState({ action: "", entityType: "", entityId: "", actorId: "", from: "", to: "" });
   const [rows, setRows] = useState<AuditLog[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -47,7 +51,17 @@ function AuditLogs() {
   const fetchPage = useCallback(
     (after?: string) =>
       apiEnvelope<AuditLog[], CursorMeta>("/audit-logs", {
-        query: { limit: 50, cursor: after, action: filters.action, from: dayStart(filters.from), to: dayEnd(filters.to) },
+        query: {
+          limit: 50,
+          cursor: after,
+          action: filters.action,
+          entityType: filters.entityType,
+          // ID harus UUID utuh (backend memvalidasi); ketikan setengah jadi diabaikan, bukan 422.
+          entityId: UUID.test(filters.entityId.trim()) ? filters.entityId.trim() : undefined,
+          actorId: filters.actorId,
+          from: dayStart(filters.from),
+          to: dayEnd(filters.to),
+        },
       }),
     [filters],
   );
@@ -90,7 +104,15 @@ function AuditLogs() {
     <section className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 px-4 py-12 md:px-8">
       <h1 className="font-display text-[40px] font-extrabold leading-none tracking-[-0.03em]">Log audit</h1>
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_180px_180px]">
+      {filters.actorId && (
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          Hanya aksi oleh satu pengguna.
+          <Button size="sm" variant="text" onClick={() => setFilter("actorId", "")}>
+            Hapus filter pelaku
+          </Button>
+        </p>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_160px_1fr_160px_160px]">
         <Select name="action" label="Aksi" value={filters.action} onChange={(e) => setFilter("action", e.target.value)}>
           <option value="">Semua aksi</option>
           {ACTIONS.map((action) => (
@@ -99,6 +121,15 @@ function AuditLogs() {
             </option>
           ))}
         </Select>
+        <Select name="entityType" label="Jenis data" value={filters.entityType} onChange={(e) => setFilter("entityType", e.target.value)}>
+          <option value="">Semua</option>
+          {ENTITY_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </Select>
+        <Field name="entityId" label="ID data" placeholder="Tempel UUID" value={filters.entityId} onChange={(e) => setFilter("entityId", e.target.value)} />
         <Field name="from" label="Dari tanggal" type="date" value={filters.from} max={filters.to || undefined} onChange={(e) => setFilter("from", e.target.value)} />
         <Field name="to" label="Sampai tanggal" type="date" value={filters.to} min={filters.from || undefined} onChange={(e) => setFilter("to", e.target.value)} />
       </div>
@@ -131,9 +162,19 @@ function AuditLogs() {
               <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
                 <Diff label="Sebelum" value={log.before} />
                 <Diff label="Sesudah" value={log.after} />
-                <p className="break-all text-muted md:col-span-2">
-                  ID entitas <span className="font-mono">{log.entityId}</span>
-                  {log.ip && <> · IP {log.ip}</>}
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 break-all text-muted md:col-span-2">
+                  <span>
+                    ID entitas <span className="font-mono">{log.entityId}</span>
+                    {log.ip && <> · IP {log.ip}</>}
+                  </span>
+                  <Button size="sm" variant="text" onClick={() => setFilter("entityId", log.entityId)}>
+                    Riwayat data ini
+                  </Button>
+                  {log.actor && (
+                    <Button size="sm" variant="text" onClick={() => setFilter("actorId", log.actor!.id)}>
+                      Aksi lain oleh {log.actor.name}
+                    </Button>
+                  )}
                 </p>
               </div>
             )}

@@ -17,6 +17,21 @@ import { ticketStatusLabel, toneClass } from "@/lib/status";
 
 const POLL_MS = 5000;
 
+const PAYMENT_LABELS: Record<string, string> = {
+  qris: "QRIS",
+  gopay: "GoPay",
+  shopeepay: "ShopeePay",
+  bank_transfer: "Transfer bank",
+  echannel: "Mandiri Bill",
+  credit_card: "Kartu kredit",
+  cstore: "Gerai retail",
+  free: "Gratis",
+};
+
+/** Nama metode bayar Midtrans yang enak dibaca; tipe yang tidak dikenal dirapikan seadanya. */
+const paymentLabel = (type: string) =>
+  PAYMENT_LABELS[type.toLowerCase()] ?? type.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+
 export function OrderDetail({ orderId }: { orderId: string }) {
   const { status, requireLogin } = useAuth();
   const toast = useToast();
@@ -173,7 +188,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                   {order.payment?.paymentType && (
                     <>
                       <dt className="text-muted">Metode</dt>
-                      <dd className="uppercase">{order.payment.paymentType.replace(/_/g, " ")}</dd>
+                      <dd>{paymentLabel(order.payment.paymentType)}</dd>
                     </>
                   )}
                 </dl>

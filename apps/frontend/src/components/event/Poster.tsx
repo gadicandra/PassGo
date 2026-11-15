@@ -16,7 +16,7 @@ const palettes = [
 ] as const;
 
 const titleSize: Record<Size, string> = {
-  sm: "text-[14px]",
+  sm: "text-[12px]",
   md: "text-[28px]",
   lg: "text-[36px]",
 };
@@ -41,20 +41,31 @@ function hash(text: string): number {
   return value;
 }
 
+/**
+ * Warna poster sebuah acara. Default stabil per id; kirim `tone` (mis. indeks di grid)
+ * supaya poster yang bersebelahan tidak pernah berwarna sama. Dipakai juga oleh hero & header detail.
+ */
+export function posterPalette(event: Pick<EventSummary, "id" | "status">, tone?: number) {
+  if (event.status === "CANCELLED") return { bg: "bg-cream", fg: "text-navy" };
+  return palettes[(tone ?? hash(event.id)) % palettes.length];
+}
+
 export function Poster({
   event,
   size = "md",
+  tone,
   className,
 }: {
   event: PosterEvent;
   size?: Size;
+  /** Indeks warna; lihat posterPalette. */
+  tone?: number;
   className?: string;
 }) {
   const cancelled = event.status === "CANCELLED";
   const soldOut = !cancelled && event.salesStatus === "SOLD_OUT";
-  const seed = hash(event.id);
-  const palette = cancelled ? { bg: "bg-cream", fg: "text-navy" } : palettes[seed % palettes.length];
-  const photoOnTop = seed % 2 === 1;
+  const palette = posterPalette(event, tone);
+  const photoOnTop = hash(event.id) % 2 === 1;
   const { day, month } = dateParts(event.startAt, event.timezone);
 
   const title = (

@@ -6,7 +6,7 @@ import { eventPriceLine, toneClass } from "@/lib/status";
 import { Poster } from "./Poster";
 
 /** Kartu acara di katalog: poster + judul + "tempat · jam" + harga/status. Seluruh kartu adalah link. */
-export function EventCard({ event, className }: { event: EventSummary; className?: string }) {
+export function EventCard({ event, tone, className }: { event: EventSummary; tone?: number; className?: string }) {
   const cancelled = event.status === "CANCELLED";
   const price = eventPriceLine(event);
 
@@ -18,7 +18,7 @@ export function EventCard({ event, className }: { event: EventSummary; className
         className,
       )}
     >
-      <Poster event={event} className="shadow-card" />
+      <Poster event={event} tone={tone} className="shadow-card" />
       <div className="mt-3 flex flex-col gap-0.5">
         <h3
           className={cn(

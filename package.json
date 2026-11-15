@@ -11,6 +11,7 @@
     "build:backend": "npm run build --workspace=apps/backend",
     "build:frontend": "npm run build --workspace=apps/frontend",
     "db:seed": "npm run db:seed --workspace=apps/backend",
+    "db:seed:demo": "npm run db:seed:demo --workspace=apps/backend",
     "test:api": "node postman/run.mjs",
     "test:api:prod": "node postman/run.mjs --prod"
   },

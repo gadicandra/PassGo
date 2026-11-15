@@ -1,8 +1,9 @@
+import type { CSSProperties } from "react";
 import { cn } from "@/lib/cn";
 
 /** Blok abu-abu berdenyut untuk state loading. Atur ukuran lewat className. */
-export function Skeleton({ className }: { className?: string }) {
-  return <div aria-hidden className={cn("animate-pulse rounded-md bg-navy/10", className)} />;
+export function Skeleton({ className, style }: { className?: string; style?: CSSProperties }) {
+  return <div aria-hidden style={style} className={cn("animate-pulse rounded-md bg-navy/10", className)} />;
 }
 
 /** Placeholder satu EventCard (poster 4:5 + tiga baris teks). */

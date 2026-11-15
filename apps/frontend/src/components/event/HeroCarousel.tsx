@@ -1,33 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { EventSummary } from "@/types/api";
 import { ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { formatDate, formatTime } from "@/lib/format";
 import { eventPriceLine } from "@/lib/status";
 import { Poster, posterPalette } from "./Poster";
+import { TEAR_DEPTH, tornEdge } from "./tornEdge";
 
-const AUTO_ADVANCE_MS = 6000;
-const TEAR_MS = 650;
+const AUTO_ADVANCE_MS = 7000;
+const FALL_MS = 700;
 const STUB_POSTER = "rotate-[4deg] border-2 border-navy shadow-hard";
-
-/** Tepi kertas sobek: gerigi 8px di sepanjang sisi, 26 gigi. `side` = sisi yang bergerigi. */
-function tornEdge(side: "left" | "right") {
-  const teeth = 26;
-  const points: string[] = [];
-  for (let i = 0; i <= teeth; i++) {
-    const y = ((i / teeth) * 100).toFixed(2);
-    const out = i % 2 === 0;
-    points.push(side === "left" ? `${out ? 0 : 8}px ${y}%` : `calc(100% - ${out ? 0 : 8}px) ${y}%`);
-  }
-  return side === "left"
-    ? `polygon(8px 0, 100% 0, 100% 100%, ${points.reverse().join(", ")})`
-    : `polygon(0 0, ${points.join(", ")}, 0 100%)`;
-}
-
-const BODY_EDGE = tornEdge("right");
-const STUB_EDGE = tornEdge("left");
 
 /** Poster navy di atas hero navy akan hilang, jadi hero pakai oranye untuk acara berposter navy. */
 function heroPalette(event: EventSummary) {
@@ -35,15 +19,26 @@ function heroPalette(event: EventSummary) {
   return colors.bg === "bg-navy" ? { bg: "bg-brand", fg: "text-cream" } : colors;
 }
 
-// Hero katalog berbentuk tiket raksasa: takik + perforasi di 70%, poster miring di sobekan kanan.
+/*
+  Hero katalog = tiket raksasa yang dirobek. Koreografi (skill animation-systems, satu momen utama):
+    0 ms      badan + sobekan muncul sebagai satu tiket utuh, judul → info → harga naik bergantian
+    150 ms    lubang perforasi "dipon" dari atas ke bawah
+    650 ms    robekan merambat dari atas: sobekan tertarik, terkelupas dari atas (poros di sudut bawah),
+              lalu bagian bawah lepas dan sobekan jatuh sedikit, berhenti miring; serat putih kertas
+              terlihat di kedua tepi dan bayangan muncul di bawah sobekan yang terangkat
+    ganti     sobekan lama jatuh berputar keluar, tiket berikutnya mengulang dari awal
+  Tepi sobek memakai noise lebar + halus per acara (skill paper-cinder-transition).
+  Autoplay berhenti saat hero di luar layar atau tab tersembunyi (skill optimize-web-animations).
+*/
 export function HeroCarousel({ events }: { events: EventSummary[] }) {
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
-  // Sobekan tiket slide sebelumnya, dirender sebentar untuk animasi "dirobek".
+  const [hovered, setHovered] = useState(false);
+  const [visible, setVisible] = useState(true);
+  // Sobekan slide sebelumnya, dirender sebentar untuk animasi jatuh.
   const [torn, setTorn] = useState<{ event: EventSummary; key: number } | null>(null);
-  const count = events.length;
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const section = useRef<HTMLElement>(null);
   const current = useRef(0);
+  const count = events.length;
 
   const go = useCallback(
     (next: number) => {
@@ -58,46 +53,64 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
 
   useEffect(() => {
     if (!torn) return;
-    const clear = setTimeout(() => setTorn(null), TEAR_MS);
+    const clear = setTimeout(() => setTorn(null), FALL_MS);
     return () => clearTimeout(clear);
   }, [torn]);
 
+  // Hanya jalan saat terlihat: di luar layar atau tab tersembunyi, autoplay berhenti.
   useEffect(() => {
-    if (count < 2 || paused) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    timer.current = setInterval(() => go(current.current + 1), AUTO_ADVANCE_MS);
+    const element = section.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting && !document.hidden), {
+      threshold: 0.3,
+    });
+    const onVisibility = () => setVisible(!document.hidden && element.getBoundingClientRect().bottom > 0);
+    observer.observe(element);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      if (timer.current) clearInterval(timer.current);
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [count, paused, index, go]);
+  }, []);
 
-  if (count === 0) return null;
-  const event = events[index];
+  useEffect(() => {
+    if (count < 2 || hovered || !visible) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = setTimeout(() => go(current.current + 1), AUTO_ADVANCE_MS);
+    return () => clearTimeout(timer);
+  }, [count, hovered, visible, index, go]);
+
+  const event = events[index] ?? events[0];
+  const edge = useMemo(() => (event ? tornEdge(event.id) : null), [event]);
+  const tornEdgeShape = useMemo(() => (torn ? tornEdge(torn.event.id) : null), [torn]);
+
+  if (!event || !edge) return null;
   const palette = heroPalette(event);
   const price = eventPriceLine(event);
 
   return (
     <section
+      ref={section}
       aria-roledescription="carousel"
       aria-label="Acara pilihan"
       className="mx-auto w-full max-w-[1200px] px-4 pt-8 md:px-8 md:pt-12"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
-      onBlur={() => setPaused(false)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
     >
       <div className="relative">
         <div key={event.id} className={cn("relative flex min-h-[300px] animate-[hero-in_300ms_var(--ease-ticket)] md:h-[440px]", palette.fg)}>
-          {/* Badan tiket: tepi kanannya bergerigi (bekas sobekan) mulai md. */}
+          {/* Badan tiket. Mulai md tepi kanannya mengikuti garis sobek. */}
           <div
-            style={{ "--tear": BODY_EDGE } as CSSProperties}
+            style={{ "--edge": edge.body, "--fiber": edge.bodyFiber } as CSSProperties}
             className={cn(
-              "flex w-full flex-col justify-between gap-8 rounded-2xl p-6 md:w-[70%] md:rounded-r-none md:p-12 md:pr-14 md:[clip-path:var(--tear)]",
+              "relative flex w-full flex-col justify-between gap-8 rounded-2xl p-6 md:w-[70%] md:rounded-r-none md:p-12 md:pr-14 md:[clip-path:var(--edge)]",
               palette.bg,
             )}
           >
-            {/* Urutan baca: judul → info → harga & tombol, jeda 80ms. */}
-            <div>
+            <span aria-hidden className="absolute inset-0 hidden bg-cream opacity-0 [clip-path:var(--fiber)] animate-[fiber-in_220ms_ease-out_1000ms_both] md:block" />
+            <div className="relative">
               <h2 className="max-w-xl animate-[rise-in_500ms_var(--ease-ticket)_both] font-display text-[40px] font-extrabold leading-[0.95] tracking-[-0.03em] md:text-[64px]">
                 {event.title}
               </h2>
@@ -106,7 +119,7 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
                 {event.venueName}
               </p>
             </div>
-            <div className="flex animate-[rise-in_500ms_var(--ease-ticket)_160ms_both] flex-wrap items-center gap-5">
+            <div className="relative flex animate-[rise-in_500ms_var(--ease-ticket)_160ms_both] flex-wrap items-center gap-5">
               <p className="text-[24px] font-semibold tabular-nums md:text-[28px]">{price.label}</p>
               <ButtonLink href={`/events/${event.slug}`} variant="dark">
                 Beli tiket
@@ -114,39 +127,24 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
             </div>
           </div>
 
-          {/* Momen utama hero (skill animation-systems):
-              0–500ms garis perforasi "digunting" → 500ms sobekan robek dari badan tiket dan tetap miring di sampingnya. */}
+          {/* Sobekan: pembungkus ini yang bergerak (poros sudut kiri bawah); isinya dipotong mengikuti garis sobek. */}
           <div
-            style={{ "--tear": STUB_EDGE } as CSSProperties}
-            className={cn(
-              "relative -ml-[8px] hidden w-[calc(30%+8px)] origin-top-left animate-[stub-rip_650ms_var(--ease-ticket)_500ms_both] items-center justify-center rounded-r-2xl md:flex md:[clip-path:var(--tear)]",
-              palette.bg,
-            )}
+            style={{ width: `calc(30% + ${TEAR_DEPTH}px)`, marginLeft: -TEAR_DEPTH }}
+            className="relative hidden origin-bottom-left animate-[stub-rip_1000ms_linear_650ms_both] md:block"
           >
-            <span
-              aria-hidden
-              className="absolute bottom-0 left-[8px] top-0 origin-top animate-[perf-cut_500ms_var(--ease-ticket)_both] border-l-2 border-dotted border-current opacity-40"
-            />
-            <div className="w-[240px]">
-              <Poster event={event} size="lg" className={STUB_POSTER} />
-            </div>
+            <span aria-hidden className="absolute inset-y-6 left-8 right-0 rounded-2xl bg-navy/40 opacity-0 blur-xl animate-[lift-shadow_1000ms_linear_650ms_both]" />
+            <StubPiece event={event} edge={edge} className={palette.bg} />
           </div>
         </div>
 
-        {torn && (
+        {torn && tornEdgeShape && (
           <div
             key={torn.key}
             aria-hidden
-            style={{ "--tear": STUB_EDGE } as CSSProperties}
-            className={cn(
-              "pointer-events-none absolute inset-y-0 right-0 z-20 hidden w-[calc(30%+8px)] origin-top-left animate-[stub-fall_650ms_var(--ease-tear)_forwards] items-center justify-center rounded-r-2xl md:flex md:[clip-path:var(--tear)]",
-              heroPalette(torn.event).bg,
-            )}
+            style={{ width: `calc(30% + ${TEAR_DEPTH}px)` }}
+            className="pointer-events-none absolute inset-y-0 right-0 z-20 hidden origin-bottom-left animate-[stub-fall_700ms_var(--ease-tear)_forwards] md:block"
           >
-            {/* Ganti slide: sobekan lama (lengkap dengan tepi bergerigi) jatuh berputar. */}
-            <div className="w-[240px]">
-              <Poster event={torn.event} size="lg" className={STUB_POSTER} />
-            </div>
+            <StubPiece event={torn.event} edge={tornEdgeShape} className={heroPalette(torn.event).bg} settled />
           </div>
         )}
 
@@ -175,6 +173,44 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
         </div>
       )}
     </section>
+  );
+}
+
+/** Potongan sobekan: warna tiket dipotong garis sobek, perforasi di tepinya, serat putih, dan poster. */
+function StubPiece({
+  event,
+  edge,
+  className,
+  settled = false,
+}: {
+  event: EventSummary;
+  edge: ReturnType<typeof tornEdge>;
+  className: string;
+  /** true untuk sobekan yang sudah robek (jatuh saat ganti slide): serat langsung terlihat, tanpa animasi masuk. */
+  settled?: boolean;
+}) {
+  return (
+    <div
+      style={{ "--edge": edge.stub, "--fiber": edge.stubFiber } as CSSProperties}
+      className={cn("relative flex h-full items-center justify-center rounded-r-2xl [clip-path:var(--edge)]", className)}
+    >
+      {/* Lubang perforasi tepat di sepanjang garis sobek. */}
+      <span
+        aria-hidden
+        style={{ left: TEAR_DEPTH - 6 }}
+        className={cn(
+          "absolute bottom-3 top-3 origin-top border-l-2 border-dotted border-current opacity-40",
+          !settled && "animate-[perf-cut_450ms_var(--ease-ticket)_150ms_both]",
+        )}
+      />
+      <span
+        aria-hidden
+        className={cn("absolute inset-0 bg-cream [clip-path:var(--fiber)]", settled ? "opacity-100" : "opacity-0 animate-[fiber-in_220ms_ease-out_1000ms_both]")}
+      />
+      <div className="relative w-[240px]">
+        <Poster event={event} size="lg" className={STUB_POSTER} />
+      </div>
+    </div>
   );
 }
 

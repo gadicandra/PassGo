@@ -86,28 +86,66 @@
   }
 }
 
-/* Sobekan tiket di hero robek dari badan tiket: tertahan (tarikan kertas), lalu lepas
-   dan berhenti miring di sampingnya, menyisakan celah bergerigi. */
+/* Robekan tiket di hero (pasang dengan origin-bottom-left: poros di sudut bawah yang masih menempel).
+   Tiap ketukan punya easing sendiri: tarikan pelan, terkelupas dari atas, bagian bawah lepas, jatuh, diam. */
 @keyframes stub-rip {
   0% {
     transform: none;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
   }
-  35% {
-    transform: translate(2px, -3px) rotate(-0.6deg);
+  14% {
+    /* tarikan: kertas menegang ke arah berlawanan sebelum sobek */
+    transform: translateX(-1px) rotate(-0.4deg);
+    animation-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
+  }
+  58% {
+    /* robekan merambat dari atas ke bawah: bagian atas sudah terkelupas, bawah masih menempel */
+    transform: rotate(4.5deg);
+    animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+  }
+  70% {
+    /* bagian bawah putus, sobekan sedikit terlempar */
+    transform: translate(9px, 3px) rotate(5.2deg);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.25, 1);
   }
   100% {
-    transform: translate(16px, 10px) rotate(2.5deg);
+    /* jatuh sedikit lalu diam miring di samping badan tiket */
+    transform: translate(16px, 10px) rotate(3deg);
+  }
+}
+
+/* Bayangan di bawah sobekan yang terangkat, ikut ketukan stub-rip. */
+@keyframes lift-shadow {
+  0%,
+  14% {
+    opacity: 0;
+  }
+  58% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+/* Serat putih kertas terlihat di tepi sobekan saat robekan lewat. */
+@keyframes fiber-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
 /* Ganti slide: sobekan yang sudah robek jatuh berputar keluar. Mulai dari posisi akhir stub-rip. */
 @keyframes stub-fall {
   from {
-    transform: translate(16px, 10px) rotate(2.5deg);
+    transform: translate(16px, 10px) rotate(3deg);
     opacity: 1;
   }
   to {
-    transform: translate(80px, 240px) rotate(22deg);
+    transform: translate(90px, 260px) rotate(20deg);
     opacity: 0;
   }
 }

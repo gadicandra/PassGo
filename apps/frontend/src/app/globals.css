@@ -18,6 +18,10 @@
   --shadow-card: 0 2px 8px rgb(20 33 61 / 0.08);
   --shadow-card-hover: 0 6px 16px rgb(20 33 61 / 0.14);
   --shadow-hard: 8px 8px 0 #14213d;
+
+  /* Token gerak (skill animation-systems): masuk = ease-ticket, keluar = ease-tear. */
+  --ease-ticket: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-tear: cubic-bezier(0.5, 0, 0.75, 0);
 }
 
 @theme inline {
@@ -112,17 +116,54 @@
   }
 }
 
-@keyframes perf-rip {
-  0%,
-  100% {
-    opacity: 0.4;
+/* Garis perforasi "digunting" dari atas ke bawah. Pasang bersama origin-top. */
+@keyframes perf-cut {
+  from {
+    transform: scaleY(0);
   }
-  35% {
-    opacity: 1;
+  to {
+    transform: scaleY(1);
   }
 }
 
+/* Masuk standar: naik 20px + muncul. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Bagian bawah tiket disobek: tertahan sebentar, lalu lepas miring dan jatuh. */
+@keyframes tear-away {
+  0% {
+    transform: none;
+  }
+  30% {
+    transform: translateY(2px) rotate(-1deg);
+  }
+  100% {
+    transform: translate(12px, 22px) rotate(3deg);
+    opacity: 0;
+  }
+}
+
+/* Muncul saat di-scroll (skill animation-on-scroll). Kelas is-visible dipasang oleh <Reveal>. */
+.reveal {
+  opacity: 0;
+}
+.reveal.is-visible {
+  animation: rise-in 600ms var(--ease-ticket) var(--reveal-delay, 0ms) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+  }
   *,
   *::before,
   *::after {

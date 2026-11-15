@@ -70,22 +70,23 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
           key={event.id}
           style={{ "--notch-x": "70%", "--notch-size": "16px" } as CSSProperties}
           className={cn(
-            "md:ticket-notch relative flex min-h-[360px] animate-[hero-in_300ms_ease-out] rounded-2xl md:h-[440px]",
+            "md:ticket-notch relative flex min-h-[360px] animate-[hero-in_300ms_var(--ease-ticket)] rounded-2xl md:h-[440px]",
             palette.bg,
             palette.fg,
           )}
         >
           <div className="flex w-full flex-col justify-between gap-8 p-6 md:w-[70%] md:p-12 md:pr-14">
+            {/* Urutan baca: judul → info → harga & tombol, jeda 80ms. */}
             <div>
-              <h2 className="max-w-xl font-display text-[40px] font-extrabold leading-[0.95] tracking-[-0.03em] md:text-[64px]">
+              <h2 className="max-w-xl animate-[rise-in_500ms_var(--ease-ticket)_both] font-display text-[40px] font-extrabold leading-[0.95] tracking-[-0.03em] md:text-[64px]">
                 {event.title}
               </h2>
-              <p className="mt-5 font-mono text-[13px] font-medium uppercase tracking-wide">
+              <p className="mt-5 animate-[rise-in_500ms_var(--ease-ticket)_80ms_both] font-mono text-[13px] font-medium uppercase tracking-wide">
                 {formatDate(event.startAt, event.timezone)} · {formatTime(event.startAt, event.timezone)} WIB ·{" "}
                 {event.venueName}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-5">
+            <div className="flex animate-[rise-in_500ms_var(--ease-ticket)_160ms_both] flex-wrap items-center gap-5">
               <p className="text-[24px] font-semibold tabular-nums md:text-[28px]">{price.label}</p>
               <ButtonLink href={`/events/${event.slug}`} variant="dark">
                 Beli tiket
@@ -95,11 +96,11 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
 
           <div
             aria-hidden
-            className="absolute bottom-0 left-[70%] top-0 hidden animate-[perf-rip_650ms_ease-out] border-r-2 border-dotted border-current opacity-40 md:block"
+            className="absolute bottom-0 left-[70%] top-0 hidden origin-top animate-[perf-cut_500ms_var(--ease-ticket)_both] border-r-2 border-dotted border-current opacity-40 md:block"
           />
           <div className="hidden w-[30%] items-center justify-center md:flex">
             {/* Sobekan baru turun ke tempatnya; di render pertama juga diputar sekali. */}
-            <div className="animate-[stub-in_550ms_cubic-bezier(.2,.9,.3,1.2)_120ms_both]">
+            <div className="animate-[stub-in_600ms_var(--ease-ticket)_350ms_both]">
               <Poster event={event} size="lg" className={STUB_POSTER} />
             </div>
           </div>
@@ -112,7 +113,7 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
             className="pointer-events-none absolute inset-y-0 right-0 z-20 hidden w-[30%] items-center justify-center md:flex"
           >
             {/* Sobekan lama dirobek dari garis perforasi lalu jatuh berputar. */}
-            <div className="origin-top-left animate-[stub-tear_650ms_cubic-bezier(.5,0,.75,0)_forwards]">
+            <div className="origin-top-left animate-[stub-tear_650ms_var(--ease-tear)_forwards]">
               <Poster event={torn.event} size="lg" className={STUB_POSTER} />
             </div>
           </div>

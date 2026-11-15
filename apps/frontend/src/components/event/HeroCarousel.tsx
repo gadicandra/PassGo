@@ -114,7 +114,7 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
               <h2 className="max-w-xl animate-[rise-in_500ms_var(--ease-ticket)_both] font-display text-[40px] font-extrabold leading-[0.95] tracking-[-0.03em] md:text-[64px]">
                 {event.title}
               </h2>
-              <p className="mt-5 animate-[rise-in_500ms_var(--ease-ticket)_80ms_both] font-mono text-[13px] font-medium uppercase tracking-wide">
+              <p className="mt-5 animate-[rise-in_500ms_var(--ease-ticket)_80ms_both] text-[17px] font-medium md:text-[18px]">
                 {formatDate(event.startAt, event.timezone)} · {formatTime(event.startAt, event.timezone)} WIB ·{" "}
                 {event.venueName}
               </p>

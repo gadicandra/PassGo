@@ -128,7 +128,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
                     </h3>
                     <div className="flex items-center justify-between gap-2 border-t border-navy/10 pt-2">
                       <p className="truncate text-[13px] text-muted">{event.venueName}</p>
-                      <span className="shrink-0 font-mono text-[12px] font-bold">{formatDate(event.startAt, event.timezone).replace(/ \d{4}$/, "")}</span>
+                      <span className="shrink-0 text-[13px] font-semibold">{formatDate(event.startAt, event.timezone).replace(/ \d{4}$/, "")}</span>
                     </div>
                   </TicketStub>
                 </Link>

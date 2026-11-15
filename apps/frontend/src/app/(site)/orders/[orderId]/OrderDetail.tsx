@@ -59,7 +59,6 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   }, [order?.status, load]);
 
   async function action(kind: "sync" | "cancel" | "email") {
-    if (kind === "cancel" && !window.confirm("Batalkan pesanan ini? Tiket yang ditahan akan dilepas.")) return;
     setBusy(kind);
     try {
       if (kind === "sync") {
@@ -197,25 +196,7 @@ function StatusBlock({
   onAction: (kind: "sync" | "cancel" | "email") => void;
 }) {
   if (order.status === "PENDING_PAYMENT") {
-    return (
-      <section className="rounded-card bg-sun p-6 md:p-8">
-        <h1 className="font-display text-[32px] font-extrabold leading-tight">Menunggu pembayaran</h1>
-        {order.expiresAt && <Countdown until={order.expiresAt} />}
-        <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
-          {order.payment?.snapRedirectUrl && (
-            <ButtonLink href={order.payment.snapRedirectUrl} variant="dark">
-              Lanjutkan pembayaran
-            </ButtonLink>
-          )}
-          <Button variant="text" loading={busy === "sync"} onClick={() => onAction("sync")}>
-            Cek status
-          </Button>
-          <Button variant="text" loading={busy === "cancel"} onClick={() => onAction("cancel")}>
-            Batalkan pesanan
-          </Button>
-        </div>
-      </section>
-    );
+    return <PendingBlock order={order} busy={busy} onAction={onAction} />;
   }
 
   if (order.status === "PAID") {
@@ -253,6 +234,51 @@ function StatusBlock({
       <ButtonLink href="/" variant="dark" className="mt-6">
         Pesan lagi
       </ButtonLink>
+    </section>
+  );
+}
+
+function PendingBlock({
+  order,
+  busy,
+  onAction,
+}: {
+  order: Order;
+  busy: "sync" | "cancel" | "email" | null;
+  onAction: (kind: "sync" | "cancel" | "email") => void;
+}) {
+  // Konfirmasi batal di dalam blok, bukan dialog bawaan browser.
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <section className="rounded-card bg-sun p-6 md:p-8">
+      <h1 className="font-display text-[32px] font-extrabold leading-tight">Menunggu pembayaran</h1>
+      {order.expiresAt && <Countdown until={order.expiresAt} />}
+      {confirming ? (
+        <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-navy/20 pt-5" role="alertdialog" aria-label="Konfirmasi batal">
+          <p className="w-full font-semibold">Batalkan pesanan ini? Tiket yang ditahan akan dilepas.</p>
+          <Button variant="dark" loading={busy === "cancel"} onClick={() => onAction("cancel")}>
+            Ya, batalkan
+          </Button>
+          <Button variant="text" onClick={() => setConfirming(false)} disabled={busy === "cancel"}>
+            Tidak jadi
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+          {order.payment?.snapRedirectUrl && (
+            <ButtonLink href={order.payment.snapRedirectUrl} variant="dark">
+              Lanjutkan pembayaran
+            </ButtonLink>
+          )}
+          <Button variant="text" loading={busy === "sync"} onClick={() => onAction("sync")}>
+            Cek status
+          </Button>
+          <Button variant="text" onClick={() => setConfirming(true)}>
+            Batalkan pesanan
+          </Button>
+        </div>
+      )}
     </section>
   );
 }

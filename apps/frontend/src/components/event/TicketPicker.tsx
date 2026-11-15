@@ -13,6 +13,8 @@ import { Perforation } from "./TicketStub";
 
 type Quantities = Record<string, number>;
 
+const TEAR_MS = 420;
+
 /** Encode pilihan tiket ke query checkout: "id:2,id:1". */
 export function encodeItems(quantities: Quantities): string {
   return Object.entries(quantities)
@@ -75,7 +77,14 @@ export function TicketPicker({ event }: { event: Event }) {
 
   function buy() {
     setSubmitting(true);
-    router.push(`/checkout/${event.slug}?items=${encodeItems(quantities)}`);
+    const href = `/checkout/${event.slug}?items=${encodeItems(quantities)}`;
+    // Umpan balik "tiket disobek": bagian bawah kartu lepas dulu, baru pindah halaman.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      router.push(href);
+      return;
+    }
+    router.prefetch(href);
+    setTimeout(() => router.push(href), TEAR_MS);
   }
 
   return (
@@ -113,6 +122,8 @@ export function TicketPicker({ event }: { event: Event }) {
 
           <Perforation notchBg="var(--color-cream)" className="-mx-6 my-5" />
 
+          <div className={cn("origin-top-left", submitting && "animate-[tear-away_420ms_var(--ease-tear)_forwards]")}>
+
 
           <div className="flex items-baseline justify-between">
             <span className="font-semibold">Total</span>
@@ -139,6 +150,7 @@ export function TicketPicker({ event }: { event: Event }) {
             perUserLimit !== null &&
             !overUserLimit && <p className="mt-3 text-sm text-muted">Maksimal {perUserLimit} tiket per akun.</p>
           )}
+          </div>
         </>
       )}
       </div>

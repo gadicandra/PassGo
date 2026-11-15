@@ -160,3 +160,11 @@ export function errorMessage(error: unknown): string {
   if (error instanceof ApiError || error instanceof UserError) return error.message;
   return "Terjadi kesalahan. Coba lagi.";
 }
+
+/** Hanya terima path internal untuk ?next= (cegah open redirect ke domain lain). */
+export function safeNext(next: string | null | undefined) {
+  if (!next?.startsWith("/")) return null;
+  // Parse seperti browser: "//x", "/\\x", "/\t/x" semuanya pindah host. Terima hanya bila origin tetap.
+  const url = new URL(next, "https://passgo.invalid");
+  return url.origin === "https://passgo.invalid" ? url.pathname + url.search + url.hash : null;
+}

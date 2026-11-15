@@ -174,14 +174,21 @@ function Dialog({ title, onClose, children }: { title: string; onClose: () => vo
 
 function CreateDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const toast = useToast();
-  // Satu key per dialog: retry submit yang sama tidak membuat akun ganda (kontrak §5).
-  const [key] = useState(() => crypto.randomUUID());
+  // Key dipakai ulang hanya untuk retry setelah gagal jaringan/5xx (kontrak §5). Respons 4xx disimpan server,
+  // jadi setelah 4xx form yang sudah diperbaiki butuh key baru, kalau tidak → 422 idempotency-key-reused.
+  const key = useRef<string>(null);
   const { onSubmit, loading, error, fieldErrors } = useSubmit(async (form) => {
-    await api<User>("/users", {
-      method: "POST",
-      idempotencyKey: key,
-      body: { name: text(form, "name") ?? "", email: text(form, "email") ?? "", phone: text(form, "phone") ?? null, role: form.get("role"), password: String(form.get("password") ?? "") },
-    });
+    key.current ??= crypto.randomUUID();
+    try {
+      await api<User>("/users", {
+        method: "POST",
+        idempotencyKey: key.current,
+        body: { name: text(form, "name") ?? "", email: text(form, "email") ?? "", phone: text(form, "phone") ?? null, role: form.get("role"), password: String(form.get("password") ?? "") },
+      });
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status >= 400 && caught.status < 500) key.current = null;
+      throw caught;
+    }
     toast.success("Akun dibuat. Sampaikan password awal ke pemiliknya.");
     onDone();
     onClose();

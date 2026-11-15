@@ -1,7 +1,7 @@
 // Self-check tanpa framework (dari apps/frontend): npx tsx src/lib/api.check.mts
 // Menguji klien API terhadap fetch palsu: refresh single-flight, retry setelah token-expired, dan pemetaan error.
 import assert from "node:assert/strict";
-import { api, ApiError, refreshSession, setSession } from "./api";
+import { api, ApiError, refreshSession, safeNext, setSession } from "./api";
 
 const problem = (status: number, code: string) =>
   new Response(JSON.stringify({ title: code, status, code, detail: code }), { status, headers: { "content-type": "application/problem+json" } });
@@ -38,5 +38,9 @@ await assert.rejects(api("/form"), (e) => e instanceof ApiError && e.fieldErrors
 
 // refreshSession dipanggil berulang saat masih berjalan → promise yang sama.
 assert.equal(refreshSession(), refreshSession());
+
+// ?next= hanya path internal; semua bentuk yang dipindah host oleh browser ditolak.
+for (const evil of ["//evil.com", "/\\evil.com", "/\t/evil.com", "https://evil.com", "javascript:alert(1)"]) assert.equal(safeNext(evil), null, evil);
+assert.equal(safeNext("/profile?tab=1"), "/profile?tab=1");
 
 console.log("api.check ok");

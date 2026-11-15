@@ -8,7 +8,13 @@ import { useAuth } from "@/lib/auth";
 
 // Tautan email → halaman ini → POST confirm. Bukan GET di API agar pemindai tautan email tidak memverifikasi (kontrak §9.2).
 export default function VerifyEmailPage({ searchParams }: PageProps<"/verify-email">) {
-  const { token } = use(searchParams);
+  const fromUrl = use(searchParams).token;
+  // Simpan sekali di state, lalu buang dari URL agar tidak tersimpan di riwayat / ikut tersalin.
+  // Router Next ikut membaca replaceState, jadi searchParams berikutnya kosong; state tetap memegang token.
+  const [token] = useState(fromUrl);
+  useEffect(() => {
+    if (typeof fromUrl === "string") history.replaceState(null, "", location.pathname);
+  }, [fromUrl]);
   const { status, user, setUser } = useAuth();
   const [state, setState] = useState<"pending" | "done" | "failed">(typeof token === "string" ? "pending" : "failed");
   const [message, setMessage] = useState("Tautan verifikasi tidak lengkap.");

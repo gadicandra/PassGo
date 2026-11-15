@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Role, User } from "@/types/api";
 import { api, onSessionChange, refreshSession, setSession, type Session } from "./api";
+export { safeNext } from "./api";
 
 type Status = "loading" | "authenticated" | "guest";
 
@@ -19,7 +20,8 @@ interface AuthValue {
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
-const channel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel("passgo-auth");
+// Dibuat di effect (browser saja); di server Node BroadcastChannel juga ada dan akan menahan proses.
+let channel: BroadcastChannel | null = null;
 
 /** Dipasang sekali di root layout, di dalam ToastProvider. */
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -34,7 +36,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Reload/tab baru: access token hilang dari memori, pulihkan dari cookie refresh.
     refreshSession().catch(() => setStatus("guest"));
     // Logout/login di tab lain → ikuti.
-    if (channel) channel.onmessage = (event) => (event.data === "logout" ? setSession(null) : refreshSession().catch(() => {}));
+    channel = new BroadcastChannel("passgo-auth");
+    channel.onmessage = (event) => (event.data === "logout" ? setSession(null) : refreshSession().catch(() => {}));
+    return () => {
+      channel?.close();
+      channel = null;
+    };
   }, []);
 
   const applySession = useCallback((session: Session) => {
@@ -84,10 +91,6 @@ export function homeFor(role: Role) {
   return "/";
 }
 
-/** Hanya terima path internal untuk ?next= (cegah open redirect ke domain lain). */
-export function safeNext(next: string | null | undefined) {
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : null;
-}
 
 /**
  * Bungkus isi halaman yang butuh login. Tanpa `roles` = peran apa pun.

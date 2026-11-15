@@ -13,6 +13,20 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // Header keamanan dasar halaman FE (API sudah pakai helmet). CSP belum: butuh nonce untuk Midtrans Snap.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [
       { source: "/api/v1/:path*", destination: `${backendUrl}/api/v1/:path*` },

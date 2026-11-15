@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, FormError } from "@/components/ui/Field";
@@ -8,7 +8,13 @@ import { api, ApiError, UserError } from "@/lib/api";
 import { useSubmit } from "@/lib/use-submit";
 
 export default function ResetPasswordPage({ searchParams }: PageProps<"/reset-password">) {
-  const { token } = use(searchParams);
+  const fromUrl = use(searchParams).token;
+  // Simpan sekali di state, lalu buang dari URL agar tidak tersimpan di riwayat / ikut tersalin.
+  // Router Next ikut membaca replaceState, jadi searchParams berikutnya kosong; state tetap memegang token.
+  const [token] = useState(fromUrl);
+  useEffect(() => {
+    if (typeof fromUrl === "string") history.replaceState(null, "", location.pathname);
+  }, [fromUrl]);
   const [done, setDone] = useState(false);
   const { onSubmit, loading, error, fieldErrors } = useSubmit(async (form) => {
     const newPassword = String(form.get("newPassword") ?? "");

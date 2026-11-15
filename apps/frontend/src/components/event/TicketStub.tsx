@@ -37,7 +37,11 @@ export function TicketStub({
         className,
       )}
     >
-      <div className="shrink-0 [&>*]:rounded-none [&>*]:border-0" style={{ width: thumbWidth }}>
+      {/* Saat kartu (link .group) di-hover, sobekan miring sedikit di garis perforasi, seperti hampir lepas. */}
+      <div
+        className="shrink-0 origin-top-right transition-transform duration-200 ease-[var(--ease-ticket)] group-hover:-translate-x-1 group-hover:-rotate-2 [&>*]:rounded-none [&>*]:border-0"
+        style={{ width: thumbWidth }}
+      >
         {thumb}
       </div>
       <div className="w-0 border-r-2 border-dotted border-navy/30" />

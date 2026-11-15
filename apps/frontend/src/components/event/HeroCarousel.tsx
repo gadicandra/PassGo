@@ -9,24 +9,44 @@ import { eventPriceLine } from "@/lib/status";
 import { Poster, posterPalette } from "./Poster";
 
 const AUTO_ADVANCE_MS = 6000;
+const TEAR_MS = 650;
+const STUB_POSTER = "w-[260px] -translate-y-6 rotate-[4deg] border-2 border-navy shadow-hard";
 
 // Hero katalog berbentuk tiket raksasa: takik + perforasi di 70%, poster miring di sobekan kanan.
 export function HeroCarousel({ events }: { events: EventSummary[] }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  // Sobekan tiket slide sebelumnya, dirender sebentar untuk animasi "dirobek".
+  const [torn, setTorn] = useState<{ event: EventSummary; key: number } | null>(null);
   const count = events.length;
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const current = useRef(0);
 
-  const go = useCallback((next: number) => setIndex(((next % count) + count) % count), [count]);
+  const go = useCallback(
+    (next: number) => {
+      const target = ((next % count) + count) % count;
+      if (target === current.current) return;
+      setTorn({ event: events[current.current], key: Date.now() });
+      current.current = target;
+      setIndex(target);
+    },
+    [count, events],
+  );
+
+  useEffect(() => {
+    if (!torn) return;
+    const clear = setTimeout(() => setTorn(null), TEAR_MS);
+    return () => clearTimeout(clear);
+  }, [torn]);
 
   useEffect(() => {
     if (count < 2 || paused) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    timer.current = setInterval(() => setIndex((current) => (current + 1) % count), AUTO_ADVANCE_MS);
+    timer.current = setInterval(() => go(current.current + 1), AUTO_ADVANCE_MS);
     return () => {
       if (timer.current) clearInterval(timer.current);
     };
-  }, [count, paused, index]);
+  }, [count, paused, index, go]);
 
   if (count === 0) return null;
   const event = events[index];
@@ -75,16 +95,28 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
 
           <div
             aria-hidden
-            className="absolute bottom-0 left-[70%] top-0 hidden border-r-2 border-dotted border-current opacity-40 md:block"
+            className="absolute bottom-0 left-[70%] top-0 hidden animate-[perf-rip_650ms_ease-out] border-r-2 border-dotted border-current opacity-40 md:block"
           />
           <div className="hidden w-[30%] items-center justify-center md:flex">
-            <Poster
-              event={event}
-              size="lg"
-              className="w-[260px] -translate-y-6 rotate-[4deg] border-2 border-navy shadow-hard"
-            />
+            {/* Sobekan baru turun ke tempatnya; di render pertama juga diputar sekali. */}
+            <div className="animate-[stub-in_550ms_cubic-bezier(.2,.9,.3,1.2)_120ms_both]">
+              <Poster event={event} size="lg" className={STUB_POSTER} />
+            </div>
           </div>
         </div>
+
+        {torn && (
+          <div
+            key={torn.key}
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 z-20 hidden w-[30%] items-center justify-center md:flex"
+          >
+            {/* Sobekan lama dirobek dari garis perforasi lalu jatuh berputar. */}
+            <div className="origin-top-left animate-[stub-tear_650ms_cubic-bezier(.5,0,.75,0)_forwards]">
+              <Poster event={torn.event} size="lg" className={STUB_POSTER} />
+            </div>
+          </div>
+        )}
 
         {count > 1 && (
           <>

@@ -82,6 +82,46 @@
   }
 }
 
+/* Sobekan tiket di hero: yang lama dirobek lalu jatuh berputar, yang baru turun ke tempatnya.
+   Kelas posisi Tailwind (translate/rotate) tetap berlaku; keyframe ini menambah transform di atasnya. */
+@keyframes stub-tear {
+  0% {
+    transform: none;
+    opacity: 1;
+  }
+  25% {
+    transform: translate(4px, -10px) rotate(5deg);
+  }
+  100% {
+    transform: translate(70px, 160px) rotate(26deg);
+    opacity: 0;
+  }
+}
+
+@keyframes stub-in {
+  0% {
+    transform: translateY(-70px) rotate(-9deg);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(6px) rotate(1.5deg);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes perf-rip {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  35% {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

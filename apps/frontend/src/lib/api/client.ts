@@ -84,8 +84,10 @@ export interface ApiOptions {
 }
 
 export async function apiFetch<T>(path: string, options: ApiOptions = {}, retried = false): Promise<T> {
+  // FormData (upload poster) dikirim apa adanya; browser yang mengisi Content-Type + boundary multipart.
+  const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  if (options.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
   if (options.version !== undefined) {
@@ -98,7 +100,7 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}, retrie
     response = await fetch(`${BASE}${path}`, {
       method: options.method ?? "GET",
       headers,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body: isForm ? (options.body as FormData) : options.body !== undefined ? JSON.stringify(options.body) : undefined,
       credentials: "same-origin",
       signal: options.signal,
     });

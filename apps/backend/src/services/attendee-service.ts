@@ -10,7 +10,6 @@ interface OrderRow { id: string; orderNumber: string; buyerName: string; buyerEm
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// `q` §9.11: nama pemegang, nama/email pembeli, ≥4 karakter terakhir kode, atau orderNumber (organizer). STAFF mencari email dengan nilai lengkap.
 async function searchFilter(eventId: string, q: string, role: Viewer["role"]): Promise<Record<string, unknown>> {
   const pattern = new RegExp(escapeRegex(q), "i");
   const orderClauses: Record<string, unknown>[] = [{ buyerName: pattern }, { buyerEmail: role === "ORGANIZER" ? pattern : q.trim().toLowerCase() }];
@@ -22,7 +21,6 @@ async function searchFilter(eventId: string, q: string, role: Viewer["role"]): P
   return { $or: clauses };
 }
 
-// Offset §4.1. Jumlah tiket per acara kecil (ribuan), jadi urutan ticketTypeName diselesaikan di memori setelah proyeksi.
 export async function listAttendees(eventId: string, viewer: Viewer, input: { status: TicketStatus[]; ticketTypeId?: string; q?: string; sort: AttendeeSort; page: number; pageSize: number }) {
   await assertEventAccess(eventId, viewer);
   const filter: Record<string, unknown> = { eventId, status: { $in: input.status } };

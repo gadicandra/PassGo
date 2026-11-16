@@ -51,7 +51,6 @@ function ticketTypeResponse(type: TicketTypeRecord, eventStatus: EventStatus, ev
   return { ...rest, available: Math.max(0, type.quota - type.soldCount - type.reservedCount), salesStatus: statusForTicketType(type, eventStatus, eventEnded) };
 }
 
-// Representasi terbaru untuk body 412 (`current`) — kontrak §6.
 async function currentEventView(id: string) {
   const event = await Event.findOne({ id }).lean<EventRecord>();
   if (!event) return undefined;
@@ -91,7 +90,6 @@ export async function listEvents(input: ListEventsInput) {
   if (input.q) filter.$or = [{ title: { $regex: input.q, $options: "i" } }, { venueName: { $regex: input.q, $options: "i" } }];
   if (input.from || input.to) filter.startAt = { ...(input.from ? { $gte: input.from } : {}), ...(input.to ? { $lte: input.to } : {}) };
 
-  // Default §9.5: startAt naik untuk upcoming, turun untuk past.
   const sort: EventSort = input.sort ?? (input.when === "past" ? "-startAt" : "startAt");
   const order: Record<string, 1 | -1> = sort === "-startAt" ? { startAt: -1 } : sort === "title" ? { title: 1 } : sort === "createdAt" ? { createdAt: -1 } : { startAt: 1 };
 
@@ -112,7 +110,6 @@ export async function listEvents(input: ListEventsInput) {
   };
 }
 
-// Agregat §4 EventSummary: ON_SALE > UPCOMING > SOLD_OUT (semua tipe aktif habis) > ENDED; acara CANCELLED selalu ENDED.
 export function aggregateSalesStatus(statuses: string[], eventStatus: EventStatus): string {
   if (eventStatus === "CANCELLED") return "ENDED";
   if (statuses.includes("ON_SALE")) return "ON_SALE";
@@ -137,7 +134,6 @@ function eventResponse(event: EventRecord, types: TicketTypeRecord[] = []) {
   };
 }
 
-// `EventSummary` §8 tanpa stats (stats hanya untuk organizer/staff di endpoint acara) — dipakai proyeksi Ticket.
 export async function eventSummaries(eventIds: string[]) {
   const events = await Event.find({ id: { $in: [...new Set(eventIds)] } }).lean<EventRecord[]>();
   const types = await TicketType.find({ eventId: { $in: events.map((event) => event.id) }, isActive: true }).lean<TicketTypeRecord[]>();
@@ -311,7 +307,6 @@ async function eventWithTypes(event: EventRecord) {
   return eventResponse(event, types);
 }
 
-// Diekspor agar aturan 415/422 bisa diuji tanpa database.
 export async function encodePoster(file: Buffer): Promise<Buffer> {
   // sharp membaca format dari isi berkas, bukan dari header klien.
   const meta = await sharp(file).metadata().catch(() => null);

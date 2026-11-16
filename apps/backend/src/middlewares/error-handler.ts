@@ -88,7 +88,6 @@ export const errorHandler: ErrorRequestHandler = (error, request, response, _nex
     code = "payload-too-large";
     detail = "Body terlalu besar.";
   } else if (error?.name === "MulterError") {
-    // Kontrak §9.5: hanya LIMIT_FILE_SIZE yang 413, sisanya bentuk multipart yang salah.
     if (error.code === "LIMIT_FILE_SIZE") {
       status = 413;
       code = "payload-too-large";
@@ -106,7 +105,6 @@ export const errorHandler: ErrorRequestHandler = (error, request, response, _nex
   }
 
   if (status === 401) {
-    // RFC 6750 §3: error="invalid_token" hanya bila token dikirim tapi ditolak.
     const rejected = code === "token-expired" || code === "token-invalid" || code === "token-revoked";
     response.set("WWW-Authenticate", rejected ? `Bearer realm="passgo", error="invalid_token", error_description="${code === "token-expired" ? "token expired" : detail.replace(/"/g, "'")}"` : 'Bearer realm="passgo"');
   }

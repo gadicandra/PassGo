@@ -41,7 +41,9 @@ test("auth lifecycle works against MongoDB Atlas", { skip: !atlasEnabled }, asyn
       .set("X-Requested-With", "fetch")
       .set("Cookie", initialCookie);
     assert.equal(refresh.status, 200);
-    assert.ok(refresh.headers["set-cookie"]?.[0]);
+    const rotatedSetCookie = refresh.headers["set-cookie"]?.[0];
+    assert.ok(rotatedSetCookie);
+    const rotatedCookie = rotatedSetCookie.split(";", 1)[0];
 
     const reused = await request(app).post("/api/v1/auth/refresh")
       .set("Origin", process.env.CSRF_ALLOWED_ORIGINS?.split(",")[0] ?? "http://localhost:3001")
@@ -65,6 +67,13 @@ test("auth lifecycle works against MongoDB Atlas", { skip: !atlasEnabled }, asyn
     assert.ok(resetOutbox);
     const reset = await request(app).post("/api/v1/auth/password-reset/confirm").send({ token: resetOutbox.payload.token, newPassword: replacementPassword });
     assert.equal(reset.status, 204);
+
+    const revoked = await request(app).post("/api/v1/auth/refresh")
+      .set("Origin", process.env.CSRF_ALLOWED_ORIGINS?.split(",")[0] ?? "http://localhost:3001")
+      .set("X-Requested-With", "fetch")
+      .set("Cookie", rotatedCookie);
+    assert.equal(revoked.status, 401);
+    assert.equal(revoked.body.code, "refresh-token-invalid");
 
     const newLogin = await request(app).post("/api/v1/auth/login").send({ email, password: replacementPassword });
     assert.equal(newLogin.status, 200);

@@ -29,7 +29,6 @@ export function ticketSummary(ticket: TicketRecord, typeName: string | null) {
   return { id: ticket.id, codeMasked: maskTicketCode(ticket.code), holderName: ticket.holderName, ticketTypeId: ticket.ticketTypeId, ticketTypeName: typeName, status: ticket.status, checkedInAt: ticket.checkedInAt ?? null };
 }
 
-// `Ticket` §8 (hanya pemilik): code/qrPayload null bila VOID.
 async function ticketViews(tickets: TicketRecord[]) {
   const [names, events, orders] = await Promise.all([
     ticketTypeNames(tickets.map((ticket) => ticket.ticketTypeId)),
@@ -93,7 +92,6 @@ export async function updateHolderName(ownerId: string, ticketId: string, header
   return ticketView(updated);
 }
 
-// `Attendee` §8: proyeksi tiket untuk organizer/panitia. STAFF tidak melihat versi, kontak pembeli, maupun data pesanan.
 export function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
   return `${local.slice(0, 1)}***@${domain ?? ""}`;

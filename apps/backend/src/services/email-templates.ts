@@ -17,7 +17,6 @@ const escape = (value: string) => value.replace(/[&<>"']/g, (char) => `&#${char.
 const rupiah = (amount: number) => `Rp${amount.toLocaleString("id-ID")}`;
 const when = (event: EventLite) => new Intl.DateTimeFormat("id-ID", { dateStyle: "full", timeStyle: "short", timeZone: event.timezone ?? "Asia/Jakarta" }).format(event.startAt);
 
-// Kerangka HTML tunggal: klien email mengabaikan <style>, jadi gaya inline seminimal mungkin.
 function layout(title: string, body: string, action?: { label: string; url: string }): string {
   const button = action ? `<p><a href="${escape(action.url)}" style="display:inline-block;padding:10px 18px;background:#111827;color:#fff;text-decoration:none;border-radius:6px">${escape(action.label)}</a></p><p style="color:#6b7280;font-size:12px">Tautan tidak bisa diklik? Salin: ${escape(action.url)}</p>` : "";
   return `<!doctype html><html><body style="font-family:Arial,sans-serif;color:#111827;max-width:560px;margin:auto"><h2>${escape(title)}</h2>${body}${button}<hr><p style="color:#6b7280;font-size:12px">Email otomatis dari PassGo — jangan dibalas.</p></body></html>`;

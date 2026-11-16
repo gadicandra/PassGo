@@ -10,7 +10,6 @@ import { initModels } from "./src/models";
 let ready: Promise<void> | null = null;
 const ensureDatabase = () => (ready ??= connectDatabase().then(initModels).catch((error: unknown) => { ready = null; throw error; }));
 
-// Di belakang proxy Vercel: IP klien dari X-Forwarded-For (dibutuhkan rate limit & audit log, kontrak §7).
 app.set("trust proxy", 1);
 
 const server = express();

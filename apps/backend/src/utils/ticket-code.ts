@@ -18,7 +18,6 @@ export function maskTicketCode(code: string): string {
   return `••••-••••-••••-${code.slice(-4)}`;
 }
 
-// Kontrak §9.12: buang prefiks versi, spasi/`-`, huruf besar, O→0, I/L→1. Prefiks tak dikenal → null (dianggap tidak ditemukan).
 export function normalizeTicketCode(input: string): { code: string | null; tail: string } {
   let value = input.trim();
   const prefix = /^([A-Za-z0-9]+):/.exec(value);

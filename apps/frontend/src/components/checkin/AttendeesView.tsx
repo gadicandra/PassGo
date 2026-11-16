@@ -8,8 +8,8 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Select } from "@/components/ui/Field";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
-import { useAuth } from "@/lib/api/auth";
-import { ApiError, apiFetch } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth";
+import { ApiError, api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatTime } from "@/lib/format";
 import { ticketStatusLabel, toneClass } from "@/lib/status";
@@ -87,7 +87,7 @@ export function AttendeesView({ eventId }: { eventId: string }) {
 
   useEffect(() => {
     if (!allowed) return;
-    apiFetch<TicketType[]>(`/events/${eventId}/ticket-types`).then(setTypes).catch(() => undefined);
+    api<TicketType[]>(`/events/${eventId}/ticket-types`).then(setTypes).catch(() => undefined);
   }, [allowed, eventId]);
 
   useEffect(() => {

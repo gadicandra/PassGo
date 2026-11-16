@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Event } from "@/types/api";
-import { apiFetch } from "@/lib/api/client";
+import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import { Skeleton } from "@/components/ui/Skeleton";
 
@@ -11,7 +11,7 @@ export function useEvent(eventId: string, enabled = true) {
   useEffect(() => {
     if (!enabled) return;
     let active = true;
-    apiFetch<Event>(`/events/${eventId}`)
+    api<Event>(`/events/${eventId}`)
       .then((event) => active && setState({ event, error: false }))
       .catch(() => active && setState({ event: null, error: true }));
     return () => {

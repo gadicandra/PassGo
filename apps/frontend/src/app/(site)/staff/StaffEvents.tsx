@@ -8,8 +8,8 @@ import { TicketStub } from "@/components/event/TicketStub";
 import { AccessDenied, GateSkeleton } from "@/components/ticket/AccessDenied";
 import { ButtonLink } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { useAuth } from "@/lib/api/auth";
-import { apiFetch } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatDateTime } from "@/lib/format";
 import { errorMessage } from "@/lib/tickets/errors";
@@ -42,7 +42,7 @@ export function StaffEvents() {
     if (!allowed) return;
     let active = true;
     const path = role === "STAFF" ? `/me/assigned-events?when=${when}` : `/events?when=${when}&pageSize=100&sort=${when === "upcoming" ? "startAt" : "-startAt"}`;
-    apiFetch<EventSummary[]>(path)
+    api<EventSummary[]>(path)
       .then((events) => active && setLoaded({ when, attempt, events: events.filter((event) => event.status !== "DRAFT"), error: null }))
       .catch((caught) => active && setLoaded({ when, attempt, events: [], error: errorMessage(caught, "Gagal memuat acara.") }));
     return () => {

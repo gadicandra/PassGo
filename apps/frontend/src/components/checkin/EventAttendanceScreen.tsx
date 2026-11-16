@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { AccessDenied, GateSkeleton } from "@/components/ticket/AccessDenied";
 import { ButtonLink } from "@/components/ui/Button";
-import { useAuth } from "@/lib/api/auth";
+import { useAuth } from "@/lib/auth";
 import { eventLinks } from "@/lib/tickets/links";
 import { useRoleGate } from "@/lib/tickets/useRoleGate";
 import { AttendanceReport } from "./AttendanceReport";

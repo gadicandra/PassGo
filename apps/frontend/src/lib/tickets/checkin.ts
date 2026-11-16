@@ -1,5 +1,5 @@
 import type { CheckIn, CheckInResult, VoidReason } from "@/types/api";
-import { ApiError, apiFetch } from "@/lib/api/client";
+import { ApiError, api } from "@/lib/api";
 import { formatTime } from "@/lib/format";
 
 export type OutcomeKind = "success" | "warning" | "error";
@@ -37,7 +37,7 @@ export async function submitCheckIn(
 ): Promise<ScanOutcome> {
   const at = new Date();
   try {
-    const checkIn = await apiFetch<CheckIn>(`/events/${eventId}/check-ins`, { method: "POST", body: target });
+    const checkIn = await api<CheckIn>(`/events/${eventId}/check-ins`, { method: "POST", body: target });
     return {
       result: "ACCEPTED",
       kind: "success",

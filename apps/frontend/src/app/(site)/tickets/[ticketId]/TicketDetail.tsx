@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, FormError } from "@/components/ui/Field";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
-import { ApiError } from "@/lib/api/client";
+import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatDateTime } from "@/lib/format";
 import { ticketStatusLabel, toneClass } from "@/lib/status";

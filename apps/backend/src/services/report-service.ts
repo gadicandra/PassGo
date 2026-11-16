@@ -83,7 +83,6 @@ export async function attendanceReport(eventId: string, viewer: Viewer) {
 interface AuditRow { id: string; actorId: string | null; actorRole: string; action: string; entityType: string; entityId: string; eventId: string | null; before: unknown; after: unknown; ip: string | null; userAgent: string | null; createdAt: Date }
 export interface AuditQuery { eventId?: string; actorId?: string; action?: string[]; entityType?: string; entityId?: string; from?: Date; to?: Date; limit: number; cursor?: string }
 
-// §9.14: cursor id desc. Filter dicatat apa adanya di appliedFilters (tanggal sebagai ISO) supaya cursor terikat pada filter yang sama.
 export async function listAuditLogs(input: AuditQuery) {
   if (input.from && input.to && input.from > input.to) throw new AppError(422, "validation-error", "`from` harus sebelum `to`.", { errors: [{ parameter: "from", detail: "from > to." }] });
   const filters = { eventId: input.eventId ?? null, actorId: input.actorId ?? null, action: input.action ?? null, entityType: input.entityType ?? null, entityId: input.entityId ?? null, from: input.from?.toISOString() ?? null, to: input.to?.toISOString() ?? null };

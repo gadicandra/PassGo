@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { AppError } from "./app-error";
 
-// Kontrak §4.2: cursor opak, terikat pada filter. Isinya id terakhir + sidik jari filter; filter berbeda → 422 cursor-invalid.
 function fingerprint(filters: Record<string, unknown>): string {
   const canonical = JSON.stringify(Object.keys(filters).sort().map((key) => [key, filters[key]]));
   return createHash("sha256").update(canonical).digest("base64url").slice(0, 16);
@@ -20,7 +19,6 @@ export function decodeCursor(cursor: string | undefined, filters: Record<string,
   throw new AppError(422, "cursor-invalid", "Cursor tidak valid untuk filter ini.", { errors: [{ parameter: "cursor", detail: "Cursor tidak valid." }] });
 }
 
-// Ambil limit+1 dokumen berurutan id desc, lalu bentuk meta §4.2.
 export function cursorPage<T extends { id: string }>(rows: T[], limit: number, filters: Record<string, unknown>) {
   const hasMore = rows.length > limit;
   const data = hasMore ? rows.slice(0, limit) : rows;

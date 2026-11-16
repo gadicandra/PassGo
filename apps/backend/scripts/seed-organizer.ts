@@ -10,7 +10,6 @@ async function seedUser(name: string, rawEmail: string, password: string, role: 
   const email = rawEmail.trim().toLowerCase();
   const existing = await User.findOne({ email });
   if (existing) {
-    // --reset-password: samakan password akun seed dengan .env, dan cabut semua sesi lamanya.
     if (!RESET_PASSWORD) {
       console.log(`${role} ${email} sudah ada, dilewati (pakai --reset-password untuk menyamakan password dengan .env).`);
       return;

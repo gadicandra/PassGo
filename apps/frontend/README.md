@@ -12,8 +12,6 @@ npm run dev:backend     # http://localhost:3000
 npm run dev:frontend    # http://localhost:3001
 ```
 
-Etalase komponen bersama ada di `http://localhost:3001/dev/komponen` (hapus sebelum pengumpulan).
-
 ## Struktur
 
 ```

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Event } from "@/types/api";
-import { ApiError } from "@/lib/api/client";
+import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatDateTime } from "@/lib/format";
 import { toneClass } from "@/lib/status";

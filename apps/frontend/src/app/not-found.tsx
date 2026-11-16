@@ -7,7 +7,7 @@ export default function NotFound() {
     <>
       <SiteHeader />
       <main className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col items-start gap-4 px-4 py-24 md:px-8">
-        <p className="font-mono text-sm text-muted">404</p>
+        <p className="text-sm font-semibold text-muted">404</p>
         <h1 className="font-display text-[44px] font-extrabold leading-none tracking-[-0.03em] md:text-[56px]">
           Halaman tidak ditemukan
         </h1>

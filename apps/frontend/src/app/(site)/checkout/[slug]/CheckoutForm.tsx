@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
-import { useAuth } from "@/lib/api/auth";
-import { ApiError, apiFetch, newIdempotencyKey } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth";
+import { ApiError, api } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 
 type Items = Record<string, number>;
@@ -24,7 +24,7 @@ interface Notice {
 }
 
 export function CheckoutForm({ event, initialItems }: { event: Event; initialItems: Items }) {
-  const { status, user, requireLogin } = useAuth();
+  const { status, user } = useAuth();
   const router = useRouter();
   const toast = useToast();
   const [prices, setPrices] = useState<Record<string, number>>(() =>
@@ -48,11 +48,11 @@ export function CheckoutForm({ event, initialItems }: { event: Event; initialIte
   const total = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
 
   useEffect(() => {
-    if (!requireLogin()) return;
-    apiFetch<User>("/me")
+    if (status !== "authenticated") return;
+    api<User>("/me")
       .then((me) => setPhone((current) => current || me.phone || ""))
       .catch(() => undefined);
-  }, [requireLogin]);
+  }, [status]);
 
   if (status !== "authenticated" || !user) {
     return (
@@ -79,7 +79,7 @@ export function CheckoutForm({ event, initialItems }: { event: Event; initialIte
 
   async function resendVerification() {
     try {
-      await apiFetch("/auth/email-verification", { method: "POST" });
+      await api("/auth/email-verification", { method: "POST" });
       toast.success("Link verifikasi dikirim ke email kamu.");
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Gagal mengirim email.");
@@ -178,10 +178,10 @@ export function CheckoutForm({ event, initialItems }: { event: Event; initialIte
     setPhoneError(undefined);
     setNotice(null);
     setSubmitting(true);
-    idempotencyKey.current ??= newIdempotencyKey();
+    idempotencyKey.current ??= crypto.randomUUID();
 
     try {
-      const order = await apiFetch<Order>("/orders", {
+      const order = await api<Order>("/orders", {
         method: "POST",
         idempotencyKey: idempotencyKey.current,
         body: {

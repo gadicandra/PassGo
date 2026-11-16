@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { FormError, TextArea } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import type { Event } from "@/types/api";
-import { ApiError, newIdempotencyKey } from "@/lib/api/client";
+import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { cancelEvent, deleteEvent, publishEvent } from "@/lib/organizer/api";
 import { currentFrom, errorMessage } from "@/lib/organizer/errors";
@@ -199,7 +199,7 @@ function CancelPanel({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | undefined>();
   // Satu key per dialog: kalau jaringan putus lalu "Batalkan acara" ditekan lagi, server tidak memproses dua kali.
-  const [idempotencyKey] = useState(newIdempotencyKey);
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
 
   async function submit() {
     const trimmed = reason.trim();

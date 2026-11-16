@@ -1,5 +1,5 @@
 // Panggilan API untuk halaman kelola acara organizer (kontrak §9.5–9.7, §9.13).
-// Semua lewat apiFetch supaya token, refresh, dan If-Match/X-If-Match ditangani di satu tempat.
+// Semua lewat klien api supaya token, refresh, dan If-Match/X-If-Match ditangani di satu tempat.
 //
 // Catatan backend saat ini (beda dengan kontrak):
 // - GET /events untuk organizer mengembalikan objek Event lengkap (termasuk ticketTypes & version), `stats` tidak ada.
@@ -7,7 +7,7 @@
 // - `createdBy` berupa id string, bukan UserRef. Tidak dipakai di UI.
 
 import type { Event, OrderStatus, StaffAssignment, TicketType, User } from "@/types/api";
-import { apiFetch, newIdempotencyKey } from "@/lib/api/client";
+import { api, apiEnvelope } from "@/lib/api";
 
 export interface EventPage {
   data: Event[];
@@ -81,25 +81,25 @@ export function listOrganizerEvents(params: { status?: string; when?: "upcoming"
   if (params.status) query.set("status", params.status);
   if (params.q && params.q.trim().length >= 2) query.set("q", params.q.trim());
   if (params.page) query.set("page", String(params.page));
-  return apiFetch<EventPage>(`/events?${query}`, { envelope: true });
+  return apiEnvelope<Event[]>(`/events?${query}`) as Promise<EventPage>;
 }
 
-export const getEvent = (eventId: string) => apiFetch<Event>(path(eventId));
+export const getEvent = (eventId: string) => api<Event>(path(eventId));
 
-export const createEvent = (body: EventBody) => apiFetch<Event>("/events", { method: "POST", body });
+export const createEvent = (body: EventBody) => api<Event>("/events", { method: "POST", body });
 
 export const updateEvent = (event: Event, patch: Partial<EventBody>) =>
-  apiFetch<Event>(path(event.id), { method: "PATCH", body: patch, version: event.version ?? 0 });
+  api<Event>(path(event.id), { method: "PATCH", body: patch, version: event.version ?? 0 });
 
 export const deleteEvent = (event: Event) =>
-  apiFetch<void>(path(event.id), { method: "DELETE", version: event.version ?? 0 });
+  api<void>(path(event.id), { method: "DELETE", version: event.version ?? 0 });
 
 export const publishEvent = (event: Event) =>
-  apiFetch<Event>(`${path(event.id)}/publish`, { method: "POST", version: event.version ?? 0 });
+  api<Event>(`${path(event.id)}/publish`, { method: "POST", version: event.version ?? 0 });
 
 /** `idempotencyKey` dibuat sekali per dialog pembatalan, dipakai ulang kalau pengguna menekan "Coba lagi". */
-export const cancelEvent = (event: Event, reason: string, idempotencyKey = newIdempotencyKey()) =>
-  apiFetch<CancelResult>(`${path(event.id)}/cancel`, {
+export const cancelEvent = (event: Event, reason: string, idempotencyKey: string = crypto.randomUUID()) =>
+  api<CancelResult>(`${path(event.id)}/cancel`, {
     method: "POST",
     body: { reason },
     version: event.version ?? 0,
@@ -109,42 +109,42 @@ export const cancelEvent = (event: Event, reason: string, idempotencyKey = newId
 export function uploadPoster(event: Event, file: File) {
   const form = new FormData();
   form.append("poster", file);
-  return apiFetch<Event>(`${path(event.id)}/poster`, { method: "PUT", body: form, version: event.version ?? 0 });
+  return api<Event>(`${path(event.id)}/poster`, { method: "PUT", body: form, version: event.version ?? 0 });
 }
 
 export const deletePoster = (event: Event) =>
-  apiFetch<Event>(`${path(event.id)}/poster`, { method: "DELETE", version: event.version ?? 0 });
+  api<Event>(`${path(event.id)}/poster`, { method: "DELETE", version: event.version ?? 0 });
 
 // Tipe tiket
 
-export const listTicketTypes = (eventId: string) => apiFetch<TicketType[]>(`${path(eventId)}/ticket-types`);
+export const listTicketTypes = (eventId: string) => api<TicketType[]>(`${path(eventId)}/ticket-types`);
 
 export const createTicketType = (eventId: string, body: TicketTypeBody) =>
-  apiFetch<TicketType>(`${path(eventId)}/ticket-types`, { method: "POST", body });
+  api<TicketType>(`${path(eventId)}/ticket-types`, { method: "POST", body });
 
 export const updateTicketType = (type: TicketType, patch: Partial<TicketTypeBody>) =>
-  apiFetch<TicketType>(`${path(type.eventId)}/ticket-types/${type.id}`, { method: "PATCH", body: patch, version: type.version ?? 0 });
+  api<TicketType>(`${path(type.eventId)}/ticket-types/${type.id}`, { method: "PATCH", body: patch, version: type.version ?? 0 });
 
 export const deleteTicketType = (type: TicketType) =>
-  apiFetch<void>(`${path(type.eventId)}/ticket-types/${type.id}`, { method: "DELETE", version: type.version ?? 0 });
+  api<void>(`${path(type.eventId)}/ticket-types/${type.id}`, { method: "DELETE", version: type.version ?? 0 });
 
 // Panitia
 
-export const listEventStaff = (eventId: string) => apiFetch<StaffAssignment[]>(`${path(eventId)}/staff`);
+export const listEventStaff = (eventId: string) => api<StaffAssignment[]>(`${path(eventId)}/staff`);
 
 export const assignStaff = (eventId: string, userId: string) =>
-  apiFetch<StaffAssignment>(`${path(eventId)}/staff/${encodeURIComponent(userId)}`, { method: "PUT" });
+  api<StaffAssignment>(`${path(eventId)}/staff/${encodeURIComponent(userId)}`, { method: "PUT" });
 
 export const removeStaff = (eventId: string, userId: string) =>
-  apiFetch<void>(`${path(eventId)}/staff/${encodeURIComponent(userId)}`, { method: "DELETE" });
+  api<void>(`${path(eventId)}/staff/${encodeURIComponent(userId)}`, { method: "DELETE" });
 
 /** Semua akun STAFF aktif (maks. 100, cukup untuk satu komunitas). */
-export const listActiveStaffUsers = () => apiFetch<User[]>("/users?role=STAFF&isActive=true&pageSize=100&sort=name");
+export const listActiveStaffUsers = () => api<User[]>("/users?role=STAFF&isActive=true&pageSize=100&sort=name");
 
 // Laporan
 
 export const getSalesReport = (eventId: string) =>
-  apiFetch<{ data: SalesReport; meta: { generatedAt: string } }>(`${path(eventId)}/reports/sales`, { envelope: true });
+  apiEnvelope<SalesReport>(`${path(eventId)}/reports/sales`) as Promise<{ data: SalesReport; meta: { generatedAt: string } }>;
 
 // Turunan
 

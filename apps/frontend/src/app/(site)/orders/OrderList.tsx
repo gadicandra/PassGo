@@ -3,24 +3,24 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { useAuth } from "@/lib/api/auth";
-import { ApiError } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth";
+import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatDate, formatRupiah } from "@/lib/format";
 import { loadOrderRows, type OrderRow } from "@/lib/orders";
 import { orderStatusLabel, refundStatusLabel, toneClass } from "@/lib/status";
 
 export function OrderList() {
-  const { requireLogin } = useAuth();
+  const { status } = useAuth();
   const [orders, setOrders] = useState<OrderRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!requireLogin()) return;
+    if (status !== "authenticated") return;
     loadOrderRows()
       .then(setOrders)
       .catch((caught) => setError(caught instanceof ApiError ? caught.message : "Gagal memuat pesanan."));
-  }, [requireLogin]);
+  }, [status]);
 
   if (error) return <p className="mt-8 text-danger">{error}</p>;
 

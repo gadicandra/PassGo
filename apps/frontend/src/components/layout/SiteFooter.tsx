@@ -14,7 +14,7 @@ export function SiteFooter() {
             Tiket saya
           </Link>
         </nav>
-        <p className="font-mono text-[13px]">QRIS · GoPay · ShopeePay · Virtual Account</p>
+        <p className="text-[14px]">QRIS · GoPay · ShopeePay · Virtual Account</p>
       </div>
     </footer>
   );

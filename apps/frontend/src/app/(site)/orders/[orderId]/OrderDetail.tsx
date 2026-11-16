@@ -9,16 +9,31 @@ import { OrderSummaryStub } from "@/components/order/OrderSummaryStub";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
-import { useAuth } from "@/lib/api/auth";
-import { ApiError, apiFetch } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth";
+import { ApiError, api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatDate, formatDateTime, formatRupiah } from "@/lib/format";
 import { ticketStatusLabel, toneClass } from "@/lib/status";
 
 const POLL_MS = 5000;
 
+const PAYMENT_LABELS: Record<string, string> = {
+  qris: "QRIS",
+  gopay: "GoPay",
+  shopeepay: "ShopeePay",
+  bank_transfer: "Transfer bank",
+  echannel: "Mandiri Bill",
+  credit_card: "Kartu kredit",
+  cstore: "Gerai retail",
+  free: "Gratis",
+};
+
+/** Nama metode bayar Midtrans yang enak dibaca; tipe yang tidak dikenal dirapikan seadanya. */
+const paymentLabel = (type: string) =>
+  PAYMENT_LABELS[type.toLowerCase()] ?? type.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+
 export function OrderDetail({ orderId }: { orderId: string }) {
-  const { status, requireLogin } = useAuth();
+  const { status } = useAuth();
   const toast = useToast();
   const [order, setOrder] = useState<Order | null>(null);
   // Respons pesanan belum memuat judul/tanggal acara, jadi acaranya diambil terpisah.
@@ -28,7 +43,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
 
   const load = useCallback(async () => {
     try {
-      setOrder(await apiFetch<Order>(`/orders/${orderId}`));
+      setOrder(await api<Order>(`/orders/${orderId}`));
       setError(null);
     } catch (caught) {
       setError(caught instanceof ApiError && caught.status === 404 ? "Pesanan tidak ditemukan." : "Gagal memuat pesanan.");
@@ -37,16 +52,16 @@ export function OrderDetail({ orderId }: { orderId: string }) {
 
   // Pulang dari Midtrans: tanyakan status terkini ke server, karena callback browser bukan bukti bayar.
   useEffect(() => {
-    if (!requireLogin()) return;
-    apiFetch<Order>(`/orders/${orderId}/payment/sync`, { method: "POST" })
+    if (status !== "authenticated") return;
+    api<Order>(`/orders/${orderId}/payment/sync`, { method: "POST" })
       .then(setOrder)
       .catch(() => load());
-  }, [requireLogin, orderId, load]);
+  }, [status, orderId, load]);
 
   const eventId = order?.eventId;
   useEffect(() => {
     if (!eventId) return;
-    apiFetch<Event>(`/events/${eventId}`)
+    api<Event>(`/events/${eventId}`)
       .then(setEvent)
       .catch(() => undefined);
   }, [eventId]);
@@ -59,17 +74,16 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   }, [order?.status, load]);
 
   async function action(kind: "sync" | "cancel" | "email") {
-    if (kind === "cancel" && !window.confirm("Batalkan pesanan ini? Tiket yang ditahan akan dilepas.")) return;
     setBusy(kind);
     try {
       if (kind === "sync") {
-        setOrder(await apiFetch<Order>(`/orders/${orderId}/payment/sync`, { method: "POST" }));
+        setOrder(await api<Order>(`/orders/${orderId}/payment/sync`, { method: "POST" }));
         toast.info("Status pembayaran diperbarui.");
       } else if (kind === "cancel") {
-        setOrder(await apiFetch<Order>(`/orders/${orderId}/cancel`, { method: "POST", body: {} }));
+        setOrder(await api<Order>(`/orders/${orderId}/cancel`, { method: "POST", body: {} }));
         toast.success("Pesanan dibatalkan.");
       } else {
-        await apiFetch(`/orders/${orderId}/ticket-email`, { method: "POST" });
+        await api(`/orders/${orderId}/ticket-email`, { method: "POST" });
         toast.success("E-tiket dikirim ulang ke email kamu.");
         await load();
       }
@@ -174,7 +188,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                   {order.payment?.paymentType && (
                     <>
                       <dt className="text-muted">Metode</dt>
-                      <dd className="uppercase">{order.payment.paymentType.replace(/_/g, " ")}</dd>
+                      <dd>{paymentLabel(order.payment.paymentType)}</dd>
                     </>
                   )}
                 </dl>
@@ -197,25 +211,7 @@ function StatusBlock({
   onAction: (kind: "sync" | "cancel" | "email") => void;
 }) {
   if (order.status === "PENDING_PAYMENT") {
-    return (
-      <section className="rounded-card bg-sun p-6 md:p-8">
-        <h1 className="font-display text-[32px] font-extrabold leading-tight">Menunggu pembayaran</h1>
-        {order.expiresAt && <Countdown until={order.expiresAt} />}
-        <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
-          {order.payment?.snapRedirectUrl && (
-            <ButtonLink href={order.payment.snapRedirectUrl} variant="dark">
-              Lanjutkan pembayaran
-            </ButtonLink>
-          )}
-          <Button variant="text" loading={busy === "sync"} onClick={() => onAction("sync")}>
-            Cek status
-          </Button>
-          <Button variant="text" loading={busy === "cancel"} onClick={() => onAction("cancel")}>
-            Batalkan pesanan
-          </Button>
-        </div>
-      </section>
-    );
+    return <PendingBlock order={order} busy={busy} onAction={onAction} />;
   }
 
   if (order.status === "PAID") {
@@ -253,6 +249,51 @@ function StatusBlock({
       <ButtonLink href="/" variant="dark" className="mt-6">
         Pesan lagi
       </ButtonLink>
+    </section>
+  );
+}
+
+function PendingBlock({
+  order,
+  busy,
+  onAction,
+}: {
+  order: Order;
+  busy: "sync" | "cancel" | "email" | null;
+  onAction: (kind: "sync" | "cancel" | "email") => void;
+}) {
+  // Konfirmasi batal di dalam blok, bukan dialog bawaan browser.
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <section className="rounded-card bg-sun p-6 md:p-8">
+      <h1 className="font-display text-[32px] font-extrabold leading-tight">Menunggu pembayaran</h1>
+      {order.expiresAt && <Countdown until={order.expiresAt} />}
+      {confirming ? (
+        <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-navy/20 pt-5" role="alertdialog" aria-label="Konfirmasi batal">
+          <p className="w-full font-semibold">Batalkan pesanan ini? Tiket yang ditahan akan dilepas.</p>
+          <Button variant="dark" loading={busy === "cancel"} onClick={() => onAction("cancel")}>
+            Ya, batalkan
+          </Button>
+          <Button variant="text" onClick={() => setConfirming(false)} disabled={busy === "cancel"}>
+            Tidak jadi
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+          {order.payment?.snapRedirectUrl && (
+            <ButtonLink href={order.payment.snapRedirectUrl} variant="dark">
+              Lanjutkan pembayaran
+            </ButtonLink>
+          )}
+          <Button variant="text" loading={busy === "sync"} onClick={() => onAction("sync")}>
+            Cek status
+          </Button>
+          <Button variant="text" onClick={() => setConfirming(true)}>
+            Batalkan pesanan
+          </Button>
+        </div>
+      )}
     </section>
   );
 }

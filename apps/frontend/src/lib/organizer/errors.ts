@@ -1,6 +1,6 @@
 // Pemetaan error API ke pesan form. Pakai `code` untuk logika, `detail` hanya untuk ditampilkan (kontrak §3).
 
-import { ApiError } from "@/lib/api/client";
+import { ApiError } from "@/lib/api";
 
 /** errors[].pointer ("#/endAt", "/poster") → { endAt: "…" }. Hanya segmen pertama yang dipakai. */
 export function fieldErrors(error: unknown): Record<string, string> {

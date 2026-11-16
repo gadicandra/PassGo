@@ -18,7 +18,7 @@ const palettes = [
 const titleSize: Record<Size, string> = {
   sm: "text-[12px]",
   md: "text-[28px]",
-  lg: "text-[36px]",
+  lg: "text-[30px]",
 };
 
 const padding: Record<Size, string> = { sm: "p-2.5", md: "p-4", lg: "p-5" };

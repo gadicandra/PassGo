@@ -1,71 +1,125 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { EventSummary } from "@/types/api";
 import { ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { formatDate, formatTime } from "@/lib/format";
 import { eventPriceLine } from "@/lib/status";
 import { Poster, posterPalette } from "./Poster";
+import { TEAR_DEPTH, tornEdge } from "./tornEdge";
 
-const AUTO_ADVANCE_MS = 6000;
+const AUTO_ADVANCE_MS = 7000;
+const FALL_MS = 700;
+const STUB_POSTER = "rotate-[4deg] border-2 border-navy shadow-hard";
 
-// Hero katalog berbentuk tiket raksasa: takik + perforasi di 70%, poster miring di sobekan kanan.
+/** Poster navy di atas hero navy akan hilang, jadi hero pakai oranye untuk acara berposter navy. */
+function heroPalette(event: EventSummary) {
+  const colors = posterPalette(event);
+  return colors.bg === "bg-navy" ? { bg: "bg-brand", fg: "text-cream" } : colors;
+}
+
+/*
+  Hero katalog = tiket raksasa yang dirobek. Koreografi (skill animation-systems, satu momen utama):
+    0 ms      badan + sobekan muncul sebagai satu tiket utuh, judul → info → harga naik bergantian
+    150 ms    lubang perforasi "dipon" dari atas ke bawah
+    650 ms    robekan merambat dari atas: sobekan tertarik, terkelupas dari atas (poros di sudut bawah),
+              lalu bagian bawah lepas dan sobekan jatuh sedikit, berhenti miring; serat putih kertas
+              terlihat di kedua tepi dan bayangan muncul di bawah sobekan yang terangkat
+    ganti     sobekan lama jatuh berputar keluar, tiket berikutnya mengulang dari awal
+  Tepi sobek memakai noise lebar + halus per acara (skill paper-cinder-transition).
+  Autoplay berhenti saat hero di luar layar atau tab tersembunyi (skill optimize-web-animations).
+*/
 export function HeroCarousel({ events }: { events: EventSummary[] }) {
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [visible, setVisible] = useState(true);
+  // Sobekan slide sebelumnya, dirender sebentar untuk animasi jatuh.
+  const [torn, setTorn] = useState<{ event: EventSummary; key: number } | null>(null);
+  const section = useRef<HTMLElement>(null);
+  const current = useRef(0);
   const count = events.length;
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const go = useCallback((next: number) => setIndex(((next % count) + count) % count), [count]);
+  const go = useCallback(
+    (next: number) => {
+      const target = ((next % count) + count) % count;
+      if (target === current.current) return;
+      setTorn({ event: events[current.current], key: Date.now() });
+      current.current = target;
+      setIndex(target);
+    },
+    [count, events],
+  );
 
   useEffect(() => {
-    if (count < 2 || paused) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    timer.current = setInterval(() => setIndex((current) => (current + 1) % count), AUTO_ADVANCE_MS);
-    return () => {
-      if (timer.current) clearInterval(timer.current);
-    };
-  }, [count, paused, index]);
+    if (!torn) return;
+    const clear = setTimeout(() => setTorn(null), FALL_MS);
+    return () => clearTimeout(clear);
+  }, [torn]);
 
-  if (count === 0) return null;
-  const event = events[index];
-  const posterColors = posterPalette(event);
-  // Poster navy di atas hero navy akan hilang, jadi hero pakai oranye untuk acara berposter navy.
-  const palette = posterColors.bg === "bg-navy" ? { bg: "bg-brand", fg: "text-cream" } : posterColors;
+  // Hanya jalan saat terlihat: di luar layar atau tab tersembunyi, autoplay berhenti.
+  useEffect(() => {
+    const element = section.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting && !document.hidden), {
+      threshold: 0.3,
+    });
+    const onVisibility = () => setVisible(!document.hidden && element.getBoundingClientRect().bottom > 0);
+    observer.observe(element);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (count < 2 || hovered || !visible) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = setTimeout(() => go(current.current + 1), AUTO_ADVANCE_MS);
+    return () => clearTimeout(timer);
+  }, [count, hovered, visible, index, go]);
+
+  const event = events[index] ?? events[0];
+  const edge = useMemo(() => (event ? tornEdge(event.id) : null), [event]);
+  const tornEdgeShape = useMemo(() => (torn ? tornEdge(torn.event.id) : null), [torn]);
+
+  if (!event || !edge) return null;
+  const palette = heroPalette(event);
   const price = eventPriceLine(event);
 
   return (
     <section
+      ref={section}
       aria-roledescription="carousel"
       aria-label="Acara pilihan"
       className="mx-auto w-full max-w-[1200px] px-4 pt-8 md:px-8 md:pt-12"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
-      onBlur={() => setPaused(false)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
     >
       <div className="relative">
-        <div
-          key={event.id}
-          style={{ "--notch-x": "70%", "--notch-size": "16px" } as CSSProperties}
-          className={cn(
-            "md:ticket-notch relative flex min-h-[360px] animate-[hero-in_300ms_ease-out] rounded-2xl md:h-[440px]",
-            palette.bg,
-            palette.fg,
-          )}
-        >
-          <div className="flex w-full flex-col justify-between gap-8 p-6 md:w-[70%] md:p-12 md:pr-14">
-            <div>
-              <h2 className="max-w-xl font-display text-[40px] font-extrabold leading-[0.95] tracking-[-0.03em] md:text-[64px]">
+        <div key={event.id} className={cn("relative flex min-h-[300px] animate-[hero-in_300ms_var(--ease-ticket)] md:h-[440px]", palette.fg)}>
+          {/* Badan tiket. Mulai md tepi kanannya mengikuti garis sobek. */}
+          <div
+            style={{ "--edge": edge.body, "--fiber": edge.bodyFiber } as CSSProperties}
+            className={cn(
+              "relative flex w-full flex-col justify-between gap-8 rounded-2xl p-6 md:w-[70%] md:rounded-r-none md:p-12 md:pr-14 md:[clip-path:var(--edge)]",
+              palette.bg,
+            )}
+          >
+            <span aria-hidden className="absolute inset-0 hidden bg-cream opacity-0 [clip-path:var(--fiber)] animate-[fiber-in_220ms_ease-out_1000ms_both] md:block" />
+            <div className="relative">
+              <h2 className="max-w-xl animate-[rise-in_500ms_var(--ease-ticket)_both] font-display text-[40px] font-extrabold leading-[0.95] tracking-[-0.03em] md:text-[64px]">
                 {event.title}
               </h2>
-              <p className="mt-5 font-mono text-[13px] font-medium uppercase tracking-wide">
+              <p className="mt-5 animate-[rise-in_500ms_var(--ease-ticket)_80ms_both] text-[17px] font-medium md:text-[18px]">
                 {formatDate(event.startAt, event.timezone)} · {formatTime(event.startAt, event.timezone)} WIB ·{" "}
                 {event.venueName}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-5">
+            <div className="relative flex animate-[rise-in_500ms_var(--ease-ticket)_160ms_both] flex-wrap items-center gap-5">
               <p className="text-[24px] font-semibold tabular-nums md:text-[28px]">{price.label}</p>
               <ButtonLink href={`/events/${event.slug}`} variant="dark">
                 Beli tiket
@@ -73,18 +127,26 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
             </div>
           </div>
 
+          {/* Sobekan: pembungkus ini yang bergerak (poros sudut kiri bawah); isinya dipotong mengikuti garis sobek. */}
           <div
-            aria-hidden
-            className="absolute bottom-0 left-[70%] top-0 hidden border-r-2 border-dotted border-current opacity-40 md:block"
-          />
-          <div className="hidden w-[30%] items-center justify-center md:flex">
-            <Poster
-              event={event}
-              size="lg"
-              className="w-[260px] -translate-y-6 rotate-[4deg] border-2 border-navy shadow-hard"
-            />
+            style={{ width: `calc(30% + ${TEAR_DEPTH}px)`, marginLeft: -TEAR_DEPTH }}
+            className="relative hidden origin-bottom-left animate-[stub-rip_1000ms_linear_650ms_both] md:block"
+          >
+            <span aria-hidden className="absolute inset-y-6 left-8 right-0 rounded-2xl bg-navy/40 opacity-0 blur-xl animate-[lift-shadow_1000ms_linear_650ms_both]" />
+            <StubPiece event={event} edge={edge} className={palette.bg} />
           </div>
         </div>
+
+        {torn && tornEdgeShape && (
+          <div
+            key={torn.key}
+            aria-hidden
+            style={{ width: `calc(30% + ${TEAR_DEPTH}px)` }}
+            className="pointer-events-none absolute inset-y-0 right-0 z-20 hidden origin-bottom-left animate-[stub-fall_700ms_var(--ease-tear)_forwards] md:block"
+          >
+            <StubPiece event={torn.event} edge={tornEdgeShape} className={heroPalette(torn.event).bg} settled />
+          </div>
+        )}
 
         {count > 1 && (
           <>
@@ -111,6 +173,44 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
         </div>
       )}
     </section>
+  );
+}
+
+/** Potongan sobekan: warna tiket dipotong garis sobek, perforasi di tepinya, serat putih, dan poster. */
+function StubPiece({
+  event,
+  edge,
+  className,
+  settled = false,
+}: {
+  event: EventSummary;
+  edge: ReturnType<typeof tornEdge>;
+  className: string;
+  /** true untuk sobekan yang sudah robek (jatuh saat ganti slide): serat langsung terlihat, tanpa animasi masuk. */
+  settled?: boolean;
+}) {
+  return (
+    <div
+      style={{ "--edge": edge.stub, "--fiber": edge.stubFiber } as CSSProperties}
+      className={cn("relative flex h-full items-center justify-center rounded-r-2xl [clip-path:var(--edge)]", className)}
+    >
+      {/* Lubang perforasi tepat di sepanjang garis sobek. */}
+      <span
+        aria-hidden
+        style={{ left: TEAR_DEPTH - 6 }}
+        className={cn(
+          "absolute bottom-3 top-3 origin-top border-l-2 border-dotted border-current opacity-40",
+          !settled && "animate-[perf-cut_450ms_var(--ease-ticket)_150ms_both]",
+        )}
+      />
+      <span
+        aria-hidden
+        className={cn("absolute inset-0 bg-cream [clip-path:var(--fiber)]", settled ? "opacity-100" : "opacity-0 animate-[fiber-in_220ms_ease-out_1000ms_both]")}
+      />
+      <div className="relative w-[240px]">
+        <Poster event={event} size="lg" className={STUB_POSTER} />
+      </div>
+    </div>
   );
 }
 

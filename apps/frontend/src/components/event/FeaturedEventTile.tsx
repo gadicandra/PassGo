@@ -17,7 +17,8 @@ export function FeaturedEventTile({ event, tone, className }: { event: EventSumm
       <div
         className={cn(
           // Lebar 2x poster di sebelahnya, jadi rasio 8:5 membuat tingginya sama dengan poster 4:5.
-          "flex aspect-[4/5] overflow-hidden rounded-card border border-navy/15 shadow-card transition duration-200 group-hover:-translate-y-1 group-hover:shadow-card-hover lg:aspect-[8/5]",
+          // Mulai sm tile selebar 2 kolom, jadi pakai landscape supaya tidak menjadi blok raksasa di tablet.
+          "flex aspect-[4/5] overflow-hidden rounded-card border border-navy/15 shadow-card transition duration-200 group-hover:-translate-y-1 group-hover:shadow-card-hover sm:aspect-[2/1] lg:aspect-[8/5]",
           palette.bg,
         )}
       >

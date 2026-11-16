@@ -16,6 +16,8 @@ import {
 } from "../services/auth-service";
 import { authenticate, type AuthenticatedRequest } from "../middlewares/authenticate";
 import { AppError } from "../utils/app-error";
+import { limits } from "../middlewares/rate-limit";
+import { password, phone } from "../validators/user-fields";
 
 const router = Router();
 const refreshCookie = "__Secure-refresh_token";
@@ -29,9 +31,9 @@ const setRefreshCookie = (response: Parameters<RequestHandler>[1], token: string
 });
 const clearRefreshCookie = (response: Parameters<RequestHandler>[1]) => response.clearCookie(refreshCookie, { httpOnly: true, secure: true, sameSite: "strict", path: "/api/v1/auth" });
 
-const registerSchema = z.object({ name: z.string().trim().min(2).max(100), email: z.string().email().max(254), phone: z.string().nullable().optional(), password: z.string().min(8).max(64) }).strict();
+const registerSchema = z.object({ name: z.string().trim().min(2).max(100), email: z.string().email().max(254), phone, password }).strict();
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) }).strict();
-const resetSchema = z.object({ token: z.string().min(1), newPassword: z.string().min(8).max(64) }).strict();
+const resetSchema = z.object({ token: z.string().min(1), newPassword: password }).strict();
 const cookieAuthGuard: RequestHandler = (request, _response, next) => {
   const allowedOrigins = process.env.CSRF_ALLOWED_ORIGINS?.split(",").map((origin) => origin.trim()) ?? [];
   if (!request.get("origin") || !allowedOrigins.includes(request.get("origin") ?? "") || request.get("x-requested-with") !== "fetch") {
@@ -43,14 +45,14 @@ const cookieAuthGuard: RequestHandler = (request, _response, next) => {
 
 router.use(cookieParser());
 
-router.post("/register", async (request, response, next) => {
+router.post("/register", limits.register, async (request, response, next) => {
   try {
     await register(registerSchema.parse(request.body));
     response.status(202).json({ data: { message: "Cek email untuk verifikasi akun." } });
   } catch (error) { next(error); }
 });
 
-router.post("/login", async (request, response, next) => {
+router.post("/login", ...limits.login, async (request, response, next) => {
   try {
     const result = await login(loginSchema.parse(request.body));
     const user = await getUserById(result.user.id);
@@ -60,7 +62,7 @@ router.post("/login", async (request, response, next) => {
   } catch (error) { next(error); }
 });
 
-router.post("/refresh", cookieAuthGuard, async (request, response, next) => {
+router.post("/refresh", limits.refresh, cookieAuthGuard, async (request, response, next) => {
   try {
     const token = request.cookies[refreshCookie];
     if (!token) throw new AppError(401, "refresh-token-invalid", "Refresh token tidak valid.");
@@ -78,19 +80,19 @@ router.post("/logout-all", authenticate, async (request, response, next) => {
   try { await revokeAllSessions((request as AuthenticatedRequest).user.sub); clearRefreshCookie(response); response.status(204).send(); } catch (error) { next(error); }
 });
 
-router.post("/email-verification", authenticate, async (request, response, next) => {
+router.post("/email-verification", limits.authEmail, authenticate, async (request, response, next) => {
   try { await resendVerification((request as AuthenticatedRequest).user.sub); response.status(202).json({ data: { message: "Cek email untuk verifikasi akun." } }); } catch (error) { next(error); }
 });
 
-router.post("/email-verification/confirm", async (request, response, next) => {
+router.post("/email-verification/confirm", limits.authConfirm, async (request, response, next) => {
   try { await verifyEmail(z.object({ token: z.string().min(1) }).parse(request.body).token); response.status(204).send(); } catch (error) { next(error); }
 });
 
-router.post("/password-reset", async (request, response, next) => {
+router.post("/password-reset", limits.authEmail, async (request, response, next) => {
   try { await requestPasswordReset(z.object({ email: z.string().email() }).parse(request.body).email); response.status(202).json({ data: { message: "Cek email untuk reset password." } }); } catch (error) { next(error); }
 });
 
-router.post("/password-reset/confirm", async (request, response, next) => {
+router.post("/password-reset/confirm", limits.authConfirm, async (request, response, next) => {
   try { const body = resetSchema.parse(request.body); await confirmPasswordReset(body.token, body.newPassword); response.status(204).send(); } catch (error) { next(error); }
 });
 

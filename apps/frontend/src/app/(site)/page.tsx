@@ -8,6 +8,7 @@ import { Poster } from "@/components/event/Poster";
 import { SectionHeading } from "@/components/event/SectionHeading";
 import { TicketStub } from "@/components/event/TicketStub";
 import { formatDate } from "@/lib/format";
+import { Reveal } from "@/components/ui/Reveal";
 import { listEvents, type EventListQuery } from "@/lib/public-api";
 
 const filterTitle: Record<CatalogFilter, string> = {
@@ -96,9 +97,13 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
         <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-8">
           <SectionHeading title="Paling dekat" count={nearest.length} href="/?filter=minggu" />
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-12">
-            <FeaturedEventTile event={nearest[0]} tone={3} className="sm:col-span-2 lg:col-span-6" />
+            <Reveal className="sm:col-span-2 lg:col-span-6">
+              <FeaturedEventTile event={nearest[0]} tone={3} />
+            </Reveal>
             {nearest.slice(1).map((event, index) => (
-              <EventCard key={event.id} event={event} tone={index + 1} className="lg:col-span-3" />
+              <Reveal key={event.id} index={index + 1} className="lg:col-span-3">
+                <EventCard event={event} tone={index + 1} />
+              </Reveal>
             ))}
           </div>
         </section>
@@ -110,7 +115,8 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
             <SectionHeading title="Gratis, tinggal datang" count={free.length} href="/?filter=gratis" className="border-navy/20" />
             <div className="grid gap-6 md:grid-cols-3">
               {free.map((event, index) => (
-                <Link key={event.id} href={`/events/${event.slug}`} className="group">
+                <Reveal key={event.id} index={index}>
+                <Link href={`/events/${event.slug}`} className="group block h-full">
                   <TicketStub
                     notchBg="var(--color-sun)"
                     // Tanpa kuning: poster kuning di atas band kuning akan hilang.
@@ -122,10 +128,11 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
                     </h3>
                     <div className="flex items-center justify-between gap-2 border-t border-navy/10 pt-2">
                       <p className="truncate text-[13px] text-muted">{event.venueName}</p>
-                      <span className="shrink-0 font-mono text-[12px] font-bold">{formatDate(event.startAt, event.timezone).replace(/ \d{4}$/, "")}</span>
+                      <span className="shrink-0 text-[13px] font-semibold">{formatDate(event.startAt, event.timezone).replace(/ \d{4}$/, "")}</span>
                     </div>
                   </TicketStub>
                 </Link>
+                </Reveal>
               ))}
             </div>
           </div>
@@ -146,7 +153,10 @@ function EventGrid({ events }: { events: EventSummary[] }) {
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:gap-6 lg:grid-cols-4">
       {events.map((event, index) => (
-        <EventCard key={event.id} event={event} tone={index} />
+        // Jeda bertingkat per kolom (index % 4) supaya tiap baris yang masuk layar muncul kiri → kanan.
+        <Reveal key={event.id} index={index % 4}>
+          <EventCard event={event} tone={index} />
+        </Reveal>
       ))}
     </div>
   );

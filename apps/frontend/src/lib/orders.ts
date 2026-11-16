@@ -3,7 +3,7 @@
 // jadi judul acara digabung dari daftar acara dan filter dilakukan di sini.
 
 import type { EventSummary, OrderRecord, OrderStatus, RefundStatus } from "@/types/api";
-import { apiFetch } from "./api/client";
+import { api } from "./api";
 
 export interface OrderRow {
   id: string;
@@ -22,8 +22,8 @@ export interface OrderRow {
 
 export async function loadOrderRows(): Promise<OrderRow[]> {
   const [orders, events] = await Promise.all([
-    apiFetch<OrderRecord[]>("/orders"),
-    apiFetch<EventSummary[]>("/events?when=all&pageSize=100&sort=-startAt").catch(() => [] as EventSummary[]),
+    api<OrderRecord[]>("/orders"),
+    api<EventSummary[]>("/events?when=all&pageSize=100&sort=-startAt").catch(() => [] as EventSummary[]),
   ]);
   const byId = new Map(events.map((event) => [event.id, event]));
   return orders.map((order) => {

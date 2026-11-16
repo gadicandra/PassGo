@@ -5,8 +5,8 @@ import { useMemo, useState } from "react";
 import type { Event, TicketType } from "@/types/api";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import { useAuth } from "@/lib/api/auth";
-import { ApiError, apiFetch } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth";
+import { ApiError, api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatRupiah } from "@/lib/format";
 import { Perforation } from "./TicketStub";
@@ -42,7 +42,7 @@ export function TicketPicker({ event }: { event: Event }) {
   async function resendVerification() {
     setResending(true);
     try {
-      await apiFetch("/auth/email-verification", { method: "POST" });
+      await api("/auth/email-verification", { method: "POST" });
       toast.success("Link verifikasi dikirim ke email kamu.");
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Gagal mengirim email.");

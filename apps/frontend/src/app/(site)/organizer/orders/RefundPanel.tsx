@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { FormError, TextArea } from "@/components/ui/Field";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
-import { ApiError, apiFetch, newIdempotencyKey } from "@/lib/api/client";
+import { ApiError, api } from "@/lib/api";
 import { formatDate, formatRupiah } from "@/lib/format";
 import { orderStatusLabel, refundStatusLabel, toneClass } from "@/lib/status";
 import { cn } from "@/lib/cn";
@@ -26,7 +26,7 @@ export function RefundPanel({ orderId, onClose, onChanged }: { orderId: string; 
   const idempotencyKey = useRef<string | null>(null);
 
   useEffect(() => {
-    apiFetch<Order>(`/orders/${orderId}`)
+    api<Order>(`/orders/${orderId}`)
       .then(setOrder)
       .catch(() => setFormError("Gagal memuat pesanan."));
   }, [orderId]);
@@ -52,9 +52,9 @@ export function RefundPanel({ orderId, onClose, onChanged }: { orderId: string; 
     setNoteError(undefined);
     setFormError(undefined);
     setSubmitting(true);
-    idempotencyKey.current ??= newIdempotencyKey();
+    idempotencyKey.current ??= crypto.randomUUID();
     try {
-      const updated = await apiFetch<Order>(`/orders/${order.id}/refund`, {
+      const updated = await api<Order>(`/orders/${order.id}/refund`, {
         method: "POST",
         idempotencyKey: idempotencyKey.current,
         body: { amount: order.total, note },

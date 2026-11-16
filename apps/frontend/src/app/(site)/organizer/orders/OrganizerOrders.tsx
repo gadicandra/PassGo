@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { useAuth } from "@/lib/api/auth";
-import { ApiError } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth";
+import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatRupiah } from "@/lib/format";
 import { loadOrderRows, type OrderRow } from "@/lib/orders";
@@ -31,7 +31,7 @@ const createdFormat = new Intl.DateTimeFormat("id-ID", {
 });
 
 export function OrganizerOrders() {
-  const { requireLogin, user, status } = useAuth();
+  const { user, status } = useAuth();
   const [rows, setRows] = useState<OrderRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
@@ -53,8 +53,8 @@ export function OrganizerOrders() {
   }, []);
 
   useEffect(() => {
-    if (requireLogin(["ORGANIZER"])) load();
-  }, [requireLogin, load]);
+    if (status === "authenticated" && user?.role === "ORGANIZER") load();
+  }, [status, user, load]);
 
   const forbidden = status === "authenticated" && user?.role !== "ORGANIZER";
 

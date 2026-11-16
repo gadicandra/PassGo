@@ -1,4 +1,4 @@
-import { AccountNav } from "./AccountNav";
+import { AccountMenu } from "./AccountMenu";
 import { Wordmark } from "./Wordmark";
 
 export function SiteHeader() {
@@ -15,14 +15,13 @@ export function SiteHeader() {
             id="site-search"
             name="q"
             type="search"
-            minLength={2}
             placeholder="Cari acara"
             className="h-11 w-full rounded-lg border border-[#2b3c63] bg-[#1b2b4d] px-4 text-[15px] text-cream placeholder:text-cream/50 focus:border-brand focus:outline-none"
           />
         </form>
 
-        <nav aria-label="Akun" className="shrink-0">
-          <AccountNav />
+        <nav className="flex shrink-0 items-center gap-3 md:gap-5">
+          <AccountMenu />
         </nav>
       </div>
     </header>

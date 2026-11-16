@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo, Hanken_Grotesk, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
 import { ToastProvider } from "@/components/ui/Toast";
-import { AuthProvider } from "@/lib/api/auth";
+import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
 // Archivo 800: satu judul utama per halaman. Hanken Grotesk: semua UI.
@@ -23,9 +23,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${archivo.variable} ${hanken.variable} ${sourceSerif.variable} ${jetbrains.variable} h-full`}
     >
       <body className="flex min-h-full flex-col">
-        <AuthProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ToastProvider>
       </body>
     </html>
   );

@@ -9,8 +9,8 @@ import { OrderSummaryStub } from "@/components/order/OrderSummaryStub";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
-import { useAuth } from "@/lib/api/auth";
-import { ApiError, apiFetch } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth";
+import { ApiError, api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatDate, formatDateTime, formatRupiah } from "@/lib/format";
 import { ticketStatusLabel, toneClass } from "@/lib/status";
@@ -33,7 +33,7 @@ const paymentLabel = (type: string) =>
   PAYMENT_LABELS[type.toLowerCase()] ?? type.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
 export function OrderDetail({ orderId }: { orderId: string }) {
-  const { status, requireLogin } = useAuth();
+  const { status } = useAuth();
   const toast = useToast();
   const [order, setOrder] = useState<Order | null>(null);
   // Respons pesanan belum memuat judul/tanggal acara, jadi acaranya diambil terpisah.
@@ -43,7 +43,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
 
   const load = useCallback(async () => {
     try {
-      setOrder(await apiFetch<Order>(`/orders/${orderId}`));
+      setOrder(await api<Order>(`/orders/${orderId}`));
       setError(null);
     } catch (caught) {
       setError(caught instanceof ApiError && caught.status === 404 ? "Pesanan tidak ditemukan." : "Gagal memuat pesanan.");
@@ -52,16 +52,16 @@ export function OrderDetail({ orderId }: { orderId: string }) {
 
   // Pulang dari Midtrans: tanyakan status terkini ke server, karena callback browser bukan bukti bayar.
   useEffect(() => {
-    if (!requireLogin()) return;
-    apiFetch<Order>(`/orders/${orderId}/payment/sync`, { method: "POST" })
+    if (status !== "authenticated") return;
+    api<Order>(`/orders/${orderId}/payment/sync`, { method: "POST" })
       .then(setOrder)
       .catch(() => load());
-  }, [requireLogin, orderId, load]);
+  }, [status, orderId, load]);
 
   const eventId = order?.eventId;
   useEffect(() => {
     if (!eventId) return;
-    apiFetch<Event>(`/events/${eventId}`)
+    api<Event>(`/events/${eventId}`)
       .then(setEvent)
       .catch(() => undefined);
   }, [eventId]);
@@ -77,13 +77,13 @@ export function OrderDetail({ orderId }: { orderId: string }) {
     setBusy(kind);
     try {
       if (kind === "sync") {
-        setOrder(await apiFetch<Order>(`/orders/${orderId}/payment/sync`, { method: "POST" }));
+        setOrder(await api<Order>(`/orders/${orderId}/payment/sync`, { method: "POST" }));
         toast.info("Status pembayaran diperbarui.");
       } else if (kind === "cancel") {
-        setOrder(await apiFetch<Order>(`/orders/${orderId}/cancel`, { method: "POST", body: {} }));
+        setOrder(await api<Order>(`/orders/${orderId}/cancel`, { method: "POST", body: {} }));
         toast.success("Pesanan dibatalkan.");
       } else {
-        await apiFetch(`/orders/${orderId}/ticket-email`, { method: "POST" });
+        await api(`/orders/${orderId}/ticket-email`, { method: "POST" });
         toast.success("E-tiket dikirim ulang ke email kamu.");
         await load();
       }

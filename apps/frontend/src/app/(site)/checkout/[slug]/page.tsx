@@ -1,3 +1,4 @@
+import { RequireAuth } from "@/lib/auth";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getEventBySlug } from "@/lib/public-api";
@@ -24,7 +25,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 py-10 md:px-8">
-      <CheckoutForm event={event} initialItems={parseItems(query.items)} />
+      <RequireAuth><CheckoutForm event={event} initialItems={parseItems(query.items)} /></RequireAuth>
     </div>
   );
 }

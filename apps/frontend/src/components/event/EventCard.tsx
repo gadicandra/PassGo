@@ -25,7 +25,7 @@ export function EventCard({ event, tone, className }: { event: EventSummary; ton
         </p>
         <h3
           className={cn(
-            "mt-1 line-clamp-2 text-[16px] font-semibold leading-snug md:text-[17px] transition-colors",
+            "mt-1 truncate text-[16px] font-semibold leading-snug md:text-[17px] transition-colors",
             cancelled ? "text-navy/40 line-through" : "text-navy group-hover:text-brand",
           )}
         >

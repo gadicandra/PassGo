@@ -111,14 +111,14 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
       {nearest.length > 0 && (
         <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-8">
           <SectionHeading title="Paling dekat" icon={MapPinned} count={nearest.length} href="/?filter=minggu" />
-          <EventGrid events={nearest} />
+          <EventGrid events={nearest} scroll />
         </section>
       )}
 
       {free.length > 0 && (
         <section className="my-8 w-full bg-sun py-12">
           <div className="mx-auto max-w-[1200px] px-4 md:px-8">
-            <SectionHeading title="Gratis, tinggal datang" icon={Ticket} count={free.length} href="/?filter=gratis" className="border-navy/20" />
+            <SectionHeading title="Gratis, tinggal datang" icon={Ticket} count={free.length} href="/?filter=gratis" onColor />
             <div className="grid gap-6 md:grid-cols-3">
               {free.map((event, index) => (
                 <Reveal key={event.id} index={index}>
@@ -155,12 +155,19 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
   );
 }
 
-function EventGrid({ events }: { events: EventSummary[] }) {
+/** `scroll`: di HP jadi baris geser ke samping (pola aplikasi Loket/tiket.com), mulai sm kembali grid. */
+function EventGrid({ events, scroll = false }: { events: EventSummary[]; scroll?: boolean }) {
   return (
-    <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+    <div
+      className={
+        scroll
+          ? "-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-x-5 sm:gap-y-8 sm:overflow-visible sm:px-0 lg:grid-cols-4"
+          : "grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4"
+      }
+    >
       {events.map((event, index) => (
         // Jeda bertingkat per kolom (index % 4) supaya tiap baris yang masuk layar muncul kiri → kanan.
-        <Reveal key={event.id} index={index % 4}>
+        <Reveal key={event.id} index={index % 4} className={scroll ? "w-[82%] shrink-0 snap-start sm:w-auto" : undefined}>
           <EventCard event={event} tone={index} />
         </Reveal>
       ))}

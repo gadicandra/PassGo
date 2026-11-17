@@ -8,6 +8,7 @@ export function SectionHeading({
   icon: Icon,
   count,
   href,
+  onColor = false,
   className,
 }: {
   title: string;
@@ -15,18 +16,20 @@ export function SectionHeading({
   icon?: LucideIcon;
   count?: number;
   href?: string;
+  /** Di atas latar berwarna (band kuning): tautan navy supaya kontras cukup. */
+  onColor?: boolean;
   className?: string;
 }) {
   return (
-    <div className={cn("mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line pb-3", className)}>
+    <div className={cn("mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2", className)}>
       <h2 className="flex items-center gap-2.5 text-[24px] font-bold leading-tight tracking-[-0.01em] md:text-[28px]">
-        {Icon && <Icon aria-hidden className="size-6 shrink-0 text-brand md:size-7" strokeWidth={2} />}
+        {Icon && <Icon aria-hidden className={cn("size-6 shrink-0 md:size-7", onColor ? "text-navy" : "text-brand")} strokeWidth={2} />}
         {title}
       </h2>
       <div className="flex items-center gap-4">
-        {count !== undefined && <span className="text-[14px] font-medium tabular-nums text-muted">{count} acara</span>}
+        {count !== undefined && <span className={cn("text-[14px] font-medium tabular-nums", onColor ? "text-navy/70" : "text-muted")}>{count} acara</span>}
         {href && (
-          <Link href={href} className="inline-flex items-center gap-0.5 text-[15px] font-semibold text-navy hover:text-brand">
+          <Link href={href} className={cn("inline-flex items-center gap-0.5 text-[15px] font-semibold", onColor ? "text-navy hover:underline" : "text-brand hover:text-brand-dark")}>
             Lihat semua
             <ChevronRight aria-hidden className="size-4" strokeWidth={2.5} />
           </Link>

@@ -102,7 +102,7 @@ function AuditLogs() {
 
   return (
     <section className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 px-4 py-12 md:px-8">
-      <h1 className="font-display text-[40px] font-extrabold leading-none tracking-[-0.03em]">Log audit</h1>
+      <h1 className="text-[30px] font-bold leading-tight tracking-[-0.01em] md:text-[36px]">Log audit</h1>
 
       {filters.actorId && (
         <p className="flex flex-wrap items-center gap-2 text-sm">

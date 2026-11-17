@@ -24,7 +24,7 @@ export function useEvent(eventId: string, enabled = true) {
 export function EventHeader({ event, error, title }: { event: Event | null; error: boolean; title: string }) {
   return (
     <header>
-      <h1 className="font-display text-[40px] font-extrabold leading-none tracking-[-0.01em] md:text-[52px]">{title}</h1>
+      <h1 className="text-[30px] font-bold leading-tight tracking-[-0.01em] md:text-[36px]">{title}</h1>
       {event ? (
         <p className="mt-3 text-muted">
           {event.title} · {formatDateTime(event.startAt, event.timezone)}

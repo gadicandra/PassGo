@@ -78,7 +78,7 @@ export function TicketDetail({ ticketId }: { ticketId: string }) {
       <Link href="/tickets" className="text-[15px] font-semibold text-muted hover:text-navy">
         Semua tiket
       </Link>
-      <h1 className="mt-3 font-display text-[36px] font-extrabold leading-none tracking-[-0.01em] md:text-[48px]">{ticket.event.title}</h1>
+      <h1 className="mt-3 text-[30px] font-bold leading-tight tracking-[-0.01em] md:text-[36px]">{ticket.event.title}</h1>
       <p className="mt-3 text-muted">
         {formatDateTime(ticket.event.startAt, ticket.event.timezone)} · {ticket.event.venueName}
       </p>

@@ -102,7 +102,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   if (error) {
     return (
       <div className="flex flex-col items-start gap-4 py-12">
-        <h1 className="font-display text-[44px] font-extrabold leading-none">Pesanan</h1>
+        <h1 className="text-[32px] font-bold leading-tight tracking-[-0.01em] md:text-[40px]">Pesanan</h1>
         <p className="text-muted">{error}</p>
         <Link href="/orders" className="font-semibold underline underline-offset-4">
           Pesanan saya
@@ -218,7 +218,7 @@ function StatusBlock({
     const emailFailed = order.ticketEmailStatus === "FAILED";
     return (
       <section className="rounded-card bg-teal p-6 text-cream md:p-8">
-        <h1 className="font-display text-[32px] font-extrabold leading-tight">{order.total === 0 ? "Tiket berhasil diambil" : "Pembayaran diterima"}</h1>
+        <h1 className="text-[24px] font-bold leading-snug md:text-[28px]">{order.total === 0 ? "Tiket berhasil diambil" : "Pembayaran diterima"}</h1>
         <p className="mt-2">
           {emailFailed
             ? "Email gagal terkirim."
@@ -242,7 +242,7 @@ function StatusBlock({
 
   return (
     <section className="rounded-card bg-white p-6 shadow-card md:p-8">
-      <h1 className="font-display text-[32px] font-extrabold leading-tight">
+      <h1 className="text-[24px] font-bold leading-snug md:text-[28px]">
         {order.status === "EXPIRED" ? "Waktu pembayaran habis" : "Pesanan dibatalkan"}
       </h1>
       {order.status === "CANCELLED" && order.cancelReason && <p className="mt-2 text-muted">{order.cancelReason}</p>}
@@ -267,7 +267,7 @@ function PendingBlock({
 
   return (
     <section className="rounded-card bg-sun p-6 md:p-8">
-      <h1 className="font-display text-[32px] font-extrabold leading-tight">Menunggu pembayaran</h1>
+      <h1 className="text-[24px] font-bold leading-snug md:text-[28px]">Menunggu pembayaran</h1>
       {order.expiresAt && <Countdown until={order.expiresAt} />}
       {confirming ? (
         <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-navy/20 pt-5" role="alertdialog" aria-label="Konfirmasi batal">

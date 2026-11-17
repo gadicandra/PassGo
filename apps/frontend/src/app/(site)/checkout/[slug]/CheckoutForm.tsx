@@ -212,7 +212,7 @@ export function CheckoutForm({ event, initialItems }: { event: Event; initialIte
       <Link href={eventHref} className="text-[15px] font-semibold hover:text-brand">
         ← Kembali ke acara
       </Link>
-      <h1 className="mt-4 font-display text-[44px] font-extrabold leading-none tracking-[-0.01em]">Checkout</h1>
+      <h1 className="mt-4 text-[32px] font-bold leading-tight tracking-[-0.01em] md:text-[40px]">Checkout</h1>
 
       <div className="mt-8 grid gap-10 lg:grid-cols-12">
         <form onSubmit={submit} noValidate className="order-2 flex flex-col gap-8 lg:order-1 lg:col-span-7">
@@ -280,7 +280,7 @@ export function CheckoutForm({ event, initialItems }: { event: Event; initialIte
 function EmptyState({ title, message, href }: { title: string; message: string; href: string }) {
   return (
     <div className="flex flex-col items-start gap-4 py-12">
-      <h1 className="font-display text-[44px] font-extrabold leading-none tracking-[-0.01em]">{title}</h1>
+      <h1 className="text-[32px] font-bold leading-tight tracking-[-0.01em] md:text-[40px]">{title}</h1>
       <p className="text-muted">{message}</p>
       <Link href={href} className="font-semibold underline underline-offset-4 hover:text-brand">
         Kembali ke acara

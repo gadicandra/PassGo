@@ -40,7 +40,7 @@ export function AgendaList({ events }: { events: EventSummary[] }) {
                 <div className="min-w-0 flex-1">
                   <h3
                     className={cn(
-                      "font-display text-[17px] font-extrabold leading-snug tracking-tight transition-colors md:text-[19px]",
+                      "text-[16px] font-semibold leading-snug transition-colors md:text-[18px]",
                       cancelled ? "text-navy/40 line-through" : "text-navy group-hover:text-brand",
                     )}
                   >

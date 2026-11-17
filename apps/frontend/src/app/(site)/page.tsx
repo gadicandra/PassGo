@@ -71,7 +71,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
   if (events.length === 0) {
     return (
       <div className="mx-auto w-full max-w-[1200px] px-4 py-24 md:px-8">
-        <h1 className="font-display text-[44px] font-extrabold leading-none tracking-[-0.03em] md:text-[56px]">Acara</h1>
+        <h1 className="text-[32px] font-bold leading-tight tracking-[-0.01em] md:text-[40px]">Acara</h1>
         <p className="mt-4 text-muted">Belum ada acara. Cek lagi minggu depan.</p>
       </div>
     );
@@ -124,7 +124,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
                     thumb={<Poster event={event} size="sm" tone={[0, 1, 3][index % 3]} />}
                     className="h-full"
                   >
-                    <h3 className="line-clamp-2 font-display text-[16px] font-extrabold leading-snug group-hover:text-brand">
+                    <h3 className="line-clamp-2 text-[16px] font-semibold leading-snug group-hover:text-brand">
                       {event.title}
                     </h3>
                     <div className="flex items-center justify-between gap-2 border-t border-navy/10 pt-2">

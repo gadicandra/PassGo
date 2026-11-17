@@ -35,8 +35,8 @@ export function PriceLabel({ event }: { event: Pick<EventSummary, "status" | "sa
   if (price.label.startsWith("Mulai ")) {
     return (
       <div>
-        <p className="text-[12px] text-muted">Mulai dari</p>
-        <p className="text-[15px] font-bold tabular-nums text-navy">{price.label.slice(6)}</p>
+        <p className="text-[13px] text-muted">Mulai dari</p>
+        <p className="text-[16px] font-semibold tabular-nums text-navy">{price.label.slice(6)}</p>
       </div>
     );
   }

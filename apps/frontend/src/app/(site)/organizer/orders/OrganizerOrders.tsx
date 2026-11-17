@@ -80,7 +80,7 @@ export function OrganizerOrders() {
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="font-display text-[44px] font-extrabold leading-none tracking-[-0.01em] md:text-[56px]">Pesanan</h1>
+        <h1 className="text-[32px] font-bold leading-tight tracking-[-0.01em] md:text-[40px]">Pesanan</h1>
         <div className="w-full max-w-[280px]">
           <label htmlFor="order-search" className="sr-only">
             Cari nomor atau pembeli

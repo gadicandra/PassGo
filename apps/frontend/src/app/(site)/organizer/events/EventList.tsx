@@ -61,7 +61,7 @@ export function EventList() {
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="font-display text-[44px] font-extrabold leading-none tracking-[-0.03em] md:text-[56px]">Acara</h1>
+        <h1 className="text-[32px] font-bold leading-tight tracking-[-0.01em] md:text-[40px]">Acara</h1>
         <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
           <label htmlFor="event-search" className="sr-only">
             Cari judul atau tempat

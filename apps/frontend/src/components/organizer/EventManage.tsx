@@ -67,7 +67,7 @@ export function EventManageShell({ eventId, children }: { eventId: string; child
   if (failure && !event) {
     return (
       <div className="flex flex-col items-start gap-3 py-10">
-        <h1 className="font-display text-[40px] font-extrabold leading-none tracking-[-0.03em]">
+        <h1 className="text-[30px] font-bold leading-tight tracking-[-0.01em] md:text-[36px]">
           {failure.notFound ? "Acara tidak ditemukan" : "Gagal memuat acara"}
         </h1>
         <p className="text-muted">{failure.notFound ? "Mungkin draf ini sudah dihapus." : failure.message}</p>
@@ -118,7 +118,7 @@ function EventHeader() {
           <Link href="/organizer/events" className="text-[14px] font-semibold text-muted underline-offset-4 hover:text-navy hover:underline">
             Semua acara
           </Link>
-          <h1 className="mt-2 font-display text-[36px] font-extrabold leading-[1.05] tracking-[-0.03em] break-words md:text-[48px]">
+          <h1 className="mt-2 text-[30px] font-bold leading-tight tracking-[-0.01em] break-words md:text-[36px]">
             {event.title}
           </h1>
           <p className="mt-3 text-[15px] text-muted">

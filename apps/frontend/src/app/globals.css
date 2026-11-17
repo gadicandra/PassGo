@@ -26,7 +26,7 @@
 
 @theme inline {
   --font-display: var(--font-archivo), sans-serif;
-  --font-sans: var(--font-hanken), sans-serif;
+  --font-sans: var(--font-jakarta), sans-serif;
   --font-serif: var(--font-source-serif), serif;
   --font-mono: var(--font-jetbrains), monospace;
 }

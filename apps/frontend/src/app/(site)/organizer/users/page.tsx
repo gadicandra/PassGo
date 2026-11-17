@@ -65,7 +65,7 @@ function Users() {
   return (
     <section className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 px-4 py-12 md:px-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="font-display text-[40px] font-extrabold leading-none tracking-[-0.03em]">Pengguna</h1>
+        <h1 className="text-[30px] font-bold leading-tight tracking-[-0.01em] md:text-[36px]">Pengguna</h1>
         <Button onClick={() => setCreating(true)}>Tambah akun</Button>
       </div>
 

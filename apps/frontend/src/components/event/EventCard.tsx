@@ -16,18 +16,18 @@ export function EventCard({ event, tone, className }: { event: EventSummary; ton
         <Poster event={event} tone={tone} className="transition-transform duration-300 ease-out group-hover:scale-[1.04]" />
       </div>
       <div className="mt-3 flex flex-col">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted">
+        <p className="text-[13px] font-medium text-muted">
           {formatDate(event.startAt, event.timezone).replace(/ \d{4}$/, "")} · {formatTime(event.startAt, event.timezone)}
         </p>
         <h3
           className={cn(
-            "mt-1 line-clamp-2 font-display text-[16px] font-extrabold leading-snug tracking-tight transition-colors",
+            "mt-1 line-clamp-2 text-[16px] font-semibold leading-snug md:text-[17px] transition-colors",
             cancelled ? "text-navy/40 line-through" : "text-navy group-hover:text-brand",
           )}
         >
           {event.title}
         </h3>
-        <p className="mt-0.5 truncate text-[13px] text-muted">{event.venueName}</p>
+        <p className="mt-0.5 truncate text-[14px] text-muted">{event.venueName}</p>
         <div className="mt-3 border-t border-dashed border-navy/20 pt-2.5">
           <PriceLabel event={event} />
         </div>

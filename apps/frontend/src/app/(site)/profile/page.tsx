@@ -16,7 +16,7 @@ export default function ProfilePage() {
   return (
     <RequireAuth>
       <section className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-12 md:px-8">
-        <h1 className="font-display text-[40px] font-extrabold leading-none tracking-[-0.03em]">Profil</h1>
+        <h1 className="text-[30px] font-bold leading-tight tracking-[-0.01em] md:text-[36px]">Profil</h1>
         <ProfileForm />
         <PasswordForm />
         <Sessions />

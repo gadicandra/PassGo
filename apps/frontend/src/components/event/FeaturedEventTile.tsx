@@ -43,13 +43,13 @@ export function FeaturedEventTile({ event, tone, className }: { event: EventSumm
         )}
       </div>
       <div className="mt-3 flex flex-col">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted">
+        <p className="text-[13px] font-medium text-muted">
           {formatDate(event.startAt, event.timezone).replace(/ \d{4}$/, "")} · {formatTime(event.startAt, event.timezone)}
         </p>
-        <h3 className="mt-1 font-display text-[20px] font-extrabold leading-snug tracking-tight text-navy transition-colors group-hover:text-brand">
+        <h3 className="mt-1 text-[19px] font-semibold leading-snug md:text-[20px] text-navy transition-colors group-hover:text-brand">
           {event.title}
         </h3>
-        <p className="mt-0.5 truncate text-[13px] text-muted">{event.venueName}</p>
+        <p className="mt-0.5 truncate text-[14px] text-muted">{event.venueName}</p>
         <div className="mt-3 border-t border-dashed border-navy/20 pt-2.5">
           <PriceLabel event={event} />
         </div>

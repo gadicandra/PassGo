@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Acara saya" };
 export default function StaffPage() {
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 py-10 md:px-8">
-      <h1 className="font-display text-[44px] font-extrabold leading-none tracking-[-0.01em] md:text-[56px]">Acara saya</h1>
+      <h1 className="text-[32px] font-bold leading-tight tracking-[-0.01em] md:text-[40px]">Acara saya</h1>
       <StaffEvents />
     </div>
   );

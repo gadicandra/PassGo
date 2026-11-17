@@ -19,7 +19,7 @@ export function CreateEvent() {
       <Link href="/organizer/events" className="text-[14px] font-semibold text-muted underline-offset-4 hover:text-navy hover:underline">
         Semua acara
       </Link>
-      <h1 className="mt-2 font-display text-[44px] font-extrabold leading-none tracking-[-0.03em] md:text-[56px]">Buat acara</h1>
+      <h1 className="mt-2 text-[32px] font-bold leading-tight tracking-[-0.01em] md:text-[40px]">Buat acara</h1>
       <p className="mt-3 max-w-2xl text-muted">
         Acara disimpan sebagai draf dan belum terlihat di katalog. Setelah ini tambahkan tipe tiket, lalu terbitkan.
       </p>

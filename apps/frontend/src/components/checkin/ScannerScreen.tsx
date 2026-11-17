@@ -262,7 +262,7 @@ function ResultPanel({ outcome, busy, timezone, onDismiss }: { outcome: ScanOutc
   }
   return (
     <div className={cn("flex flex-col gap-2 rounded-card px-5 py-5", panelClass[outcome.kind])} role={outcome.kind === "success" ? "status" : "alert"}>
-      <p className="font-display text-[30px] font-extrabold leading-none tracking-[-0.01em]">{outcome.title}</p>
+      <p className="text-[28px] font-bold leading-tight">{outcome.title}</p>
       {outcome.holderName && (
         <p className="text-[22px] font-semibold leading-tight">
           {outcome.holderName}

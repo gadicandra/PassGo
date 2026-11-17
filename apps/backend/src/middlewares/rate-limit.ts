@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Request, RequestHandler } from "express";
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import type { AuthenticatedRequest } from "./authenticate";
@@ -10,6 +11,13 @@ import { AppError } from "../utils/app-error";
 
 const ip = (request: Request) => ipKeyGenerator(request.ip ?? "");
 const email = (request: Request) => String((request.body as { email?: unknown } | undefined)?.email ?? "").trim().toLowerCase();
+// Refresh dihitung per sesi (hash cookie refresh), bukan per IP: satu Wi-Fi kampus berbagi IP, dan 429 di refresh
+// membuat FE menganggap pengguna keluar. Tanpa cookie (langsung 401 di handler) jatuh ke IP.
+const session = (request: Request) => {
+  const cookies = (request as Request & { cookies?: Record<string, string> }).cookies ?? {};
+  const token = Object.entries(cookies).find(([name]) => /refresh/i.test(name))?.[1];
+  return token ? createHash("sha256").update(token).digest("base64url").slice(0, 32) : ip(request);
+};
 const userId = (request: Request) => (request as AuthenticatedRequest).user?.sub ?? ip(request);
 
 function policy(name: string, limit: number, windowMs: number, key: (request: Request) => string): RequestHandler {
@@ -36,5 +44,5 @@ export const limits = {
   authEmail: policy("auth-email", 3, 60 * MIN, (r) => `${ip(r)}|${email(r) || userId(r)}`),
   authConfirm: policy("auth-confirm", 10, 15 * MIN, ip),
   passwordChange: policy("password-change", 5, 15 * MIN, userId),
-  refresh: policy("refresh", 30, MIN, ip),
+  refresh: policy("refresh", 30, MIN, session),
 };

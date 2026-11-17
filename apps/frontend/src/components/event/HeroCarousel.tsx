@@ -227,7 +227,7 @@ function ArrowButton({ side, onClick }: { side: "left" | "right"; onClick: () =>
       onClick={onClick}
       aria-label={side === "left" ? "Acara sebelumnya" : "Acara berikutnya"}
       className={cn(
-        "absolute top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-md bg-navy text-cream transition-colors hover:bg-brand md:flex",
+        "absolute top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-navy shadow-card text-cream transition-colors hover:bg-brand md:flex",
         side === "left" ? "-left-[22px]" : "-right-[22px]",
       )}
     >

@@ -1,14 +1,24 @@
+import type { CSSProperties } from "react";
 import type { EventSummary } from "@/types/api";
 import { cn } from "@/lib/cn";
 import { eventPriceLine, toneClass } from "@/lib/status";
 
-/** Badge "Gratis": satu bentuk di semua tempat supaya acara gratis cepat dikenali (konsisten, kontras cukup). */
+/** Takik setengah lingkaran di kiri-kanan, jadi badge berbentuk kupon tiket (selaras motif PassGo). */
+function notch(radius: number): CSSProperties {
+  const hole = `radial-gradient(circle at {side} 50%, transparent ${radius}px, #000 ${radius + 0.5}px)`;
+  const mask = `${hole.replace("{side}", "0")} left / 51% 100% no-repeat, ${hole.replace("{side}", "100%")} right / 51% 100% no-repeat`;
+  return { mask, WebkitMask: mask };
+}
+
+/** Badge "Gratis": satu bentuk di semua tempat supaya acara gratis cepat dikenali. */
 export function FreeBadge({ size = "sm", className }: { size?: "sm" | "lg"; className?: string }) {
+  const lg = size === "lg";
   return (
     <span
+      style={notch(lg ? 7 : 4)}
       className={cn(
-        "inline-flex items-center rounded-full bg-teal font-bold text-cream",
-        size === "lg" ? "px-4 py-1.5 text-[20px] md:text-[22px]" : "px-2.5 py-0.5 text-[13px]",
+        "inline-flex items-center font-display font-extrabold uppercase leading-none tracking-[0.08em]",
+        lg ? "rounded-md bg-cream px-6 py-2.5 text-[20px] text-teal md:text-[22px]" : "rounded-[4px] bg-teal px-3.5 py-1 text-[12px] text-cream",
         className,
       )}
     >

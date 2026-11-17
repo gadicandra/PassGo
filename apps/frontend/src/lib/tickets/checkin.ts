@@ -21,7 +21,6 @@ const voidReasonText: Record<VoidReason, string> = {
   ORDER_REFUNDED: "Pesanannya sudah di-refund.",
 };
 
-const RETRY_WINDOW_MS = 30_000;
 
 interface AlreadyCheckedIn {
   checkedInAt: string;
@@ -54,10 +53,7 @@ export async function submitCheckIn(
       case "ticket-already-checked-in": {
         const info = error.problem.checkIn as AlreadyCheckedIn | undefined;
         const when = info ? formatTime(info.checkedInAt, context.timezone) : "";
-        const justNow = info && info.checkedInBy?.id === context.selfId && at.getTime() - new Date(info.checkedInAt).getTime() < RETRY_WINDOW_MS;
-        if (justNow) {
-          return { ...base, result: "ACCEPTED", kind: "success", title: "Silakan masuk", detail: "Baru saja di-check-in oleh kamu.", holderName: info.holderName, ticketTypeName: info.ticketTypeName };
-        }
+        // Sengaja selalu peringatan: tiket yang sudah dipakai tidak boleh tampil hijau (screenshot QR bisa dipakai ulang).
         return {
           ...base,
           result: "ALREADY_CHECKED_IN",

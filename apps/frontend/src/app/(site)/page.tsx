@@ -88,7 +88,8 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
 
   // Tiap acara tampil sekali: hero → paling dekat → gratis → sisanya.
   const heroes = (events.filter(isOnSale).length ? events.filter(isOnSale) : events).slice(0, 2);
-  let rest = events.filter((event) => !heroes.includes(event));
+  // Acara batal tidak ikut di beranda (tetap bisa dibuka langsung atau lewat pencarian).
+  let rest = events.filter((event) => !heroes.includes(event) && event.status !== "CANCELLED");
   const nearest = rest.slice(0, 4);
   rest = rest.slice(4);
   const free = rest.filter(isFree).slice(0, 3);

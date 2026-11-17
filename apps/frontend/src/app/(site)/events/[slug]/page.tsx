@@ -4,12 +4,13 @@ import { CalendarDays, Clock, ExternalLink, Info, MapPin } from "lucide-react";
 import { ShareButtons } from "@/components/event/ShareButtons";
 import { AddToCalendar } from "@/components/event/AddToCalendar";
 import { SaveButton } from "@/components/event/SaveButton";
+import { SectionTabs } from "@/components/event/SectionTabs";
 import { StickyBuyBar } from "@/components/event/StickyBuyBar";
 import { eventPriceLine } from "@/lib/status";
-import { categories } from "@/lib/categories";
+import { categories, posterSrc } from "@/lib/categories";
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
-import { Poster, posterPalette } from "@/components/event/Poster";
+import { Poster } from "@/components/event/Poster";
 import { TicketPicker } from "@/components/event/TicketPicker";
 import { cn } from "@/lib/cn";
 import { formatDateLong, formatTime } from "@/lib/format";
@@ -25,7 +26,6 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[sl
   if (!event) notFound();
 
   const cancelled = event.status === "CANCELLED";
-  const palette = cancelled ? { bg: "bg-navy/10", fg: "text-navy/60" } : posterPalette(event);
   const tags = categories.filter((category) => category.match.test(event.title));
   const paragraphs = event.description.split(/\n\s*\n/).filter((paragraph) => paragraph.trim());
 
@@ -33,9 +33,18 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[sl
     <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-8 md:px-8 md:pt-12">
       <header
         style={{ "--notch-x": "70%", "--notch-size": "16px" } as CSSProperties}
-        className={cn("relative flex rounded-2xl md:ticket-notch md:min-h-[380px]", palette.bg, palette.fg)}
+        className="relative flex overflow-hidden rounded-2xl bg-navy text-cream md:ticket-notch md:min-h-[400px]"
       >
-        <div className="flex w-full flex-col justify-end gap-5 p-6 md:w-[70%] md:p-12 md:pr-14">
+        {/* Latar foto acara yang diburamkan + gelap (pola Loket & Luma), supaya header terasa "acara ini". */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- foto poster/stok, dekoratif */}
+        <img
+          src={posterSrc(event)}
+          alt=""
+          aria-hidden
+          className={cn("absolute inset-0 size-full scale-125 object-cover opacity-70 blur-2xl", cancelled && "grayscale")}
+        />
+        <span aria-hidden className="absolute inset-0 bg-gradient-to-r from-navy via-navy/80 to-navy/40" />
+        <div className="relative flex w-full flex-col justify-end gap-5 p-6 md:w-[70%] md:p-12 md:pr-14">
           <h1
             className={cn(
               "font-display text-[40px] font-extrabold leading-none tracking-[-0.01em] md:text-[64px]",
@@ -75,20 +84,30 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[sl
             </ul>
           )}
           {cancelled && (
-            <p className="font-semibold text-danger">
+            <p className="w-fit rounded-md bg-danger px-3 py-1.5 font-semibold text-white">
               Dibatalkan{event.cancelReason ? `: ${event.cancelReason}` : "."}
             </p>
           )}
         </div>
-        <div aria-hidden className="absolute bottom-0 left-[70%] top-0 hidden border-r-2 border-dotted border-current opacity-40 md:block" />
-        <div className="hidden w-[30%] items-center justify-center md:flex">
-          <Poster event={event} size="lg" className="w-[240px] -translate-y-6 rotate-[4deg] shadow-card-hover" />
+        <div aria-hidden className="absolute bottom-0 left-[70%] top-0 hidden border-r-2 border-dotted border-cream/40 md:block" />
+        <div className="relative hidden w-[30%] items-center justify-center md:flex">
+          <Poster event={event} size="lg" className="w-[240px] rotate-[4deg] shadow-card-hover" />
         </div>
       </header>
 
-      <div className="mt-10 grid gap-10 lg:grid-cols-12">
+      <div className="mt-6">
+        <SectionTabs
+          tabs={[
+            { id: "tentang", label: "Deskripsi" },
+            { id: "pilih-tiket", label: "Tiket" },
+            { id: "lokasi", label: "Lokasi" },
+          ]}
+        />
+      </div>
+
+      <div className="mt-8 grid gap-10 lg:grid-cols-12">
         <div className="order-2 flex flex-col gap-10 lg:order-1 lg:col-span-7">
-          <section>
+          <section id="tentang" className="scroll-mt-36">
             <h2 className="flex items-center gap-2 text-[20px] font-semibold">
               <Info aria-hidden className="size-5 text-brand" />
               Tentang acara
@@ -102,7 +121,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[sl
             </div>
           </section>
 
-          <section>
+          <section id="lokasi" className="scroll-mt-36">
             <h2 className="flex items-center gap-2 text-[20px] font-semibold">
               <MapPin aria-hidden className="size-5 text-brand" />
               Lokasi
@@ -125,7 +144,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[sl
 
         <aside className="order-1 lg:order-2 lg:col-span-5">
           <div className="lg:sticky lg:top-28">
-            <div id="pilih-tiket" className="scroll-mt-24">
+            <div id="pilih-tiket" className="scroll-mt-36">
               <TicketPicker event={event} />
             </div>
             {!cancelled && <SaveButton event={event} variant="labeled" className="mt-6" />}

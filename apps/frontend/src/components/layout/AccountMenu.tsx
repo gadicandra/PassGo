@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { CalendarDays, ChevronDown, CircleUser, Heart, LogOut, Receipt, ScanLine, ScrollText, Ticket, UserRound, Users, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { ButtonLink } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth";
 import type { Role } from "@/types/api";
@@ -40,6 +41,20 @@ const menuIcon: Record<string, LucideIcon> = {
 export function AccountMenu() {
   const { status, user, logout } = useAuth();
   const router = useRouter();
+  const menu = useRef<HTMLDetailsElement>(null);
+
+  // <details> tidak menutup sendiri saat Escape atau klik di luar menu: tutup manual.
+  useEffect(() => {
+    const close = () => menu.current?.removeAttribute("open");
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && close();
+    const onClick = (event: MouseEvent) => !menu.current?.contains(event.target as Node) && close();
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("click", onClick);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("click", onClick);
+    };
+  }, []);
 
   // Placeholder ukuran tetap selama cek sesi, agar header tidak melompat.
   if (status === "loading") return <div className="h-9 w-24 md:h-10" aria-hidden />;
@@ -59,7 +74,7 @@ export function AccountMenu() {
 
   // <details> native: buka/tutup dan keyboard tanpa JS tambahan.
   return (
-    <details className="group relative">
+    <details ref={menu} className="group relative">
       <summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-lg border-[1.5px] border-cream/40 px-3 text-sm font-semibold text-cream hover:border-cream md:h-10 [&::-webkit-details-marker]:hidden">
         <CircleUser aria-hidden className="size-[18px] shrink-0" />
         <span className="max-w-[10ch] truncate sm:max-w-[16ch]">{user!.name}</span>

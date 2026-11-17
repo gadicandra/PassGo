@@ -5,6 +5,7 @@ import { UserModel, type UserRecord } from "./auth-repository";
 import { getUserById, issueRefreshToken, revokeAllSessions, serializeUser } from "./auth-service";
 import { AppError } from "../utils/app-error";
 import { assertVersion, ifMatchVersion, preconditionFailed } from "../utils/if-match";
+import { assertNoActivePurchases } from "./user-service";
 
 function now(): Date { return new Date(); }
 
@@ -85,4 +86,28 @@ export async function assignedEvents(userId: string, when: "upcoming" | "past" |
       },
     };
   }));
+}
+/**
+ * Peserta mengajukan diri menjadi penyelenggara (kontrak §9.15). Hanya ATTENDEE dengan email terverifikasi,
+ * dan tidak boleh ada pengajuan lain yang masih menunggu. Kondisional pada versi supaya tidak menimpa perubahan lain.
+ */
+export async function requestOrganizer(userId: string, input: { organization: string; reason: string; link?: string | null }): Promise<UserRecord> {
+  const user = await getMe(userId);
+  if (user.role !== "ATTENDEE") throw new AppError(409, "organizer-request-not-allowed", "Hanya akun peserta yang dapat mengajukan diri menjadi penyelenggara.");
+  if (!user.emailVerified) throw new AppError(403, "email-not-verified", "Verifikasi email terlebih dahulu sebelum mengajukan diri menjadi penyelenggara.");
+  if (user.organizerRequest?.status === "PENDING") throw new AppError(409, "organizer-request-pending", "Pengajuan sebelumnya masih menunggu persetujuan.");
+  await assertNoActivePurchases(userId);
+  const updated = await UserModel.findOneAndUpdate(
+    { id: userId, version: user.version, role: "ATTENDEE" },
+    {
+      $set: {
+        organizerRequest: { status: "PENDING", organization: input.organization, reason: input.reason, link: input.link ?? null, requestedAt: now(), decidedAt: null, decidedBy: null, note: null },
+        updatedAt: now(),
+        version: user.version + 1,
+      },
+    },
+    { new: true },
+  ).lean<UserRecord>();
+  if (!updated) throw new AppError(409, "organizer-request-conflict", "Data akun berubah. Muat ulang halaman lalu coba lagi.");
+  return updated;
 }

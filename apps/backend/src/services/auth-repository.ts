@@ -15,8 +15,21 @@ export interface UserRecord {
   emailVerified: boolean;
   tokenVersion: number;
   version: number;
+  organizerRequest?: OrganizerRequest | null;
+  isSuperAdmin?: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface OrganizerRequest {
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  organization: string;
+  reason: string;
+  link: string | null;
+  requestedAt: Date;
+  decidedAt: Date | null;
+  decidedBy: string | null;
+  note: string | null;
 }
 
 export interface RefreshTokenRecord {

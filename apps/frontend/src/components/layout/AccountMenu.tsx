@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, ChevronDown, CircleUser, Heart, LogOut, Receipt, ScanLine, ScrollText, Ticket, UserRound, Users, type LucideIcon } from "lucide-react";
+import { CalendarDays, ChevronDown, CircleUser, Heart, Inbox, LogOut, Megaphone, Receipt, ScanLine, ScrollText, Ticket, UserRound, Users, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { ButtonLink } from "@/components/ui/Button";
@@ -13,6 +13,7 @@ const links: Record<Role, Array<{ href: string; label: string }>> = {
     { href: "/tickets", label: "Tiket saya" },
     { href: "/orders", label: "Pesanan saya" },
     { href: "/disimpan", label: "Acara disimpan" },
+    { href: "/jadi-penyelenggara", label: "Jadi penyelenggara" },
   ],
   STAFF: [{ href: "/staff", label: "Acara saya" }],
   ORGANIZER: [
@@ -35,6 +36,8 @@ const menuIcon: Record<string, LucideIcon> = {
   "/organizer/orders": Receipt,
   "/organizer/users": Users,
   "/organizer/audit-logs": ScrollText,
+  "/jadi-penyelenggara": Megaphone,
+  "/organizer/permintaan": Inbox,
 };
 
 /** Kanan header: tombol Masuk/Daftar untuk tamu, menu akun untuk yang login. */
@@ -84,7 +87,7 @@ export function AccountMenu() {
         className="absolute right-0 mt-2 w-56 rounded-lg bg-white p-2 shadow-card-hover"
         onClick={(event) => (event.currentTarget.parentElement as HTMLDetailsElement).removeAttribute("open")}
       >
-        {links[user!.role].map((link) => {
+        {[...links[user!.role], ...(user!.isSuperAdmin ? [{ href: "/organizer/permintaan", label: "Permintaan penyelenggara" }] : [])].map((link) => {
           const Icon = menuIcon[link.href] ?? CircleUser;
           return (
             <Link key={link.href} href={link.href} className={item}>

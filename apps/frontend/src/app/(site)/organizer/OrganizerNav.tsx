@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 
 const links = [
@@ -10,13 +11,17 @@ const links = [
   { href: "/organizer/users", label: "Pengguna" },
   { href: "/organizer/audit-logs", label: "Log audit" },
 ];
+// Hanya untuk superadmin (penanda isSuperAdmin dari server).
+const superAdminLinks = [{ href: "/organizer/permintaan", label: "Permintaan" }];
 
 export function OrganizerNav() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const visible = user?.isSuperAdmin ? [...links, ...superAdminLinks] : links;
   return (
     <nav aria-label="Kelola" className="border-b border-line">
       <div className="mx-auto flex max-w-[1200px] gap-8 overflow-x-auto px-4 md:px-8">
-        {links.map((link) => {
+        {visible.map((link) => {
           const active = pathname.startsWith(link.href);
           return (
             <Link

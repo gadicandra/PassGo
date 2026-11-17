@@ -71,7 +71,7 @@ function ProfileForm() {
         <dt className="text-muted">Email</dt>
         <dd className="break-all font-semibold">{user!.email}</dd>
         <dt className="text-muted">Peran</dt>
-        <dd className="font-semibold">{roleLabel[user!.role]}</dd>
+        <dd className="font-semibold">{roleLabel[user!.role]}{user!.isSuperAdmin ? " (superadmin)" : ""}</dd>
         <dt className="text-muted">Status email</dt>
         <dd className={user!.emailVerified ? "font-semibold text-teal" : "font-semibold text-danger"}>
           {user!.emailVerified ? "Terverifikasi" : "Belum diverifikasi"}

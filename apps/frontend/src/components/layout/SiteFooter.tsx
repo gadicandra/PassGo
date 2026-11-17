@@ -25,6 +25,7 @@ const columns = [
   {
     title: "Penyelenggara",
     links: [
+      { href: "/jadi-penyelenggara", label: "Jadi penyelenggara" },
       { href: "/organizer/events", label: "Kelola acara" },
       { href: "/organizer/orders", label: "Pesanan masuk" },
       { href: "/staff", label: "Pindai tiket" },

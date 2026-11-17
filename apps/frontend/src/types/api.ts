@@ -33,8 +33,22 @@ export interface User {
   isActive: boolean;
   emailVerified: boolean;
   version: number;
+  /** Penyelenggara yang boleh menyetujui pengajuan penyelenggara baru. */
+  isSuperAdmin?: boolean;
+  /** Pengajuan menjadi penyelenggara (kontrak §9.15); null bila belum pernah mengajukan. */
+  organizerRequest?: OrganizerRequest | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface OrganizerRequest {
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  organization: string;
+  reason: string;
+  link: string | null;
+  requestedAt: string;
+  decidedAt: string | null;
+  note: string | null;
 }
 
 export interface EventStats {

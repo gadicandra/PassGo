@@ -20,9 +20,30 @@ const userSchema = new Schema(
     emailVerified: { type: Boolean, default: false },
     tokenVersion: { type: Number, default: 0 },
     version: { type: Number, default: 0 },
+    // Superadmin: ORGANIZER yang boleh menyetujui pengajuan penyelenggara. Hanya diatur lewat
+    // scripts/set-superadmin.ts, tidak pernah lewat API.
+    isSuperAdmin: { type: Boolean, default: false },
+    // Pengajuan peserta untuk menjadi penyelenggara; diputuskan oleh ORGANIZER (kontrak §9.15).
+    organizerRequest: {
+      type: new Schema(
+        {
+          status: { type: String, enum: ["PENDING", "APPROVED", "REJECTED"], required: true },
+          organization: { type: String, trim: true, maxlength: 120, required: true },
+          reason: { type: String, trim: true, maxlength: 500, required: true },
+          link: { type: String, trim: true, maxlength: 200, default: null },
+          requestedAt: { type: Date, required: true },
+          decidedAt: { type: Date, default: null },
+          decidedBy: { type: String, default: null },
+          note: { type: String, trim: true, maxlength: 300, default: null },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
   },
   schemaOptions("users", { hide: ["passwordHash"] }),
 );
+userSchema.index({ "organizerRequest.status": 1, "organizerRequest.requestedAt": 1 });
 userSchema.index(
   { email: 1 },
   { unique: true, collation: { locale: "en", strength: 2 } },

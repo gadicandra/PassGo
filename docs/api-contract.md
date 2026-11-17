@@ -1182,7 +1182,20 @@ Angka dihitung saat request (tidak di-*cache*). `meta.generatedAt` menandai wakt
 #### `GET /audit-logs` 👑
 Cursor. Filter: `eventId`, `actorId`, `action` (jamak), `entityType`, `entityId`, `from`/`to`. Response `AuditLog[]`.
 
-Aksi yang dicatat (`action`): `USER_CREATED`, `USER_UPDATED`, `USER_ROLE_CHANGED`, `USER_DEACTIVATED`, `USER_REACTIVATED`, `EVENT_CREATED`, `EVENT_UPDATED`, `EVENT_DELETED`, `EVENT_PUBLISHED`, `EVENT_CANCELLED`, `EVENT_POSTER_UPDATED` (termasuk penghapusan poster; `after.posterUrl = null`), `TICKET_TYPE_CREATED`, `TICKET_TYPE_UPDATED`, `TICKET_TYPE_DELETED`, `STAFF_ASSIGNED`, `STAFF_UNASSIGNED`, `ORDER_CANCELLED`, `ORDER_PAID_LATE`, `ORDER_REFUND_REQUIRED`, `ORDER_REFUNDED`, `TICKET_REISSUED`, `CHECK_IN_REVERTED`, `ATTENDEES_EXPORTED`. Pembuatan pesanan, pembayaran normal, dan check-in biasa **tidak** masuk audit log karena sudah tercatat di tabel `Order`/`Payment`/`CheckIn`.
+Aksi yang dicatat (`action`): `USER_CREATED`, `USER_UPDATED`, `USER_ROLE_CHANGED`, `USER_DEACTIVATED`, `USER_REACTIVATED`, `EVENT_CREATED`, `EVENT_UPDATED`, `EVENT_DELETED`, `EVENT_PUBLISHED`, `EVENT_CANCELLED`, `EVENT_POSTER_UPDATED` (termasuk penghapusan poster; `after.posterUrl = null`), `TICKET_TYPE_CREATED`, `TICKET_TYPE_UPDATED`, `TICKET_TYPE_DELETED`, `STAFF_ASSIGNED`, `STAFF_UNASSIGNED`, `ORDER_CANCELLED`, `ORDER_PAID_LATE`, `ORDER_REFUND_REQUIRED`, `ORDER_REFUNDED`, `TICKET_REISSUED`, `CHECK_IN_REVERTED`, `ATTENDEES_EXPORTED`, `ORGANIZER_REQUEST_APPROVED`, `ORGANIZER_REQUEST_REJECTED`. Pembuatan pesanan, pembayaran normal, dan check-in biasa **tidak** masuk audit log karena sudah tercatat di tabel `Order`/`Payment`/`CheckIn`.
+
+### 9.15 Pengajuan Penyelenggara
+
+Peserta dapat mengajukan diri menjadi penyelenggara. Pengajuan ditinjau oleh **superadmin**, yaitu `ORGANIZER` dengan `isSuperAdmin = true`. Penanda ini hanya diatur lewat `apps/backend/scripts/set-superadmin.ts` dan tidak pernah lewat API. `User` di response memuat `isSuperAdmin` (boolean) dan `organizerRequest` (`null` atau `{ status: PENDING|APPROVED|REJECTED, organization, reason, link, requestedAt, decidedAt, note }`).
+
+#### `POST /me/organizer-request` 🔒 ATTENDEE
+Body `{ organization (2–120), reason (20–500), link? (URL, ≤200) }`. `201` + `User`. Ditolak bila: bukan ATTENDEE → `409 organizer-request-not-allowed`; email belum terverifikasi → `403 email-not-verified`; masih ada pengajuan `PENDING` → `409 organizer-request-pending`; masih punya tiket `VALID` atau pesanan `PENDING_PAYMENT` → `409 organizer-request-has-purchases` (halaman tiket hanya untuk ATTENDEE, jadi tiketnya tidak boleh hilang dari jangkauan pemiliknya). Pengajuan yang `REJECTED` boleh diajukan ulang.
+
+#### `GET /users/organizer-requests` 👑 superadmin
+Pengajuan `PENDING`, terlama di atas (maks. 100). Bukan superadmin → `403 superadmin-required`.
+
+#### `POST /users/{userId}/organizer-request/approve` · `POST /users/{userId}/organizer-request/reject` 👑 superadmin
+Body `{ note? (≤300) }`. Kondisional atomik pada status `PENDING` (tanpa `If-Match`), jadi dua superadmin yang memutuskan bersamaan tidak saling menimpa: yang kalah mendapat `409 organizer-request-decided`. Disetujui → `role = ORGANIZER`. Sesi tidak dicabut karena hak akses naik dan peran dibaca dari DB tiap request. Pemeriksaan tiket aktif diulang saat disetujui. Tercatat di audit log.
 
 ---
 
@@ -1391,6 +1404,12 @@ Setiap `code` di bawah bisa dirujuk lewat `type` = `<PROBLEM_TYPE_BASE>#<code>`.
 | `payment-gateway-error` | 502 | Midtrans gagal/timeout |
 | `storage-error` | 502 | Upload poster gagal |
 | `service-unavailable` | 503 | DB tidak siap |
+| `organizer-request-not-allowed` | 409 | Hanya ATTENDEE yang dapat mengajukan (§9.15) |
+| `organizer-request-pending` | 409 | Masih ada pengajuan menunggu |
+| `organizer-request-has-purchases` | 409 | Masih punya tiket aktif atau pesanan belum dibayar |
+| `organizer-request-not-found` | 404 | |
+| `organizer-request-decided` | 409 | Sudah diputuskan |
+| `superadmin-required` | 403 | Bukan superadmin |
 
 ---
 
@@ -1420,3 +1439,4 @@ Setiap `code` di bawah bisa dirujuk lewat `type` = `<PROBLEM_TYPE_BASE>#<code>`.
 |---|---|
 | 2026-09-25 | Draft v1 awal — domain tiket acara komunitas (menggantikan draft POS sebelumnya) |
 | 2026-09-25 | rev. 2 — hasil audit konsistensi & kepatuhan standar: webhook `503` + `fraud_status`, pembatalan sesi Snap, ETag strong eksplisit, `If-Match: *` sebagai kebijakan, rate-limit `identifier`/`trust proxy`, pipeline upload poster (`sharp`), param query berulang → `422` |
+| 2026-11-17 | §9.15 pengajuan penyelenggara dan penanda superadmin (non-breaking: endpoint baru, field `isSuperAdmin` dan `organizerRequest` pada `User`) |

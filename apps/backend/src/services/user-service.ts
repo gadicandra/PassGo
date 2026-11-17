@@ -5,7 +5,7 @@ import { serializeUser } from "./auth-service";
 import { AppError } from "../utils/app-error";
 import { assertVersion, ifMatchVersion, preconditionFailed } from "../utils/if-match";
 import { recordAudit, type AuditContext } from "./audit-service";
-import { EventStaff } from "../models";
+import { EventStaff, Order, Ticket } from "../models";
 
 type UserResponse = ReturnType<typeof serializeUser>;
 
@@ -74,5 +74,65 @@ export async function updateManagedUser(audit: AuditContext, id: string, header:
     : input.role !== undefined && input.role !== current.role ? "USER_ROLE_CHANGED"
     : "USER_UPDATED";
   await recordAudit(audit, { action, entityType: "User", entityId: id, before: auditFields(current), after: auditFields(updated) });
+  return serializeUser(updated);
+}
+/**
+ * Halaman tiket hanya untuk ATTENDEE. Akun yang masih punya tiket aktif atau pesanan belum dibayar
+ * tidak boleh menjadi ORGANIZER, supaya tiketnya tidak hilang dari jangkauan pemiliknya.
+ */
+export async function assertNoActivePurchases(userId: string): Promise<void> {
+  const [tickets, pending] = await Promise.all([
+    Ticket.countDocuments({ ownerId: userId, status: "VALID" }),
+    Order.countDocuments({ userId, status: "PENDING_PAYMENT" }),
+  ]);
+  if (tickets > 0 || pending > 0) {
+    throw new AppError(409, "organizer-request-has-purchases", "Akun ini masih punya tiket aktif atau pesanan yang belum dibayar. Gunakan akun lain untuk menjadi penyelenggara, atau tunggu sampai acaranya selesai.");
+  }
+}
+
+/** Hanya ORGANIZER aktif dengan penanda superadmin yang boleh meninjau pengajuan; selain itu 403. */
+export async function assertSuperAdmin(actorId: string): Promise<void> {
+  const actor = await UserModel.findOne({ id: actorId, role: "ORGANIZER", isActive: true, isSuperAdmin: true }).select({ id: 1 }).lean();
+  if (!actor) throw new AppError(403, "superadmin-required", "Hanya superadmin yang dapat meninjau pengajuan penyelenggara.");
+}
+
+/** Daftar pengajuan penyelenggara yang menunggu keputusan, terlama di atas (kontrak §9.15). */
+export async function listOrganizerRequests(): Promise<UserResponse[]> {
+  const users = await UserModel.find({ role: "ATTENDEE", "organizerRequest.status": "PENDING" }).sort({ "organizerRequest.requestedAt": 1 }).limit(100).lean<UserRecord[]>();
+  return users.map(serializeUser);
+}
+
+/**
+ * Menyetujui atau menolak pengajuan. Kondisional pada status PENDING sehingga dua penyelenggara yang
+ * memutuskan bersamaan tidak saling menimpa. Disetujui: peran menjadi ORGANIZER dan tokenVersion naik,
+ * jadi sesi lama dikeluarkan dan pengguna masuk ulang dengan peran baru.
+ */
+export async function decideOrganizerRequest(audit: AuditContext, id: string, decision: "APPROVE" | "REJECT", note: string | null): Promise<UserResponse> {
+  const current = await UserModel.findOne({ id }).lean<UserRecord>();
+  if (!current || !current.organizerRequest) throw new AppError(404, "organizer-request-not-found", "Pengajuan tidak ditemukan.");
+  if (current.organizerRequest.status !== "PENDING" || current.role !== "ATTENDEE") throw new AppError(409, "organizer-request-decided", "Pengajuan ini sudah diputuskan.");
+  const at = now();
+  const set: Record<string, unknown> = {
+    "organizerRequest.status": decision === "APPROVE" ? "APPROVED" : "REJECTED",
+    "organizerRequest.decidedAt": at,
+    "organizerRequest.decidedBy": audit.actorId,
+    "organizerRequest.note": note,
+    updatedAt: at,
+    version: current.version + 1,
+  };
+  // Naik hak akses tidak perlu mencabut sesi: peran dibaca dari DB tiap request, jadi cukup muat ulang halaman.
+  if (decision === "APPROVE") {
+    await assertNoActivePurchases(id);
+    set.role = "ORGANIZER";
+  }
+  const updated = await UserModel.findOneAndUpdate({ id, role: "ATTENDEE", "organizerRequest.status": "PENDING" }, { $set: set }, { new: true }).lean<UserRecord>();
+  if (!updated) throw new AppError(409, "organizer-request-decided", "Pengajuan ini sudah diputuskan.");
+  await recordAudit(audit, {
+    action: decision === "APPROVE" ? "ORGANIZER_REQUEST_APPROVED" : "ORGANIZER_REQUEST_REJECTED",
+    entityType: "User",
+    entityId: id,
+    before: { role: current.role, organizerRequest: "PENDING" },
+    after: { role: updated.role, organizerRequest: updated.organizerRequest?.status, organization: current.organizerRequest.organization, note },
+  });
   return serializeUser(updated);
 }

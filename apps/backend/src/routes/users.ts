@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authorize } from "../middlewares/authorize";
-import { createManagedUser, getUser, listUsers, updateManagedUser } from "../services/user-service";
+import { assertSuperAdmin, createManagedUser, decideOrganizerRequest, getUser, listOrganizerRequests, listUsers, updateManagedUser } from "../services/user-service";
 import type { UserRole } from "../services/auth-repository";
 import { type AuthenticatedRequest } from "../middlewares/authenticate";
 import { AppError } from "../utils/app-error";
@@ -43,6 +43,25 @@ router.post("/", async (request, response, next) => {
     response.status(result.status).json(result.body);
   } catch (error) { next(error); }
 });
+
+// Kontrak §9.15: pengajuan penyelenggara. Didaftarkan sebelum "/:userId" supaya tidak tertangkap sebagai ID.
+router.get("/organizer-requests", async (request, response, next) => {
+  try {
+    await assertSuperAdmin((request as AuthenticatedRequest).user.sub);
+    response.json({ data: await listOrganizerRequests() });
+  } catch (error) { next(error); }
+});
+
+export const decisionSchema = z.object({ note: z.string().trim().max(300).nullish() }).strict();
+for (const [path, decision] of [["approve", "APPROVE"], ["reject", "REJECT"]] as const) {
+  router.post(`/:userId/organizer-request/${path}`, async (request, response, next) => {
+    try {
+      await assertSuperAdmin((request as unknown as AuthenticatedRequest).user.sub);
+      const { note } = decisionSchema.parse(request.body ?? {});
+      response.json({ data: await decideOrganizerRequest(auditOf(request), String(request.params.userId), decision, note ?? null) });
+    } catch (error) { next(error); }
+  });
+}
 
 router.get("/:userId", async (request, response, next) => {
   try { const user = await getUser(request.params.userId); response.set("ETag", `"${user.version}"`).json({ data: user }); } catch (error) { next(error); }

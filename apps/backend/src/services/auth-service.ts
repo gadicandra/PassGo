@@ -29,6 +29,11 @@ const publicUser = (user: UserRecord) => ({
   emailVerified: user.emailVerified,
   tokenVersion: user.tokenVersion,
   version: user.version,
+  isSuperAdmin: user.isSuperAdmin === true,
+  organizerRequest: user.organizerRequest
+    ? { status: user.organizerRequest.status, organization: user.organizerRequest.organization, reason: user.organizerRequest.reason, link: user.organizerRequest.link ?? null,
+        requestedAt: user.organizerRequest.requestedAt, decidedAt: user.organizerRequest.decidedAt, note: user.organizerRequest.note }
+    : null,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });

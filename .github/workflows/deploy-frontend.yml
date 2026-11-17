@@ -49,3 +49,6 @@ jobs:
           app-name: ${{ vars.AZURE_FRONTEND_APP_NAME }}
           publish-profile: ${{ secrets.AZURE_FRONTEND_PUBLISH_PROFILE }}
           package: apps/frontend/.next/standalone
+          # clean: hapus isi wwwroot dulu. Tanpa ini file lama tertinggal (deploy hanya menimpa), termasuk
+          # cache halaman Next di .next/server/route-cache → halaman statis versi lama terus disajikan.
+          clean: true

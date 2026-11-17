@@ -45,6 +45,9 @@ test("auth lifecycle works against MongoDB Atlas", { skip: !atlasEnabled }, asyn
     assert.ok(rotatedSetCookie);
     const rotatedCookie = rotatedSetCookie.split(";", 1)[0];
 
+    // Kontrak §2.3: token sebelumnya masih diterima 10 detik (grace). Mundurkan waktu rotasi agar yang diuji
+    // adalah deteksi reuse di luar jendela grace (perilaku grace sendiri diuji di refresh-grace.test.ts).
+    await RefreshToken.updateMany({ userId: user.id, replacedById: { $ne: null } }, { $set: { revokedAt: new Date(Date.now() - 60_000) } });
     const reused = await request(app).post("/api/v1/auth/refresh")
       .set("Origin", process.env.CSRF_ALLOWED_ORIGINS?.split(",")[0] ?? "http://localhost:3001")
       .set("X-Requested-With", "fetch")

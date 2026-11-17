@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Search, TrendingUp } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { EventSummary } from "@/types/api";
 import { Poster } from "@/components/event/Poster";
 import { categories } from "@/lib/categories";
@@ -30,6 +30,8 @@ export function SearchBox({ page = false }: { page?: boolean }) {
   const [index, setIndex] = useState(0);
   const [upcoming, setUpcoming] = useState<EventSummary[] | null>(null);
   const loaded = useRef(false);
+  // id unik per instance: di /cari, kolom header dan kolom halaman tampil bersamaan; id kembar memutus <label>.
+  const inputId = useId();
   const idle = !value && !focused;
 
   // Acara terdekat diambil sekali: saat kolom pertama kali difokuskan, atau langsung di halaman /cari.
@@ -61,13 +63,13 @@ export function SearchBox({ page = false }: { page?: boolean }) {
       className={page ? "relative w-full" : "relative hidden max-w-xl flex-1 md:block"}
       onKeyDown={(event) => event.key === "Escape" && (event.target as HTMLElement).blur()}
     >
-      <label htmlFor="site-search" className="sr-only">
+      <label htmlFor={inputId} className="sr-only">
         Cari acara
       </label>
       {/* Kotak input sendiri, supaya tombol cari menempel di input, bukan di seluruh form + panel. */}
       <div className="relative">
         <input
-          id="site-search"
+          id={inputId}
           name="q"
           type="search"
           value={value}

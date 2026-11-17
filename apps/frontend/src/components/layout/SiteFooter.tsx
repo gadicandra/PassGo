@@ -63,10 +63,10 @@ export function SiteFooter() {
           {columns.map((column) => (
             <div key={column.title}>
               <h2 className="text-[15px] font-bold text-cream">{column.title}</h2>
-              <ul className="mt-4 flex flex-col gap-3 text-[15px]">
+              <ul className="mt-2.5 flex flex-col text-[15px]">
                 {column.links.map((link) => (
                   <li key={link.href}>
-                    <Link href={link.href} className="transition-colors hover:text-cream">
+                    <Link href={link.href} className="inline-block py-1.5 transition-colors hover:text-cream">
                       {link.label}
                     </Link>
                   </li>

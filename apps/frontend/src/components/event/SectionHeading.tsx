@@ -44,7 +44,7 @@ export function SectionHeading({
       </h2>
       <div className="flex items-center gap-4">
         {href && (
-          <Link href={href} className={cn("inline-flex items-center gap-0.5 text-[15px] font-semibold", onColor ? "text-navy hover:underline" : "text-brand hover:text-brand-dark")}>
+          <Link href={href} className={cn("inline-flex items-center gap-0.5 py-1.5 text-[15px] font-semibold", onColor ? "text-navy hover:underline" : "text-brand hover:text-brand-dark")}>
             Lihat semua
             <ChevronRight aria-hidden className="size-4" strokeWidth={2.5} />
           </Link>

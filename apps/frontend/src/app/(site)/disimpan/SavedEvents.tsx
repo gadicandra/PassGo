@@ -18,7 +18,7 @@ export function SavedEvents() {
         <div className="flex flex-col items-start gap-3 rounded-card border border-dashed border-navy/20 bg-white px-6 py-10">
           <p className="text-[18px] font-semibold">Belum ada acara yang disimpan.</p>
           <p className="text-muted">Tekan ♡ di kartu acara supaya mudah ditemukan lagi nanti.</p>
-          <Link href="/" className="font-semibold text-brand hover:underline">
+          <Link href="/" className="inline-block py-1 font-semibold text-brand hover:underline">
             Jelajahi acara
           </Link>
         </div>

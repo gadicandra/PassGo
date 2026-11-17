@@ -33,6 +33,10 @@ const publicUser = (user: UserRecord) => ({
   updatedAt: user.updatedAt,
 });
 
+// Kontrak §2.3: token tepat sebelumnya masih diterima 10 detik setelah dirotasi. Jendela dihitung dari rotasi
+// pertama (revokedAt tidak diperbarui saat grace), jadi token curian tidak bisa diperpanjang terus.
+const REFRESH_GRACE_MS = 10_000;
+
 function now(): Date {
   return new Date();
 }
@@ -176,22 +180,45 @@ export async function issueRefreshToken(user: UserRecord, metadata: { userAgent?
 export async function refreshSession(token: string, metadata: { userAgent?: string; ip?: string }): Promise<{ accessToken: string; user: ReturnType<typeof publicUser>; refreshToken: string }> {
   const invalid = () => new AppError(401, "refresh-token-invalid", "Refresh token tidak valid.");
   const record = await RefreshTokenModel.findOne({ tokenHash: hashToken(token) }).lean<RefreshTokenRecord>();
+  // Kontrak §2.3: grace period untuk token TEPAT sebelumnya. Kasus nyata: browser pindah halaman saat refresh
+  // sedang berjalan → server sudah merotasi, tapi Set-Cookie baru tidak pernah diterima, sehingga refresh
+  // berikutnya membawa token lama. Tanpa grace, seluruh family dicabut dan pengguna terlempar ke /login.
+  // Server hanya menyimpan hash, jadi token pengganti tidak bisa dikirim ulang: terbitkan pengganti baru
+  // di family yang sama, dan cabut pengganti sebelumnya yang (kemungkinan) tidak pernah sampai.
+  const inGrace = (r: RefreshTokenRecord) => !!r.revokedAt && now().getTime() - r.revokedAt.getTime() <= REFRESH_GRACE_MS;
+  let previousReplacementId: string | null = null;
   if (record?.revokedAt && record.replacedById) {
-    await RefreshTokenModel.updateMany({ familyId: record.familyId, revokedAt: null }, { $set: { revokedAt: now() } });
-    throw new AppError(401, "refresh-token-reused", "Refresh token digunakan ulang.");
+    const replacement = await RefreshTokenModel.findOne({ id: record.replacedById }).lean<RefreshTokenRecord>();
+    if (inGrace(record) && replacement && !replacement.revokedAt && !replacement.replacedById) {
+      previousReplacementId = replacement.id;
+    } else {
+      await RefreshTokenModel.updateMany({ familyId: record.familyId, revokedAt: null }, { $set: { revokedAt: now() } });
+      throw new AppError(401, "refresh-token-reused", "Refresh token digunakan ulang.");
+    }
   }
-  if (!record || record.revokedAt || record.expiresAt <= now()) throw invalid();
+  if (!record || (record.revokedAt && !previousReplacementId) || record.expiresAt <= now()) throw invalid();
 
   const user = await getUserById(record.userId);
   if (!user || !user.isActive) throw invalid();
 
   const replacement = createOpaqueToken();
   const replacementId = uuidv7();
-  const claimed = await RefreshTokenModel.findOneAndUpdate(
-    { id: record.id, revokedAt: null },
-    { $set: { revokedAt: now(), replacedById: replacementId } },
-  );
+  // Klaim atomik: token aktif biasa, atau (grace) pengganti sebelumnya yang masih aktif. Dua request yang balapan
+  // tidak bisa sama-sama menang; yang kalah mendapat refresh-token-invalid dan FE single-flight tidak terdampak.
+  const claimed = previousReplacementId
+    ? await RefreshTokenModel.findOneAndUpdate(
+        { id: previousReplacementId, revokedAt: null, replacedById: null },
+        { $set: { revokedAt: now(), replacedById: replacementId } },
+      )
+    : await RefreshTokenModel.findOneAndUpdate(
+        { id: record.id, revokedAt: null },
+        { $set: { revokedAt: now(), replacedById: replacementId } },
+      );
   if (!claimed) throw invalid();
+  if (previousReplacementId) {
+    // Token lama ikut menunjuk ke pengganti terbaru, supaya grace berikutnya (bila terulang) mengikuti rantai.
+    await RefreshTokenModel.updateOne({ id: record.id }, { $set: { replacedById: replacementId } });
+  }
   await RefreshTokenModel.create({
     id: replacementId,
     userId: user.id,

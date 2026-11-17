@@ -18,6 +18,7 @@ import { authenticate, type AuthenticatedRequest } from "../middlewares/authenti
 import { AppError } from "../utils/app-error";
 import { limits } from "../middlewares/rate-limit";
 import { password, phone } from "../validators/user-fields";
+import { flushEmailOutbox } from "../services/email-service";
 
 const router = Router();
 const refreshCookie = "__Secure-refresh_token";
@@ -48,6 +49,7 @@ router.use(cookieParser());
 router.post("/register", limits.register, async (request, response, next) => {
   try {
     await register(registerSchema.parse(request.body));
+    await flushEmailOutbox();
     response.status(202).json({ data: { message: "Cek email untuk verifikasi akun." } });
   } catch (error) { next(error); }
 });
@@ -81,7 +83,7 @@ router.post("/logout-all", authenticate, async (request, response, next) => {
 });
 
 router.post("/email-verification", authenticate, limits.authEmail, async (request, response, next) => {
-  try { await resendVerification((request as AuthenticatedRequest).user.sub); response.status(202).json({ data: { message: "Cek email untuk verifikasi akun." } }); } catch (error) { next(error); }
+  try { await resendVerification((request as AuthenticatedRequest).user.sub); await flushEmailOutbox(); response.status(202).json({ data: { message: "Cek email untuk verifikasi akun." } }); } catch (error) { next(error); }
 });
 
 router.post("/email-verification/confirm", limits.authConfirm, async (request, response, next) => {
@@ -89,7 +91,7 @@ router.post("/email-verification/confirm", limits.authConfirm, async (request, r
 });
 
 router.post("/password-reset", limits.authEmail, async (request, response, next) => {
-  try { await requestPasswordReset(z.object({ email: z.string().email() }).parse(request.body).email); response.status(202).json({ data: { message: "Cek email untuk reset password." } }); } catch (error) { next(error); }
+  try { await requestPasswordReset(z.object({ email: z.string().email() }).parse(request.body).email); await flushEmailOutbox(); response.status(202).json({ data: { message: "Cek email untuk reset password." } }); } catch (error) { next(error); }
 });
 
 router.post("/password-reset/confirm", limits.authConfirm, async (request, response, next) => {

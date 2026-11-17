@@ -32,7 +32,19 @@ const columns = [
 ];
 
 // Metode yang tampil di Midtrans Snap (tanpa enabled_payments, semua metode bawaan aktif).
-const payments = ["QRIS", "GoPay", "ShopeePay", "BCA VA", "BNI VA", "BRI VA", "Mandiri", "Permata VA", "Kartu kredit"];
+// Logo dari Wikimedia Commons di public/payments; ShopeePay tidak tersedia di sana, jadi teks.
+const payments: Array<{ name: string; logo?: string }> = [
+  { name: "QRIS", logo: "qris" },
+  { name: "GoPay", logo: "gopay" },
+  { name: "ShopeePay" },
+  { name: "BCA", logo: "bca" },
+  { name: "BNI", logo: "bni" },
+  { name: "BRI", logo: "bri" },
+  { name: "Mandiri", logo: "mandiri" },
+  { name: "Permata", logo: "permata" },
+  { name: "Visa", logo: "visa" },
+  { name: "Mastercard", logo: "mastercard" },
+];
 
 export function SiteFooter() {
   return (
@@ -65,13 +77,15 @@ export function SiteFooter() {
 
         <div className="md:col-span-3">
           <h2 className="text-[15px] font-bold text-cream">Pilihan pembayaran</h2>
-          <ul className="mt-4 grid grid-cols-3 gap-2">
+          <ul className="mt-4 grid grid-cols-4 gap-2 md:grid-cols-3 lg:grid-cols-4">
             {payments.map((method) => (
-              <li
-                key={method}
-                className="flex h-10 items-center justify-center rounded-md border border-cream/15 bg-cream/5 px-1 text-center text-[12px] font-semibold leading-tight text-cream/90"
-              >
-                {method}
+              <li key={method.name} className="flex h-10 items-center justify-center rounded-md bg-white px-2">
+                {method.logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- SVG kecil statis, tidak perlu next/image
+                  <img src={`/payments/${method.logo}.svg`} alt={method.name} className="max-h-5 max-w-full object-contain" loading="lazy" />
+                ) : (
+                  <span className="text-[11px] font-extrabold text-[#ee4d2d]">{method.name}</span>
+                )}
               </li>
             ))}
           </ul>
@@ -80,9 +94,8 @@ export function SiteFooter() {
       </div>
 
       <div className="mx-auto max-w-[1200px] px-4 md:px-8">
-        <div className="flex flex-col gap-2 border-t border-dashed border-cream/20 py-6 text-[13px] md:flex-row md:justify-between">
+        <div className="border-t border-dashed border-cream/20 py-6 text-[13px]">
           <p>© 2026 PassGo · Kelompok 10 PAW UGM</p>
-          <p>Harga dalam Rupiah, waktu dalam WIB.</p>
         </div>
       </div>
     </footer>

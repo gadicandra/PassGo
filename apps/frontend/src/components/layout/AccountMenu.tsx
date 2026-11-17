@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CalendarDays, ChevronDown, CircleUser, LogOut, Receipt, ScanLine, ScrollText, Ticket, UserRound, Users, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ButtonLink } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth";
@@ -20,7 +21,18 @@ const links: Record<Role, Array<{ href: string; label: string }>> = {
   ],
 };
 
-const item = "block rounded-md px-3 py-2 text-[15px] text-navy hover:bg-navy/5";
+const item = "flex items-center gap-2.5 rounded-md px-3 py-2 text-[15px] text-navy hover:bg-navy/5";
+
+// Ikon menu akun per tautan, supaya tiap baris cepat dikenali.
+const menuIcon: Record<string, LucideIcon> = {
+  "/tickets": Ticket,
+  "/orders": Receipt,
+  "/staff": ScanLine,
+  "/organizer/events": CalendarDays,
+  "/organizer/orders": Receipt,
+  "/organizer/users": Users,
+  "/organizer/audit-logs": ScrollText,
+};
 
 /** Kanan header: tombol Masuk/Daftar untuk tamu, menu akun untuk yang login. */
 export function AccountMenu() {
@@ -47,21 +59,25 @@ export function AccountMenu() {
   return (
     <details className="group relative">
       <summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-lg border-[1.5px] border-cream/40 px-3 text-sm font-semibold text-cream hover:border-cream md:h-10 [&::-webkit-details-marker]:hidden">
+        <CircleUser aria-hidden className="size-[18px] shrink-0" />
         <span className="max-w-[10ch] truncate sm:max-w-[16ch]">{user!.name}</span>
-        <span aria-hidden className="transition-transform group-open:rotate-180">
-          ▾
-        </span>
+        <ChevronDown aria-hidden className="size-4 shrink-0 transition-transform group-open:rotate-180" />
       </summary>
       <div
         className="absolute right-0 mt-2 w-56 rounded-lg bg-white p-2 shadow-card-hover"
         onClick={(event) => (event.currentTarget.parentElement as HTMLDetailsElement).removeAttribute("open")}
       >
-        {links[user!.role].map((link) => (
-          <Link key={link.href} href={link.href} className={item}>
-            {link.label}
-          </Link>
-        ))}
+        {links[user!.role].map((link) => {
+          const Icon = menuIcon[link.href] ?? CircleUser;
+          return (
+            <Link key={link.href} href={link.href} className={item}>
+              <Icon aria-hidden className="size-4 shrink-0 text-muted" />
+              {link.label}
+            </Link>
+          );
+        })}
         <Link href="/profile" className={item}>
+          <UserRound aria-hidden className="size-4 shrink-0 text-muted" />
           Profil
         </Link>
         <button
@@ -72,6 +88,7 @@ export function AccountMenu() {
             router.replace("/");
           }}
         >
+          <LogOut aria-hidden className="size-4 shrink-0" />
           Keluar
         </button>
       </div>

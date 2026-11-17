@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Clock, MapPin } from "lucide-react";
 import type { EventSummary } from "@/types/api";
 import { cn } from "@/lib/cn";
 import { dateParts, formatTime } from "@/lib/format";
@@ -46,8 +47,11 @@ export function AgendaList({ events }: { events: EventSummary[] }) {
                   >
                     {event.title}
                   </h3>
-                  <p className="mt-1 truncate text-[13px] text-muted">
-                    {formatTime(event.startAt, event.timezone)} WIB · {event.venueName}
+                  <p className="mt-1 flex items-center gap-1.5 text-[13px] text-muted">
+                    <Clock aria-hidden className="size-3.5 shrink-0" />
+                    {formatTime(event.startAt, event.timezone)} WIB
+                    <MapPin aria-hidden className="ml-1.5 size-3.5 shrink-0" />
+                    <span className="truncate">{event.venueName}</span>
                   </p>
                   <div className="mt-2">
                     <PriceLabel event={event} />

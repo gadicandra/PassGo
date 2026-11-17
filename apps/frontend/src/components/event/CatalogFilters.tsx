@@ -16,7 +16,8 @@ export function parseFilter(value: string | string[] | undefined): CatalogFilter
 }
 
 /** Chip filter berupa link, jadi filter bisa dibagikan lewat URL dan jalan tanpa JavaScript. */
-export function CatalogFilters({ active, q }: { active: CatalogFilter; q?: string }) {
+/** `active` kosong = tidak ada chip yang aktif (mis. sedang melihat satu kategori). */
+export function CatalogFilters({ active, q }: { active?: CatalogFilter; q?: string }) {
   return (
     <nav aria-label="Filter acara" className="flex gap-3 overflow-x-auto pb-1">
       {catalogFilters.map((filter) => {

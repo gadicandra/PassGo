@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CalendarDays, MapPin } from "lucide-react";
 import type { EventSummary } from "@/types/api";
 import { cn } from "@/lib/cn";
 import { formatDate, formatTime } from "@/lib/format";
@@ -16,7 +17,8 @@ export function EventCard({ event, tone, className }: { event: EventSummary; ton
         <Poster event={event} tone={tone} className="transition-transform duration-300 ease-out group-hover:scale-[1.04]" />
       </div>
       <div className="mt-3 flex flex-col">
-        <p className="text-[13px] font-medium text-muted">
+        <p className="flex items-center gap-1.5 text-[13px] font-medium text-muted">
+          <CalendarDays aria-hidden className="size-3.5 shrink-0" />
           {formatDate(event.startAt, event.timezone).replace(/ \d{4}$/, "")} · {formatTime(event.startAt, event.timezone)}
         </p>
         <h3
@@ -27,7 +29,10 @@ export function EventCard({ event, tone, className }: { event: EventSummary; ton
         >
           {event.title}
         </h3>
-        <p className="mt-0.5 truncate text-[14px] text-muted">{event.venueName}</p>
+        <p className="mt-0.5 flex items-center gap-1.5 text-[14px] text-muted">
+          <MapPin aria-hidden className="size-3.5 shrink-0" />
+          <span className="truncate">{event.venueName}</span>
+        </p>
         <div className="mt-3 border-t border-dashed border-navy/20 pt-2.5">
           <PriceLabel event={event} />
         </div>

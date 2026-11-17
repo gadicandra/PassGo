@@ -1,7 +1,10 @@
 import Link from "next/link";
 import type { EventSummary } from "@/types/api";
 import { CatalogFilters, parseFilter, type CatalogFilter } from "@/components/event/CatalogFilters";
+import { CalendarDays, Compass, MapPinned, Search, Ticket } from "lucide-react";
 import { AgendaList } from "@/components/event/AgendaList";
+import { CategoryTiles } from "@/components/event/CategoryTiles";
+import { categoryBySlug, inCategory } from "@/lib/categories";
 import { EventCard } from "@/components/event/EventCard";
 import { FeaturedEventTile } from "@/components/event/FeaturedEventTile";
 import { HeroCarousel } from "@/components/event/HeroCarousel";
@@ -43,16 +46,23 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
   const rawQ = typeof params.q === "string" ? params.q.trim() : "";
   const q = rawQ.length >= 2 ? rawQ : undefined;
 
-  const { data: events } = await listEvents({ q, when: "upcoming", pageSize: 100, ...rangeFor(filter) });
-  const filtered = filter === "gratis" ? events.filter(isFree) : events;
+  const category = categoryBySlug(params.kategori);
 
-  // Ada pencarian atau filter: tampilkan satu grid hasil saja.
-  if (q || filter !== "semua") {
+  const { data: events } = await listEvents({ q, when: "upcoming", pageSize: 100, ...rangeFor(filter) });
+  let filtered = filter === "gratis" ? events.filter(isFree) : events;
+  if (category) filtered = filtered.filter(inCategory(category));
+
+  // Ada pencarian, filter, atau kategori: tampilkan satu grid hasil saja.
+  if (q || filter !== "semua" || category) {
     return (
       <div className="mx-auto w-full max-w-[1200px] px-4 py-10 md:px-8">
-        <CatalogFilters active={filter} q={q} />
+        <CatalogFilters active={category ? undefined : filter} q={q} />
         <section className="mt-8">
-          <SectionHeading title={q ? `Hasil “${q}”` : filterTitle[filter]} count={filtered.length} />
+          <SectionHeading
+            title={q ? `Hasil “${q}”` : category ? category.label : filterTitle[filter]}
+            icon={q ? Search : category ? category.icon : Compass}
+            count={filtered.length}
+          />
           {filtered.length ? (
             <EventGrid events={filtered} />
           ) : (
@@ -94,9 +104,14 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
         <CatalogFilters active="semua" />
       </div>
 
+      <section className="mx-auto w-full max-w-[1200px] px-4 pt-8 md:px-8">
+        <SectionHeading title="Jelajahi kategori" icon={Compass} />
+        <CategoryTiles events={events} />
+      </section>
+
       {nearest.length > 0 && (
         <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-8">
-          <SectionHeading title="Paling dekat" count={nearest.length} href="/?filter=minggu" />
+          <SectionHeading title="Paling dekat" icon={MapPinned} count={nearest.length} href="/?filter=minggu" />
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-12">
             <Reveal className="sm:col-span-2 lg:col-span-6">
               <FeaturedEventTile event={nearest[0]} tone={3} />
@@ -113,7 +128,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
       {free.length > 0 && (
         <section className="my-8 w-full border-y-2 border-navy bg-sun py-12">
           <div className="mx-auto max-w-[1200px] px-4 md:px-8">
-            <SectionHeading title="Gratis, tinggal datang" count={free.length} href="/?filter=gratis" className="border-navy/20" />
+            <SectionHeading title="Gratis, tinggal datang" icon={Ticket} count={free.length} href="/?filter=gratis" className="border-navy/20" />
             <div className="grid gap-6 md:grid-cols-3">
               {free.map((event, index) => (
                 <Reveal key={event.id} index={index}>
@@ -142,7 +157,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
 
       {others.length > 0 && (
         <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-8">
-          <SectionHeading title="Agenda berikutnya" count={others.length} />
+          <SectionHeading title="Agenda berikutnya" icon={CalendarDays} count={others.length} />
           <AgendaList events={others} />
         </section>
       )}

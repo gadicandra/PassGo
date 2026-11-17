@@ -243,9 +243,20 @@ TMP=$(mktemp -d)
   fs.writeFileSync(process.argv[1], JSON.stringify(rows));
   console.log("Akan diset:", rows.map((r) => r.name).join(", "));
 ' "$TMP/api-settings.json")
-az webapp config appsettings set -g $RG -n $API --settings @"$TMP/api-settings.json" -o none
-rm -rf "$TMP"
+
+# Kirim ke Azure, coba ulang bila koneksi putus. File baru dihapus setelah berhasil.
+for i in 1 2 3; do
+  az webapp config appsettings set -g $RG -n $API --settings @"$TMP/api-settings.json" -o none \
+    && { echo "Berhasil"; rm -rf "$TMP"; break; } \
+    || { echo "Gagal (percobaan $i), coba lagi 10 detik..."; sleep 10; }
+done
 ```
+
+> **Masih `Connection reset by peer` setelah 3 kali?** Jaringan Anda (Wi-Fi kampus, VPN, proxy) memutus
+> koneksi ke Azure. Coba jaringan lain (hotspot HP), atau isi lewat Portal: file JSON masih ada di
+> `echo $TMP/api-settings.json`. Buka Portal → app backend → **Settings → Environment variables** →
+> **Advanced edit**, gabungkan isi file itu ke dalam array JSON yang tampil, **Apply**, lalu **Apply** lagi
+> di halaman utama. Setelah selesai: `rm -rf "$TMP"`.
 
 Periksa daftar key yang terkirim (nilainya disembunyikan Azure):
 
@@ -467,6 +478,7 @@ Pertama selalu lihat log: `az webapp log tail -g $RG -n <app>`.
 | Gejala | Penyebab | Perbaikan |
 |---|---|---|
 | `RequestDisallowedByAzure ... best available regions` saat membuat plan | Region tidak diizinkan untuk Azure for Students | Langkah 1.1, ganti `LOC`, ulangi `az appservice plan create ... -l $LOC` |
+| `ConnectionResetError(104, 'Connection reset by peer')` dari perintah `az` | Koneksi jaringan ke Azure terputus (bukan error konfigurasi) | Jalankan ulang perintahnya; bila terus, ganti jaringan (hotspot) atau lewat Portal |
 | Workflow gagal di langkah deploy, `401 Unauthorized` | Basic auth mati atau publish profile kedaluwarsa | Ulangi 2.3 (`--basic-auth Enabled`) lalu 5 (`gh secret set`) |
 | Halaman "Application Error" / container restart terus | Startup command salah | Cek 3.1 / 4.1: `az webapp config show -g $RG -n <app> --query appCommandLine` |
 | Frontend tidak menjawab, log: `Listening on <nama-container>` | `HOSTNAME` tidak di-override | Startup frontend harus diawali `HOSTNAME=0.0.0.0` |

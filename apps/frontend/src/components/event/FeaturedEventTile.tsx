@@ -1,15 +1,14 @@
 import Link from "next/link";
+import { PriceLabel } from "./PriceLabel";
 import type { EventSummary } from "@/types/api";
 import { cn } from "@/lib/cn";
 import { dateParts, formatTime } from "@/lib/format";
-import { eventPriceLine, toneClass } from "@/lib/status";
 import { DateBlock, posterPalette, posterWords } from "./Poster";
 
 // Tile landscape untuk acara terdekat: judul besar di 60% kiri, foto di 40% kanan dengan tepi tegas.
 // Tingginya sama dengan poster 4:5 di kolom sebelahnya supaya baris tidak berlubang.
 export function FeaturedEventTile({ event, tone, className }: { event: EventSummary; tone?: number; className?: string }) {
   const palette = posterPalette(event, tone);
-  const price = eventPriceLine(event);
   const { day, month } = dateParts(event.startAt, event.timezone);
 
   return (
@@ -50,7 +49,7 @@ export function FeaturedEventTile({ event, tone, className }: { event: EventSumm
         <p className="text-[13px] text-muted">
           {event.venueName} · {formatTime(event.startAt, event.timezone)} WIB
         </p>
-        <p className={cn("text-[14px] font-bold", toneClass[price.tone])}>{price.label}</p>
+        <PriceLabel event={event} />
       </div>
     </Link>
   );

@@ -2,13 +2,12 @@ import Link from "next/link";
 import type { EventSummary } from "@/types/api";
 import { cn } from "@/lib/cn";
 import { formatTime } from "@/lib/format";
-import { eventPriceLine, toneClass } from "@/lib/status";
+import { PriceLabel } from "./PriceLabel";
 import { Poster } from "./Poster";
 
 /** Kartu acara di katalog: poster + judul + "tempat · jam" + harga/status. Seluruh kartu adalah link. */
 export function EventCard({ event, tone, className }: { event: EventSummary; tone?: number; className?: string }) {
   const cancelled = event.status === "CANCELLED";
-  const price = eventPriceLine(event);
 
   return (
     <Link
@@ -31,7 +30,7 @@ export function EventCard({ event, tone, className }: { event: EventSummary; ton
         <p className="text-[13px] text-muted">
           {event.venueName} · {formatTime(event.startAt, event.timezone)} WIB
         </p>
-        <p className={cn("text-[14px] font-bold", toneClass[price.tone])}>{price.label}</p>
+        <PriceLabel event={event} />
       </div>
     </Link>
   );

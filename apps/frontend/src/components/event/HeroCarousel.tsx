@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import type { EventSummary } from "@/types/api";
 import { ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
-import { Clock } from "lucide-react";
+import { CalendarDays, Clock, MapPin } from "lucide-react";
 import { daysUntilLabel, formatDate, formatTime } from "@/lib/format";
 import { eventPriceLine } from "@/lib/status";
 import { Poster, posterPalette } from "./Poster";
@@ -123,10 +123,23 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
               <h2 className="max-w-xl animate-[rise-in_500ms_var(--ease-ticket)_both] font-display text-[40px] font-extrabold leading-[0.95] tracking-[-0.03em] md:text-[64px]">
                 {event.title}
               </h2>
-              <p className="mt-5 animate-[rise-in_500ms_var(--ease-ticket)_80ms_both] text-[17px] font-medium md:text-[18px]">
-                {formatDate(event.startAt, event.timezone)} · {formatTime(event.startAt, event.timezone)} WIB ·{" "}
-                {event.venueName}
-              </p>
+              {/* Tanggal & jam sebaris, tempat di baris sendiri: tiap bagian utuh (tidak patah di tengah), ikon menggantikan titik pemisah. */}
+              <ul className="mt-5 flex animate-[rise-in_500ms_var(--ease-ticket)_80ms_both] flex-col gap-1.5 text-[17px] font-medium md:text-[18px]">
+                <li className="flex flex-wrap gap-x-5 gap-y-1.5">
+                  <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                    <CalendarDays aria-hidden className="size-[18px] shrink-0 opacity-80" />
+                    {formatDate(event.startAt, event.timezone)}
+                  </span>
+                  <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                    <Clock aria-hidden className="size-[18px] shrink-0 opacity-80" />
+                    {formatTime(event.startAt, event.timezone)} WIB
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <MapPin aria-hidden className="mt-[3px] size-[18px] shrink-0 opacity-80" />
+                  <span>{event.venueName}</span>
+                </li>
+              </ul>
             </div>
             <div className="relative flex animate-[rise-in_500ms_var(--ease-ticket)_160ms_both] flex-wrap items-center gap-5">
               {price.label === "Gratis" ? <FreeBadge size="lg" /> : <p className="text-[24px] font-semibold tabular-nums md:text-[28px]">{price.label}</p>}

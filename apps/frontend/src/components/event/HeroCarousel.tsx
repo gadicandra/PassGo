@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import type { EventSummary } from "@/types/api";
 import { ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
-import { formatDate, formatTime } from "@/lib/format";
+import { Clock } from "lucide-react";
+import { daysUntilLabel, formatDate, formatTime } from "@/lib/format";
 import { eventPriceLine } from "@/lib/status";
 import { Poster, posterPalette } from "./Poster";
 import { FreeBadge } from "./PriceLabel";
@@ -88,6 +89,7 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
   if (!event || !edge) return null;
   const palette = heroPalette(event);
   const price = eventPriceLine(event);
+  const soon = event.status === "PUBLISHED" ? daysUntilLabel(event.startAt, event.timezone) : null;
 
   return (
     <section
@@ -112,6 +114,12 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
           >
             <span aria-hidden className="tear-reveal absolute inset-0 hidden bg-cream [clip-path:var(--fiber)] md:block" />
             <div className="relative">
+              {soon && (
+                <span className="mb-4 inline-flex animate-[rise-in_400ms_var(--ease-ticket)_both] items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[13px] font-bold text-brand">
+                  <Clock aria-hidden className="size-3.5" strokeWidth={2.5} />
+                  {soon}
+                </span>
+              )}
               <h2 className="max-w-xl animate-[rise-in_500ms_var(--ease-ticket)_both] font-display text-[40px] font-extrabold leading-[0.95] tracking-[-0.03em] md:text-[64px]">
                 {event.title}
               </h2>

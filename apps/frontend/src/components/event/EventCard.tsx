@@ -4,6 +4,7 @@ import type { EventSummary } from "@/types/api";
 import { cn } from "@/lib/cn";
 import { formatDate, formatTime } from "@/lib/format";
 import { PriceLabel } from "./PriceLabel";
+import { SoonBadge } from "./SoonBadge";
 import { Poster } from "./Poster";
 
 /** Kartu acara di katalog: poster, tanggal · jam, judul, tempat, garis putus, harga/status. Seluruh kartu adalah link. */
@@ -13,8 +14,9 @@ export function EventCard({ event, tone, className }: { event: EventSummary; ton
   return (
     <Link href={`/events/${event.slug}`} className={cn("group flex flex-col transition-transform duration-200 hover:-translate-y-1", className)}>
       {/* Poster membesar sedikit di dalam bingkainya saat hover, bingkai tetap diam. */}
-      <div className="overflow-hidden rounded-card shadow-card transition-shadow duration-200 group-hover:shadow-card-hover">
+      <div className="relative overflow-hidden rounded-card shadow-card transition-shadow duration-200 group-hover:shadow-card-hover">
         <Poster event={event} tone={tone} className="transition-transform duration-300 ease-out group-hover:scale-[1.04]" />
+        <SoonBadge event={event} />
       </div>
       <div className="mt-3 flex flex-col">
         <p className="flex items-center gap-1.5 text-[13px] font-medium text-muted">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarDays, MapPin } from "lucide-react";
 import { PriceLabel } from "./PriceLabel";
+import { SoonBadge } from "./SoonBadge";
 import type { EventSummary } from "@/types/api";
 import { cn } from "@/lib/cn";
 import { dateParts, formatDate, formatTime } from "@/lib/format";
@@ -18,10 +19,11 @@ export function FeaturedEventTile({ event, tone, className }: { event: EventSumm
         className={cn(
           // Lebar 2x poster di sebelahnya, jadi rasio 8:5 membuat tingginya sama dengan poster 4:5.
           // Mulai sm tile selebar 2 kolom, jadi pakai landscape supaya tidak menjadi blok raksasa di tablet.
-          "flex aspect-[4/5] overflow-hidden rounded-card border border-navy/15 shadow-card transition duration-200 group-hover:-translate-y-1 group-hover:shadow-card-hover sm:aspect-[2/1] lg:aspect-[8/5]",
+          "relative flex aspect-[4/5] overflow-hidden rounded-card border border-navy/15 shadow-card transition duration-200 group-hover:-translate-y-1 group-hover:shadow-card-hover sm:aspect-[2/1] lg:aspect-[8/5]",
           palette.bg,
         )}
       >
+        <SoonBadge event={event} />
         <div className={cn("flex flex-1 flex-col justify-between p-6", palette.fg)}>
           <DateBlock day={day} month={month} />
           <p className="font-display text-[34px] font-extrabold uppercase leading-[0.92] tracking-[-0.03em] md:text-[40px]">

@@ -1,3 +1,4 @@
+import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 
@@ -9,6 +10,9 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
       <SiteHeader />
       <main className="flex-1">{children}</main>
       <SiteFooter />
+      {/* Ruang kosong setinggi bilah bawah supaya footer tidak tertutup di HP. */}
+      <div aria-hidden className="h-16 md:hidden" />
+      <MobileTabBar />
     </>
   );
 }

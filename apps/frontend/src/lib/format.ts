@@ -62,3 +62,11 @@ function zoneLabel(timeZone: string): string {
   if (timeZone === "Asia/Jayapura") return "WIT";
   return timeZone;
 }
+
+/** "Hari ini" / "Besok" / "3 hari lagi" untuk acara dalam 14 hari ke depan (dihitung per tanggal kalender di zona acara). */
+export function daysUntilLabel(iso: string, timeZone = DEFAULT_TZ, now = new Date()): string | null {
+  const day = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+  const diff = Math.round((Date.parse(day(new Date(iso))) - Date.parse(day(now))) / 86_400_000);
+  if (diff < 0 || diff > 14) return null;
+  return diff === 0 ? "Hari ini" : diff === 1 ? "Besok" : `${diff} hari lagi`;
+}

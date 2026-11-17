@@ -1,0 +1,49 @@
+# Deploy apps/backend ke Azure App Service (Linux, Node 22). Setup sekali: lihat docs/deploy-azure.md.
+name: Deploy backend (Azure)
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/backend/**", "package-lock.json", ".github/workflows/deploy-backend.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install & test
+        run: |
+          npm ci
+          npm run typecheck --workspace=apps/backend
+          # Unit test tidak butuh DB; integration test ter-skip karena MONGODB_URI tidak diset di CI.
+          npm test --workspace=apps/backend
+
+      - name: Build
+        run: npm run build:backend
+
+      # Paket mandiri: dist + dependency produksi. Tanpa workspace, karena node_modules di-hoist ke root monorepo.
+      # sharp memasang binary linux-x64 sesuai runner, sama dengan App Service Linux.
+      - name: Package
+        run: |
+          mkdir -p deploy
+          cp -r apps/backend/dist deploy/dist
+          cp apps/backend/package.json deploy/
+          cd deploy
+          npm install --omit=dev --no-audit --no-fund --no-package-lock
+
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_BACKEND_APP_NAME }}
+          publish-profile: ${{ secrets.AZURE_BACKEND_PUBLISH_PROFILE }}
+          package: deploy

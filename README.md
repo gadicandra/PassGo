@@ -4,6 +4,12 @@ Platform tiket untuk komunitas kreatif yang rutin mengadakan workshop dan pertun
 
 Referensi produk: Loket.com, GoTix, Tiket.com.
 
+| | Link |
+|---|---|
+| 🌐 Website | **[https://passgo-web.azurewebsites.net](https://passgo-web.azurewebsites.net)** <!-- TODO: ganti dengan URL Azure final --> |
+| 🎬 Video demo | **[Tonton di YouTube](https://youtu.be/TODO)** <!-- TODO: ganti dengan link video --> |
+| 💻 Repository | [github.com/gadicandra/PassGo](https://github.com/gadicandra/PassGo) |
+
 ## Group Members
 
 - Group 10
@@ -33,6 +39,8 @@ Referensi produk: Loket.com, GoTix, Tiket.com.
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | Latar belakang, lingkup, matriks wewenang, tech stack, model data, alur pemesanan/pembayaran/check-in, email outbox, keamanan, roadmap, ADR |
 | [`docs/api-contract.md`](docs/api-contract.md) | Kontrak REST API v1: konvensi, auth, format error, idempotency, concurrency, semua endpoint |
+| [`docs/deploy-azure.md`](docs/deploy-azure.md) | Deploy frontend & backend ke Azure App Service lewat GitHub Actions |
+| [`postman/README.md`](postman/README.md) | Menjalankan pengujian API (Postman/Newman) |
 
 ## Tech Stack
 
@@ -43,7 +51,7 @@ Referensi produk: Loket.com, GoTix, Tiket.com.
 | Payment | Midtrans Snap |
 | Email | Nodemailer (SMTP; Mailpit saat development) |
 | Storage | Supabase Storage (poster acara, di-*re-encode* WebP dengan sharp) |
-| Frontend | Next.js (App Router) |
+| Frontend | Next.js 16 (App Router), React 19, Tailwind CSS 4 |
 
 ## Repository Structure
 
@@ -81,12 +89,33 @@ monorepo-passgo/
 └── package.json                 # Root workspace configuration
 ```
 
-## Getting Started (Backend)
+## Menjalankan secara lokal
+
+Prasyarat: Node.js ≥ 22.18, MongoDB replica set (MongoDB Atlas gratis sudah replica set), akun sandbox Midtrans.
 
 ```bash
-npm install                                   # dari root, menginstal semua workspace
-cp apps/backend/.env.example apps/backend/.env
-npm run dev:backend
+npm install                                         # dari root, menginstal semua workspace
+cp apps/backend/.env.example apps/backend/.env      # isi MONGODB_URI, JWT_ACCESS_SECRET, MIDTRANS_*, SMTP_*
+cp apps/frontend/.env.example apps/frontend/.env    # BACKEND_URL=http://localhost:3000
+npm run db:seed                                     # akun penyelenggara pertama (SEED_ORGANIZER_* di .env)
+npm run dev:backend                                 # API di http://localhost:3000
+npm run dev:frontend                                # web di http://localhost:3001
 ```
 
-Untuk menguji webhook Midtrans secara lokal, ekspos server dengan tunnel (mis. `ngrok http 4000`) lalu daftarkan `https://<tunnel>/api/v1/payments/midtrans/notifications` sebagai Payment Notification URL di dashboard sandbox Midtrans. Email dev dapat dilihat di Mailpit (`http://localhost:8025`).
+Buka **http://localhost:3001**. Di `.env` backend, isi `CSRF_ALLOWED_ORIGINS`, `CORS_ORIGIN`, dan `FRONTEND_URL`
+dengan `http://localhost:3001` agar login berfungsi dan tautan di email mengarah ke web.
+Akun panitia dibuat oleh penyelenggara dari menu **Pengguna**; peserta mendaftar sendiri.
+
+| Perintah | Fungsi |
+|---|---|
+| `npm test --workspace=apps/backend` | Unit test backend |
+| `npm run lint --workspace=apps/frontend` | Lint frontend |
+| `npm run test:api` | Pengujian API Postman/Newman ke backend lokal |
+| `npm run db:seed:demo --workspace=apps/backend` | Isi contoh acara untuk demo |
+
+Untuk menguji webhook Midtrans secara lokal, ekspos backend dengan tunnel (mis. `ngrok http 3000`) lalu daftarkan `https://<tunnel>/api/v1/payments/midtrans/notifications` sebagai Payment Notification URL di dashboard sandbox Midtrans. Email dev dapat dilihat di Mailpit (`http://localhost:8025`).
+
+## Deploy
+
+Frontend dan backend di-deploy ke **Azure App Service** lewat GitHub Actions setiap push ke `main`.
+Langkah lengkap: [`docs/deploy-azure.md`](docs/deploy-azure.md).

@@ -1,0 +1,49 @@
+# Deploy apps/frontend (Next.js standalone) ke Azure App Service (Linux, Node 22). Setup: docs/deploy-azure.md.
+name: Deploy frontend (Azure)
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/frontend/**", "package-lock.json", ".github/workflows/deploy-frontend.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install & check
+        run: |
+          npm ci
+          npm run lint --workspace=apps/frontend
+          npm run typecheck --workspace=apps/frontend
+
+      # BACKEND_URL dibaca saat build: rewrite /api/v1 dan CSP ikut terkunci ke dalam build.
+      # Ganti alamat backend = build ulang (jalankan workflow ini lagi).
+      - name: Build
+        run: npm run build:frontend
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+
+      # Standalone tidak menyalin static & public; server.js melayaninya bila ditaruh di sebelahnya.
+      - name: Package
+        run: |
+          S=apps/frontend/.next/standalone
+          cp -r apps/frontend/.next/static $S/apps/frontend/.next/static
+          if [ -d apps/frontend/public ]; then cp -r apps/frontend/public $S/apps/frontend/public; fi
+
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_FRONTEND_APP_NAME }}
+          publish-profile: ${{ secrets.AZURE_FRONTEND_PUBLISH_PROFILE }}
+          package: apps/frontend/.next/standalone

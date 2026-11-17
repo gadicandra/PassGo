@@ -47,7 +47,8 @@ Frontend (`cd apps/frontend`): `npm run lint`, `npm run typecheck`. See `apps/fr
 - **Quota/check-in atomicity:** ticket quota is reserved with conditional atomic updates (`soldCount + reservedCount + qty <= quota`) inside Mongo transactions (`session.withTransaction`) — MongoDB must be a replica set (Atlas is). Check-in is atomic so double scans fail.
 - **Idempotency:** `POST /orders` (and similar) wrap handlers in `runIdempotent` (`services/idempotency-service.ts`) keyed by `Idempotency-Key`.
 - **Payments:** Midtrans Snap; webhook at `/api/v1/payments/midtrans/notifications` (needs a tunnel locally). Paid orders issue tickets via `ticket-issuance-service`.
-- **Background jobs:** no in-process scheduler. `/api/v1/internal/jobs/:job` (`send-emails` outbox, `expire-pending-orders`) is guarded by `Authorization: Bearer $CRON_SECRET` and triggered by Vercel Cron (`vercel.json`). Emails go through an outbox, not sent inline.
+- **Background jobs:** `/api/v1/internal/jobs/:job` (`send-emails` outbox, `expire-pending-orders`) is guarded by `Authorization: Bearer $CRON_SECRET` (Vercel Cron, `vercel.json`). The long-running server (`src/index.ts`, used on Azure) also runs both every `JOB_INTERVAL_SECONDS`; both are safe to run concurrently. Emails go through an outbox, flushed best-effort after the triggering request.
+- **Deploy:** Azure App Service via `.github/workflows/deploy-*.yml` (see `docs/deploy-azure.md`). Frontend ships as Next `output: "standalone"`; `BACKEND_URL` is baked in at build time (rewrites + CSP). `trust proxy` comes from `TRUST_PROXY` (Azure: 2) and `app.ts` strips Azure's `ip:port` from `X-Forwarded-For`.
 - **Storage:** posters re-encoded to WebP with sharp, stored in Supabase Storage; without Supabase creds they fall back to local `uploads/` served at `/uploads`.
 - **Vercel compile quirk:** Vercel compiles files individually, so `src/types/*.d.ts` shims are referenced explicitly where needed.
 

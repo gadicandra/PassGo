@@ -6,7 +6,6 @@ import { AgendaList } from "@/components/event/AgendaList";
 import { CategoryTiles } from "@/components/event/CategoryTiles";
 import { categoryBySlug, inCategory } from "@/lib/categories";
 import { EventCard } from "@/components/event/EventCard";
-import { FeaturedEventTile } from "@/components/event/FeaturedEventTile";
 import { HeroCarousel } from "@/components/event/HeroCarousel";
 import { Poster } from "@/components/event/Poster";
 import { SectionHeading } from "@/components/event/SectionHeading";
@@ -90,8 +89,8 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
   // Tiap acara tampil sekali: hero → paling dekat → gratis → sisanya.
   const heroes = (events.filter(isOnSale).length ? events.filter(isOnSale) : events).slice(0, 2);
   let rest = events.filter((event) => !heroes.includes(event));
-  const nearest = rest.slice(0, 3);
-  rest = rest.slice(3);
+  const nearest = rest.slice(0, 4);
+  rest = rest.slice(4);
   const free = rest.filter(isFree).slice(0, 3);
   const others = rest.filter((event) => !free.includes(event));
 
@@ -112,16 +111,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
       {nearest.length > 0 && (
         <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-8">
           <SectionHeading title="Paling dekat" icon={MapPinned} count={nearest.length} href="/?filter=minggu" />
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-12">
-            <Reveal className="sm:col-span-2 lg:col-span-6">
-              <FeaturedEventTile event={nearest[0]} tone={3} />
-            </Reveal>
-            {nearest.slice(1).map((event, index) => (
-              <Reveal key={event.id} index={index + 1} className="lg:col-span-3">
-                <EventCard event={event} tone={index + 1} />
-              </Reveal>
-            ))}
-          </div>
+          <EventGrid events={nearest} />
         </section>
       )}
 
@@ -167,7 +157,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
 
 function EventGrid({ events }: { events: EventSummary[] }) {
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:gap-6 lg:grid-cols-4">
+    <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
       {events.map((event, index) => (
         // Jeda bertingkat per kolom (index % 4) supaya tiap baris yang masuk layar muncul kiri → kanan.
         <Reveal key={event.id} index={index % 4}>

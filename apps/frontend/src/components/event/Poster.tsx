@@ -58,6 +58,7 @@ export function Poster({
   size = "md",
   tone,
   stock = true,
+  shape = "portrait",
   className,
 }: {
   event: PosterEvent;
@@ -66,6 +67,8 @@ export function Poster({
   tone?: number;
   /** Tanpa poster unggahan: pakai foto stok kategori. Matikan di pratinjau unggah organizer. */
   stock?: boolean;
+  /** "banner" = lanskap 2:1 untuk kartu katalog (pola kartu Loket); "portrait" = poster 4:5. */
+  shape?: "portrait" | "banner";
   className?: string;
 }) {
   const cancelled = event.status === "CANCELLED";
@@ -77,7 +80,7 @@ export function Poster({
     <p
       className={cn(
         "font-display font-extrabold uppercase leading-[0.92] tracking-[-0.03em] break-words",
-        titleSize[size],
+        shape === "banner" ? "text-[min(24px,7cqw)]" : titleSize[size],
         palette.fg,
       )}
     >
@@ -96,7 +99,8 @@ export function Poster({
       role="img"
       aria-label={`Poster ${event.title}`}
       className={cn(
-        "@container relative flex aspect-[4/5] w-full flex-col overflow-hidden rounded-card border border-navy/15",
+        "@container relative flex w-full flex-col overflow-hidden rounded-card border border-navy/15",
+        shape === "banner" ? "aspect-[2/1]" : "aspect-[4/5]",
         palette.bg,
         className,
       )}
@@ -114,7 +118,8 @@ export function Poster({
               cancelled && "grayscale opacity-60",
             )}
           />
-          <span aria-hidden className={cn("absolute inset-0 bg-gradient-to-t to-transparent", palette.fade)} />
+          {/* Banner: gradasi dari kiri (di belakang judul) supaya sisi kanan foto tetap jelas. */}
+          <span aria-hidden className={cn("absolute inset-0 to-transparent", shape === "banner" ? "bg-gradient-to-r" : "bg-gradient-to-t", palette.fade)} />
         </>
       )}
 

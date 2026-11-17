@@ -23,9 +23,9 @@ function heroPalette(event: EventSummary) {
   Hero katalog = tiket raksasa yang dirobek. Koreografi (skill animation-systems, satu momen utama):
     0 ms      badan + sobekan muncul sebagai satu tiket utuh, judul → info → harga naik bergantian
     150 ms    lubang perforasi "dipon" dari atas ke bawah
-    650 ms    robekan merambat dari atas: sobekan tertarik, terkelupas dari atas (poros di sudut bawah),
-              lalu bagian bawah lepas dan sobekan jatuh sedikit, berhenti miring; serat putih kertas
-              terlihat di kedua tepi dan bayangan muncul di bawah sobekan yang terangkat
+    700 ms    seperti solasi ditarik: tegang sebentar, lalu robekan merambat pelan dan rata dari atas ke bawah
+              (poros di sudut bawah) selama ±1,5 detik; serat putih kertas terbuka mengikuti titik robek;
+              bagian bawah lepas lembut dan sobekan diam miring, tanpa pantulan
     ganti     sobekan lama jatuh berputar keluar, tiket berikutnya mengulang dari awal
   Tepi sobek memakai noise lebar + halus per acara (skill paper-cinder-transition).
   Autoplay berhenti saat hero di luar layar atau tab tersembunyi (skill optimize-web-animations).
@@ -109,7 +109,7 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
               palette.bg,
             )}
           >
-            <span aria-hidden className="absolute inset-0 hidden bg-cream opacity-0 [clip-path:var(--fiber)] animate-[fiber-in_220ms_ease-out_1000ms_both] md:block" />
+            <span aria-hidden className="tear-reveal absolute inset-0 hidden bg-cream [clip-path:var(--fiber)] md:block" />
             <div className="relative">
               <h2 className="max-w-xl animate-[rise-in_500ms_var(--ease-ticket)_both] font-display text-[40px] font-extrabold leading-[0.95] tracking-[-0.03em] md:text-[64px]">
                 {event.title}
@@ -130,9 +130,9 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
           {/* Sobekan: pembungkus ini yang bergerak (poros sudut kiri bawah); isinya dipotong mengikuti garis sobek. */}
           <div
             style={{ width: `calc(30% + ${TEAR_DEPTH}px)`, marginLeft: -TEAR_DEPTH }}
-            className="relative hidden origin-bottom-left animate-[stub-rip_1000ms_linear_650ms_both] md:block"
+            className="relative hidden origin-bottom-left animate-[stub-rip_2200ms_linear_700ms_both] md:block"
           >
-            <span aria-hidden className="absolute inset-y-6 left-8 right-0 rounded-2xl bg-navy/40 opacity-0 blur-xl animate-[lift-shadow_1000ms_linear_650ms_both]" />
+            <span aria-hidden className="absolute inset-y-6 left-8 right-0 rounded-2xl bg-navy/40 opacity-0 blur-xl animate-[lift-shadow_2200ms_linear_700ms_both]" />
             <StubPiece event={event} edge={edge} className={palette.bg} />
           </div>
         </div>
@@ -205,7 +205,7 @@ function StubPiece({
       />
       <span
         aria-hidden
-        className={cn("absolute inset-0 bg-cream [clip-path:var(--fiber)]", settled ? "opacity-100" : "opacity-0 animate-[fiber-in_220ms_ease-out_1000ms_both]")}
+        className={cn("absolute inset-0 bg-cream [clip-path:var(--fiber)]", !settled && "tear-reveal")}
       />
       <div className="relative w-[240px]">
         <Poster event={event} size="lg" className={STUB_POSTER} />

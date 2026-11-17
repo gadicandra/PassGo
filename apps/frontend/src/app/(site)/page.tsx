@@ -60,7 +60,6 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
           <SectionHeading
             title={q ? `Hasil “${q}”` : category ? category.label : filterTitle[filter]}
             icon={q ? Search : category ? category.icon : (catalogFilters.find((item) => item.value === filter)?.icon ?? Compass)}
-            count={filtered.length}
           />
           {filtered.length ? (
             <EventGrid events={filtered} />
@@ -106,12 +105,12 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
 
       <section className="mx-auto w-full max-w-[1200px] px-4 pt-8 md:px-8">
         <SectionHeading title="Jelajahi kategori" icon={Compass} tone="navy" />
-        <CategoryTiles events={events} />
+        <CategoryTiles />
       </section>
 
       {nearest.length > 0 && (
         <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-8">
-          <SectionHeading title="Paling dekat" icon={MapPinned} tone="brand" count={nearest.length} href="/?filter=minggu" />
+          <SectionHeading title="Paling dekat" icon={MapPinned} tone="brand" href="/?filter=minggu" />
           <EventGrid events={nearest} scroll />
         </section>
       )}
@@ -119,7 +118,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
       {free.length > 0 && (
         <section className="my-8 w-full bg-sun py-12">
           <div className="mx-auto max-w-[1200px] px-4 md:px-8">
-            <SectionHeading title="Gratis, tinggal datang" icon={Ticket} count={free.length} href="/?filter=gratis" onColor />
+            <SectionHeading title="Gratis, tinggal datang" icon={Ticket} href="/?filter=gratis" onColor />
             <div className="grid gap-6 md:grid-cols-3">
               {free.map((event, index) => (
                 <Reveal key={event.id} index={index}>
@@ -148,7 +147,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
 
       {others.length > 0 && (
         <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-8">
-          <SectionHeading title="Agenda berikutnya" icon={CalendarDays} tone="teal" count={others.length} />
+          <SectionHeading title="Agenda berikutnya" icon={CalendarDays} tone="teal" />
           <AgendaList events={others} />
         </section>
       )}

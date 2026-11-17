@@ -13,7 +13,7 @@ export function SavedEvents() {
 
   return (
     <>
-      <SectionHeading title="Acara disimpan" icon={Heart} count={saved.length} />
+      <SectionHeading title="Acara disimpan" icon={Heart} />
       {saved.length === 0 ? (
         <div className="flex flex-col items-start gap-3 rounded-card border border-dashed border-navy/20 bg-white px-6 py-10">
           <p className="text-[18px] font-semibold">Belum ada acara yang disimpan.</p>

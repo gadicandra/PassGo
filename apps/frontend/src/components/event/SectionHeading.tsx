@@ -9,11 +9,10 @@ const iconTone = {
   navy: "bg-navy/[0.07] text-navy",
 };
 
-/** Judul section katalog: ikon + judul di kiri, jumlah acara dan tautan "Lihat semua ›" di kanan. */
+/** Judul section katalog: ikon + judul di kiri, tautan "Lihat semua ›" di kanan. */
 export function SectionHeading({
   title,
   icon: Icon,
-  count,
   href,
   tone = "brand",
   onColor = false,
@@ -22,7 +21,6 @@ export function SectionHeading({
   title: string;
   /** Ikon garis kecil di depan judul, membantu memindai section. */
   icon?: LucideIcon;
-  count?: number;
   href?: string;
   /** Warna kotak ikon; tiap section beda warna supaya ikon tidak seragam oranye. */
   tone?: keyof typeof iconTone;
@@ -45,7 +43,6 @@ export function SectionHeading({
         {title}
       </h2>
       <div className="flex items-center gap-4">
-        {count !== undefined && <span className={cn("text-[14px] font-medium tabular-nums", onColor ? "text-navy/70" : "text-muted")}>{count} acara</span>}
         {href && (
           <Link href={href} className={cn("inline-flex items-center gap-0.5 text-[15px] font-semibold", onColor ? "text-navy hover:underline" : "text-brand hover:text-brand-dark")}>
             Lihat semua

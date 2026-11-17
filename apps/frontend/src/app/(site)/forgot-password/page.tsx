@@ -27,7 +27,7 @@ export default function ForgotPasswordPage() {
         )
       }
       footer={
-        <Link href="/login" className="font-semibold text-brand hover:underline">
+        <Link href="/login" className="inline-block py-1 font-semibold text-brand hover:underline">
           Kembali ke halaman masuk
         </Link>
       }

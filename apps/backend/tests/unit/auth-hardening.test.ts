@@ -51,3 +51,12 @@ test("rate limit memakai IP klien dari XFF ber-port: dua port beda dihitung satu
   for (let i = 0; i < 5; i++) await hit(40000 + i);
   assert.equal((await hit(49999)).status, 429);
 });
+
+test("pesan validasi 422 berbahasa Indonesia (form FE menampilkannya apa adanya)", async () => {
+  const response = await request(app).post("/api/v1/auth/register").send({ name: "Q", email: "bukan-email", password: "pendek" });
+  assert.equal(response.status, 422);
+  const byField = Object.fromEntries(response.body.errors.map((e: { pointer: string; detail: string }) => [e.pointer, e.detail]));
+  assert.equal(byField["#/name"], "Minimal 2 karakter.");
+  assert.equal(byField["#/email"], "Format email tidak valid.");
+  assert.equal(byField["#/password"], "Minimal 8 karakter.");
+});

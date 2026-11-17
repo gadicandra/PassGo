@@ -32,6 +32,14 @@
 }
 
 @layer base {
+  /* Animasi masuk (hero-in, sobekan tiket) sesaat keluar ke kanan. Di HP itu membuat browser
+     menganggap halaman lebih lebar lalu memperkecil tampilan. clip (bukan hidden) supaya
+     position: sticky tetap berfungsi. */
+  html,
+  body {
+    overflow-x: clip;
+  }
+
   body {
     background: var(--color-cream);
     color: var(--color-navy);

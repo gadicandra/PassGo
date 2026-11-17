@@ -214,15 +214,15 @@ export function CheckoutForm({ event, initialItems }: { event: Event; initialIte
       </Link>
       <h1 className="mt-4 text-[32px] font-bold leading-tight tracking-[-0.01em] md:text-[40px]">Checkout</h1>
 
-      <div className="mt-8 grid gap-10 lg:grid-cols-12">
+      <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-12">
         <form onSubmit={submit} noValidate className="order-2 flex flex-col gap-8 lg:order-1 lg:col-span-7">
           <section>
             <h2 className="text-[20px] font-semibold">Pemesan</h2>
-            <dl className="mt-4 grid grid-cols-[80px_1fr] gap-y-2 text-[15px]">
+            <dl className="mt-4 grid grid-cols-[80px_minmax(0,1fr)] gap-y-2 text-[15px]">
               <dt className="text-muted">Nama</dt>
               <dd className="font-semibold">{user.name}</dd>
               <dt className="text-muted">Email</dt>
-              <dd className="font-semibold">{user.email}</dd>
+              <dd className="font-semibold [overflow-wrap:anywhere]">{user.email}</dd>
             </dl>
             <p className="mt-2 text-[14px] text-muted">E-tiket dikirim ke email ini.</p>
             <Field

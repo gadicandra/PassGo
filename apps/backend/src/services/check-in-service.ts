@@ -47,7 +47,6 @@ function isWindowOpen(event: AccessEvent, at: Date): boolean {
   return event.status === "PUBLISHED" && at >= effectiveCheckInOpensAt(event) && at <= event.endAt;
 }
 
-// Kontrak §9.12: NOT_FOUND → WRONG_EVENT → CHECK_IN_CLOSED → TICKET_VOID → ALREADY_CHECKED_IN → ACCEPTED. Setiap upaya dicatat.
 export async function scanTicket(eventId: string, viewer: Viewer, input: { code?: string; ticketId?: string }) {
   const event = await assertEventAccess(eventId, viewer);
   const method: CheckInMethod = input.ticketId ? "MANUAL" : "QR";

@@ -10,11 +10,10 @@ import type { EventInput, TicketTypeInput, TicketTypeView } from "../services/ev
 import { AppError } from "../utils/app-error";
 import { assignEventStaff, listEventStaff, removeEventStaff } from "../services/event-staff-service";
 import { getCheckIn, listCheckIns, revertCheckIn, scanTicket } from "../services/check-in-service";
-import { exportAttendeesCsv, listAttendees } from "../services/attendee-service";
+import { exportAttendeesCsv, exportAttendeesXlsx, listAttendees } from "../services/attendee-service";
 import { attendanceReport, salesReport } from "../services/report-service";
 
 const router = Router();
-// Kontrak §9.5: tepat satu berkas `poster`, tanpa field teks, maksimal 2 MB.
 const uploadPoster = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 0, parts: 1 } }).single("poster");
 const date = z.coerce.date();
 const eventStatus = z.enum(["DRAFT", "PUBLISHED", "CANCELLED"]);
@@ -157,8 +156,13 @@ router.get("/:eventId/attendees", eventAccess, async (request, response, next) =
 router.get("/:eventId/attendees/export", authorize("ORGANIZER"), async (request, response, next) => {
   try {
     const query = exportQuery.parse(request.query);
-    if (query.format === "xlsx") throw new AppError(422, "validation-error", "Format xlsx belum didukung; gunakan csv.", { errors: [{ parameter: "format", detail: "Gunakan csv." }] });
-    const file = await exportAttendeesCsv(String(request.params.eventId), viewerOf(request), query.status, auditOf(request));
+    const eventId = String(request.params.eventId);
+    if (query.format === "xlsx") {
+      const file = await exportAttendeesXlsx(eventId, viewerOf(request), query.status, auditOf(request));
+      response.set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet").set("Content-Disposition", `attachment; filename="${file.filename}"`).send(file.body);
+      return;
+    }
+    const file = await exportAttendeesCsv(eventId, viewerOf(request), query.status, auditOf(request));
     response.set("Content-Type", "text/csv; charset=utf-8").set("Content-Disposition", `attachment; filename="${file.filename}"`).send(file.body);
   } catch (error) { next(error); }
 });

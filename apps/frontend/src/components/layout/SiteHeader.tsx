@@ -1,8 +1,6 @@
-import Link from "next/link";
-import { ButtonLink } from "@/components/ui/Button";
+import { AccountMenu } from "./AccountMenu";
 import { Wordmark } from "./Wordmark";
 
-// Tombol Masuk/Daftar di kanan diganti menu akun oleh Adi setelah lapisan auth siap.
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 w-full bg-navy shadow-[0_2px_12px_rgb(20_33_61/0.18)]">
@@ -23,15 +21,7 @@ export function SiteHeader() {
         </form>
 
         <nav className="flex shrink-0 items-center gap-3 md:gap-5">
-          <Link href="/tickets" className="hidden text-[15px] font-semibold text-cream/75 hover:text-cream sm:block">
-            Tiket saya
-          </Link>
-          <ButtonLink href="/login" variant="outline-light" size="sm" className="md:h-10">
-            Masuk
-          </ButtonLink>
-          <ButtonLink href="/register" size="sm" className="hidden sm:inline-flex md:h-10">
-            Daftar
-          </ButtonLink>
+          <AccountMenu />
         </nav>
       </div>
     </header>

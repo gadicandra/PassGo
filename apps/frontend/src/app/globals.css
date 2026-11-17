@@ -18,6 +18,10 @@
   --shadow-card: 0 2px 8px rgb(20 33 61 / 0.08);
   --shadow-card-hover: 0 6px 16px rgb(20 33 61 / 0.14);
   --shadow-hard: 8px 8px 0 #14213d;
+
+  /* Token gerak (skill animation-systems): masuk = ease-ticket, keluar = ease-tear. */
+  --ease-ticket: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-tear: cubic-bezier(0.5, 0, 0.75, 0);
 }
 
 @theme inline {
@@ -71,7 +75,129 @@
   }
 }
 
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Robekan tiket di hero (pasang dengan origin-bottom-left: poros di sudut bawah yang masih menempel).
+   Tiap ketukan punya easing sendiri: tarikan pelan, terkelupas dari atas, bagian bawah lepas, jatuh, diam. */
+@keyframes stub-rip {
+  0% {
+    transform: none;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  14% {
+    /* tarikan: kertas menegang ke arah berlawanan sebelum sobek */
+    transform: translateX(-1px) rotate(-0.4deg);
+    animation-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
+  }
+  58% {
+    /* robekan merambat dari atas ke bawah: bagian atas sudah terkelupas, bawah masih menempel */
+    transform: rotate(4.5deg);
+    animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+  }
+  70% {
+    /* bagian bawah putus, sobekan sedikit terlempar */
+    transform: translate(9px, 3px) rotate(5.2deg);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.25, 1);
+  }
+  100% {
+    /* jatuh sedikit lalu diam miring di samping badan tiket */
+    transform: translate(16px, 10px) rotate(3deg);
+  }
+}
+
+/* Bayangan di bawah sobekan yang terangkat, ikut ketukan stub-rip. */
+@keyframes lift-shadow {
+  0%,
+  14% {
+    opacity: 0;
+  }
+  58% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+/* Serat putih kertas terlihat di tepi sobekan saat robekan lewat. */
+@keyframes fiber-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Ganti slide: sobekan yang sudah robek jatuh berputar keluar. Mulai dari posisi akhir stub-rip. */
+@keyframes stub-fall {
+  from {
+    transform: translate(16px, 10px) rotate(3deg);
+    opacity: 1;
+  }
+  to {
+    transform: translate(90px, 260px) rotate(20deg);
+    opacity: 0;
+  }
+}
+
+/* Garis perforasi "digunting" dari atas ke bawah. Pasang bersama origin-top. */
+@keyframes perf-cut {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* Masuk standar: naik 20px + muncul. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Bagian bawah tiket disobek: tertahan sebentar, lalu lepas miring dan jatuh. */
+@keyframes tear-away {
+  0% {
+    transform: none;
+  }
+  30% {
+    transform: translateY(2px) rotate(-1deg);
+  }
+  100% {
+    transform: translate(12px, 22px) rotate(3deg);
+    opacity: 0;
+  }
+}
+
+/* Muncul saat di-scroll (skill animation-on-scroll). Kelas is-visible dipasang oleh <Reveal>. */
+.reveal {
+  opacity: 0;
+}
+.reveal.is-visible {
+  animation: rise-in 600ms var(--ease-ticket) var(--reveal-delay, 0ms) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+  }
   *,
   *::before,
   *::after {

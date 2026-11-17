@@ -11,7 +11,6 @@ import { EventModel, OrderModel, TicketTypeModel, releaseReservation, type Order
 type RefundableOrder = OrderRecord & { refundStatus: "NOT_REQUIRED" | "REQUIRED" | "REFUNDED" };
 interface ProviderStatus { transaction_status?: string; fraud_status?: string; transaction_id?: string; payment_type?: string; gross_amount?: string }
 
-// Efek refund §9.8 — dipakai endpoint manual (actor = organizer) dan status `refund` dari Midtrans (actor = SYSTEM).
 async function applyRefund(order: RefundableOrder, input: { amount: number; note: string | null }, audit: AuditContext, session: mongoose.ClientSession): Promise<void> {
   const at = new Date();
   const updated = await OrderModel.updateOne(
@@ -48,7 +47,6 @@ export async function refundOrder(orderId: string, input: { amount: number; note
         if (order.status !== "PAID" || order.refundStatus !== "NOT_REQUIRED" || !event || event.endAt <= new Date()) throw new AppError(409, "order-not-refundable", "Pesanan tidak memenuhi syarat refund.");
         if (await Ticket.exists({ orderId, status: "CHECKED_IN" }).session(session)) throw new AppError(409, "order-has-checked-in-tickets", "Pesanan memiliki tiket yang sudah check-in.");
       }
-      // v1 hanya refund penuh (§13).
       if (input.amount !== order.total) throw new AppError(422, "validation-error", "Hanya refund penuh yang didukung.", { errors: [{ pointer: "/amount", detail: `amount harus sama dengan total (${order.total}).` }] });
       await applyRefund(order, input, audit, session);
     });
@@ -75,7 +73,6 @@ async function fetchStatus(orderNumber: string): Promise<ProviderStatus | null> 
   }
 }
 
-// Status Midtrans → transisi lokal, logika sama dengan webhook §9.9 (hanya maju; status tak dikenal tanpa efek).
 async function applyProviderStatus(order: RefundableOrder, status: ProviderStatus): Promise<void> {
   const transactionStatus = status.transaction_status ?? "";
   const paid = ["settlement", "capture"].includes(transactionStatus) && (status.fraud_status === undefined || status.fraud_status === "accept");
@@ -112,7 +109,6 @@ async function applyProviderStatus(order: RefundableOrder, status: ProviderStatu
   } finally { await session.endSession(); }
 }
 
-// §9.8 payment/sync: gratis atau final (tanpa refund REQUIRED) → kembalikan Order tanpa memanggil Midtrans.
 export async function syncPayment(userId: string, role: string, orderId: string): Promise<OrderView> {
   const order = await OrderModel.findOne(role === "ORGANIZER" ? { id: orderId } : { id: orderId, userId }).lean<RefundableOrder>();
   if (!order) throw new AppError(404, "order-not-found", "Pesanan tidak ditemukan.");

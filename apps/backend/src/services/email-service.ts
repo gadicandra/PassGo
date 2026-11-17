@@ -24,7 +24,19 @@ function mailer(): Transporter | null {
   return transporter;
 }
 
-// Backoff eksponensial: 1, 2, 4, 8 menit.
+/**
+ * Kirim antrean outbox sekarang juga (best effort). Cron Vercel Hobby hanya jalan sekali sehari, jadi tanpa ini
+ * email verifikasi/reset/tiket baru terkirim besok. Gagal kirim tidak menggagalkan request: baris tetap di outbox
+ * dan dicoba ulang oleh cron.
+ */
+export async function flushEmailOutbox(): Promise<void> {
+  try {
+    await processEmailOutbox(5);
+  } catch (error) {
+    console.warn("Gagal mengirim outbox email", error);
+  }
+}
+
 export const retryDelayMs = (attempts: number) => 60_000 * 2 ** Math.max(0, attempts - 1);
 
 async function claim(now: Date): Promise<(OutboxRow & { attempts: number }) | null> {

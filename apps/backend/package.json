@@ -12,7 +12,8 @@
     "start": "node dist/index.js",
     "test": "tsx --test --env-file-if-exists=.env \"tests/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
-    "db:seed": "tsx --env-file-if-exists=.env scripts/seed-organizer.ts"
+    "db:seed": "tsx --env-file-if-exists=.env scripts/seed-organizer.ts",
+    "db:seed:demo": "tsx --env-file-if-exists=.env scripts/seed-demo-events.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

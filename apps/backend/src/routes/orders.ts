@@ -5,6 +5,7 @@ import { cancelOrder, createOrder, getOrder, listOrders, resendTicketEmail } fro
 import { runIdempotent } from "../services/idempotency-service";
 import { authorize } from "../middlewares/authorize";
 import { refundOrder, syncPayment } from "../services/order-payment-service";
+import { flushEmailOutbox } from "../services/email-service";
 
 const router = Router();
 const orderBody = z.object({
@@ -21,7 +22,6 @@ const cancelBody = z.object({ reason: z.string().trim().max(500).optional() }).s
 export const refundBody = z.object({ amount: z.number().int().min(1), note: z.string().trim().min(5).max(500) }).strict();
 
 router.use(authenticate);
-// Kontrak §9.8: GET/cancel hanya untuk ATTENDEE (miliknya) dan ORGANIZER; STAFF tidak punya pesanan.
 const buyerOrOrganizer = authorize("ATTENDEE", "ORGANIZER");
 
 router.post("/", async (request, response, next) => {
@@ -48,11 +48,11 @@ router.post("/:orderId/cancel", buyerOrOrganizer, async (request, response, next
 });
 
 router.post("/:orderId/ticket-email", buyerOrOrganizer, async (request, response, next) => {
-  try { const user = (request as unknown as AuthenticatedRequest).user; response.status(202).json({ data: await resendTicketEmail(user.sub, user.role, String(request.params.orderId)) }); } catch (error) { next(error); }
+  try { const user = (request as unknown as AuthenticatedRequest).user; const data = await resendTicketEmail(user.sub, user.role, String(request.params.orderId)); await flushEmailOutbox(); response.status(202).json({ data }); } catch (error) { next(error); }
 });
 
 router.post("/:orderId/payment/sync", buyerOrOrganizer, async (request, response, next) => {
-  try { const user = (request as unknown as AuthenticatedRequest).user; response.json({ data: await syncPayment(user.sub, user.role, String(request.params.orderId)) }); } catch (error) { next(error); }
+  try { const user = (request as unknown as AuthenticatedRequest).user; const data = await syncPayment(user.sub, user.role, String(request.params.orderId)); await flushEmailOutbox(); response.json({ data }); } catch (error) { next(error); }
 });
 
 router.post("/:orderId/refund", authorize("ORGANIZER"), async (request, response, next) => {

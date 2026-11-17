@@ -137,6 +137,25 @@ export interface OrderSummary {
   createdAt: string;
 }
 
+/**
+ * Item GET /orders apa adanya dari backend saat ini (dokumen mentah, belum berbentuk OrderSummary,
+ * tanpa judul acara & jumlah tiket). Pakai lib/orders.ts untuk mengubahnya ke baris tampilan.
+ */
+export interface OrderRecord {
+  id: string;
+  orderNumber: string;
+  userId: string;
+  eventId: string;
+  status: OrderStatus;
+  items: OrderItem[];
+  total: number;
+  buyerName: string;
+  buyerEmail: string;
+  refundStatus: RefundStatus;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
 export interface TicketSummary {
   id: string;
   codeMasked: string;
@@ -147,6 +166,10 @@ export interface TicketSummary {
   checkedInAt: string | null;
 }
 
+/**
+ * Catatan: backend saat ini belum mengisi eventTitle, eventStartAt, ticketCount, dan buyer pada Order;
+ * ambil acara lewat GET /events/:eventId bila butuh judul/tanggal.
+ */
 export interface Order extends OrderSummary {
   items: OrderItem[];
   subtotal: number;

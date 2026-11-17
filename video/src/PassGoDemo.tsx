@@ -3,13 +3,13 @@ import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
 import { Fragment } from "react";
 import { AbsoluteFill, useCurrentFrame } from "remotion";
-import { chapterSubtitle, checkInFlow, demo, orderFlow } from "./content";
+import { chapterSubtitle, checkInFlow, demo, orderFlow, organizerFlow } from "./content";
 import { About, Architecture, Background, DemoShot, DemoTitle, FlowScene, Intro, Outro, PhoneShots, SectionBar, Team, Tech, type Section } from "./scenes";
 import { sec } from "./theme";
 
 const TRANSITION = sec(0.5);
 // Durasi disusun supaya total ± 9 menit 30 detik (batas tugas 10 menit). Narasi tiap adegan ada di NASKAH.md.
-const SHOT = sec(14); // tiap layar demo: cukup untuk 2-3 kalimat narasi
+const SHOT = sec(13); // tiap layar demo: cukup untuk 2-3 kalimat narasi
 
 type Scene = { key: string; frames: number; node: React.ReactNode; section?: Section; dark?: boolean; slideIn?: boolean };
 
@@ -23,6 +23,7 @@ export const scenes: Scene[] = [
   { key: "architecture", frames: sec(40), node: <Architecture />, section: "Teknologi" },
   { key: "flow-order", frames: sec(38), node: <FlowScene flow={orderFlow} />, section: "Alur" },
   { key: "flow-checkin", frames: sec(38), node: <FlowScene flow={checkInFlow} />, section: "Alur" },
+  { key: "flow-organizer", frames: sec(32), node: <FlowScene flow={organizerFlow} />, section: "Alur" },
   ...demo.flatMap((shot, index) => {
     const first = index === 0 || demo[index - 1].chapter !== shot.chapter;
     return [

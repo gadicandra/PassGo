@@ -74,6 +74,27 @@ export const orderFlow: Flow = {
   ],
 };
 
+export const organizerFlow: Flow = {
+  title: "Alur Pengajuan Penyelenggara",
+  caption: "Hanya superadmin yang dapat meninjau pengajuan, dan setiap keputusan tercatat di log audit.",
+  nodes: [
+    { id: "start", kind: "start", c: 0, r: 0, label: "Mulai" },
+    { id: "form", kind: "io", c: 0, r: 1, label: "Isi formulir Jadi Penyelenggara" },
+    { id: "d1", kind: "dec", c: 1, r: 1, label: "Bebas tiket aktif?" },
+    { id: "wait", kind: "proc", c: 2, r: 1, label: "Pengajuan menunggu peninjauan" },
+    { id: "d2", kind: "dec", c: 3, r: 1, label: "Superadmin menyetujui?" },
+    { id: "role", kind: "proc", c: 4, r: 1, label: "Peran menjadi penyelenggara" },
+    { id: "done", kind: "end", c: 5, r: 1, label: "Membuat acara pertama", tone: "ok" },
+    { id: "blocked", kind: "end", c: 1, r: 2, label: "Ditolak sistem", tone: "bad" },
+    { id: "rejected", kind: "end", c: 3, r: 2, label: "Ditolak, boleh ajukan ulang", tone: "warn" },
+  ],
+  edges: [
+    { from: "start", to: "form" }, { from: "form", to: "d1" }, { from: "d1", to: "wait", label: "Ya" }, { from: "wait", to: "d2" },
+    { from: "d2", to: "role", label: "Ya" }, { from: "role", to: "done" },
+    { from: "d1", to: "blocked", label: "Tidak" }, { from: "d2", to: "rejected", label: "Tidak" },
+  ],
+};
+
 export const checkInFlow: Flow = {
   title: "Alur Check-in di Pintu Masuk",
   caption: "Pemeriksaan terakhir bersifat atomik. Jika dua panitia memindai tiket yang sama bersamaan, hanya satu yang diterima.",
@@ -128,7 +149,7 @@ export const tech = [
   { group: "Frontend", items: ["Next.js 16", "React 19", "TypeScript", "Tailwind CSS 4"] },
   { group: "Backend", items: ["Node.js dan Express 5", "MongoDB Atlas", "Mongoose", "Zod"] },
   { group: "Integrasi", items: ["Midtrans Snap", "Google Sign-In", "Supabase Storage", "SMTP Email"] },
-  { group: "Deployment & Pengujian", items: ["Vercel dan Azure", "GitHub Actions", "Postman dan Newman", "node:test"] },
+  { group: "Deployment & Pengujian", items: ["Azure App Service", "GitHub Actions", "Postman dan Newman", "node:test"] },
 ];
 
 /** `focus`: titik (persen x, y) yang didekati kamera selama layar tampil. */

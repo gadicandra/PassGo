@@ -1,7 +1,7 @@
 # Video PassGo (Remotion)
 
 Video presentasi & demo M2 (maks. 10 menit): latar belakang, pengenalan aplikasi, pembagian tugas, teknologi, arsitektur, keamanan, dan demo.
-Durasi ± 9 menit 34 detik. Naskah narasi tiap adegan ada di `NASKAH.md`. Proyek ini terpisah dari workspace aplikasi.
+Durasi ± 9 menit 42 detik. Naskah narasi tiap adegan ada di `NASKAH.md`. Proyek ini terpisah dari workspace aplikasi.
 
 ```bash
 cd video

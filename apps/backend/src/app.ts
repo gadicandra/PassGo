@@ -1,3 +1,4 @@
+import "./validators/zod-locale";
 import cors from "cors";
 import express, { type RequestHandler } from "express";
 import helmet from "helmet";

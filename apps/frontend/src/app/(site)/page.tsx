@@ -126,7 +126,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
       )}
 
       {free.length > 0 && (
-        <section className="my-8 w-full border-y-2 border-navy bg-sun py-12">
+        <section className="my-8 w-full bg-sun py-12">
           <div className="mx-auto max-w-[1200px] px-4 md:px-8">
             <SectionHeading title="Gratis, tinggal datang" icon={Ticket} count={free.length} href="/?filter=gratis" className="border-navy/20" />
             <div className="grid gap-6 md:grid-cols-3">

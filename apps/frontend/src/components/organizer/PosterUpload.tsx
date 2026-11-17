@@ -59,7 +59,7 @@ function FilePicker({ label, disabled, onPick }: { label: string; disabled?: boo
 function Preview({ event }: { event: Pick<Event, "id" | "title" | "startAt" | "timezone" | "posterUrl" | "status" | "salesStatus"> }) {
   return (
     <div className="w-full max-w-[280px]">
-      <Poster event={event} />
+      <Poster event={event} stock={false} />
     </div>
   );
 }

@@ -23,3 +23,20 @@ export const categories: Category[] = [
 export const categoryBySlug = (slug: unknown) => categories.find((category) => category.slug === slug);
 
 export const inCategory = (category: Category) => (event: Pick<EventSummary, "title">) => category.match.test(event.title);
+
+// Foto cadangan per kategori (Unsplash License, bebas dipakai) di public/posters, untuk acara tanpa poster sendiri.
+const STOCK_VARIANTS = 2;
+
+function hash(text: string): number {
+  let value = 0;
+  for (const char of text) value = (value * 31 + char.charCodeAt(0)) >>> 0;
+  return value;
+}
+
+/** Poster acara: unggahan organizer bila ada, kalau tidak foto stok sesuai kategori (variasi stabil per acara). */
+export function posterSrc(event: Pick<EventSummary, "id" | "title" | "posterUrl">): string {
+  if (event.posterUrl) return event.posterUrl;
+  const category = categories.find((item) => item.match.test(event.title));
+  if (!category) return "/posters/umum-1.webp";
+  return `/posters/${category.slug}-${(hash(event.id) % STOCK_VARIANTS) + 1}.webp`;
+}

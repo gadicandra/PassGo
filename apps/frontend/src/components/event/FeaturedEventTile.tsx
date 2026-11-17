@@ -5,6 +5,7 @@ import { SoonBadge } from "./SoonBadge";
 import type { EventSummary } from "@/types/api";
 import { cn } from "@/lib/cn";
 import { dateParts, formatDate, formatTime } from "@/lib/format";
+import { posterSrc } from "@/lib/categories";
 import { DateBlock, posterPalette, posterWords } from "./Poster";
 
 // Tile landscape untuk acara terdekat: judul besar di 60% kiri, foto di 40% kanan dengan tepi tegas.
@@ -34,16 +35,14 @@ export function FeaturedEventTile({ event, tone, className }: { event: EventSumm
             ))}
           </p>
         </div>
-        {event.posterUrl && (
-          <div className="hidden w-[40%] border-l-2 border-navy sm:block">
-            {/* eslint-disable-next-line @next/next/no-img-element -- poster dari Supabase / uploads backend */}
-            <img
-              src={event.posterUrl}
-              alt=""
-              className="size-full object-cover contrast-125 grayscale transition duration-200 group-hover:grayscale-0"
-            />
-          </div>
-        )}
+        <div className="hidden w-[40%] overflow-hidden sm:block">
+          {/* eslint-disable-next-line @next/next/no-img-element -- poster dari Supabase / uploads backend */}
+          <img
+            src={posterSrc(event)}
+            alt=""
+            className="size-full object-cover transition duration-500 group-hover:scale-105"
+          />
+        </div>
       </div>
       <div className="mt-3 flex flex-col">
         <p className="flex items-center gap-1.5 text-[13px] font-medium text-muted">

@@ -1,5 +1,6 @@
 import type { EventSummary } from "@/types/api";
 import { cn } from "@/lib/cn";
+import { posterSrc } from "@/lib/categories";
 import { dateParts } from "@/lib/format";
 
 // Poster CSS 4:5 dari desain Stitch: blok warna solid + 2-3 kata kunci judul + foto duotone di zona sendiri.
@@ -8,11 +9,12 @@ import { dateParts } from "@/lib/format";
 type PosterEvent = Pick<EventSummary, "id" | "title" | "startAt" | "timezone" | "posterUrl" | "status" | "salesStatus">;
 type Size = "sm" | "md" | "lg";
 
+// `fade`: gradasi warna yang sama di atas foto, supaya judul tetap terbaca di poster berfoto.
 const palettes = [
-  { bg: "bg-brand", fg: "text-cream" },
-  { bg: "bg-navy", fg: "text-sun" },
-  { bg: "bg-sun", fg: "text-navy" },
-  { bg: "bg-teal", fg: "text-cream" },
+  { bg: "bg-brand", fg: "text-cream", fade: "from-brand via-brand/75" },
+  { bg: "bg-navy", fg: "text-sun", fade: "from-navy via-navy/75" },
+  { bg: "bg-sun", fg: "text-navy", fade: "from-sun via-sun/80" },
+  { bg: "bg-teal", fg: "text-cream", fade: "from-teal via-teal/75" },
 ] as const;
 
 const titleSize: Record<Size, string> = {
@@ -47,7 +49,7 @@ function hash(text: string): number {
  * supaya poster yang bersebelahan tidak pernah berwarna sama. Dipakai juga oleh hero & header detail.
  */
 export function posterPalette(event: Pick<EventSummary, "id" | "status">, tone?: number) {
-  if (event.status === "CANCELLED") return { bg: "bg-cream", fg: "text-navy" };
+  if (event.status === "CANCELLED") return { bg: "bg-cream", fg: "text-navy", fade: "from-cream via-cream/85" };
   return palettes[(tone ?? hash(event.id)) % palettes.length];
 }
 
@@ -55,18 +57,20 @@ export function Poster({
   event,
   size = "md",
   tone,
+  stock = true,
   className,
 }: {
   event: PosterEvent;
   size?: Size;
   /** Indeks warna; lihat posterPalette. */
   tone?: number;
+  /** Tanpa poster unggahan: pakai foto stok kategori. Matikan di pratinjau unggah organizer. */
+  stock?: boolean;
   className?: string;
 }) {
   const cancelled = event.status === "CANCELLED";
   const soldOut = !cancelled && event.salesStatus === "SOLD_OUT";
   const palette = posterPalette(event, tone);
-  const photoOnTop = hash(event.id) % 2 === 1;
   const { day, month } = dateParts(event.startAt, event.timezone);
 
   const title = (
@@ -85,20 +89,7 @@ export function Poster({
     </p>
   );
 
-  const photo = event.posterUrl && (
-    <div className={cn("w-full overflow-hidden", photoOnTop ? "h-[55%] border-b-2 border-navy" : "h-[46%] border-t border-navy/20")}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- poster bisa dari Supabase atau /uploads backend */}
-      <img
-        src={event.posterUrl}
-        alt=""
-        loading="lazy"
-        className={cn(
-          "size-full object-cover contrast-125 grayscale transition duration-200",
-          cancelled ? "opacity-60" : "opacity-80 mix-blend-multiply group-hover:opacity-100 group-hover:mix-blend-normal group-hover:grayscale-0",
-        )}
-      />
-    </div>
-  );
+  const src = stock ? posterSrc(event) : event.posterUrl;
 
   return (
     <div
@@ -110,20 +101,33 @@ export function Poster({
         className,
       )}
     >
+      {/* Poster berfoto: foto penuh, gradasi warna palet dari bawah supaya judul terbaca (pola poster Loket). */}
+      {src && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element -- poster bisa dari Supabase, /uploads backend, atau foto stok */}
+          <img
+            src={src}
+            alt=""
+            loading="lazy"
+            className={cn(
+              "absolute inset-0 size-full object-cover transition duration-500 group-hover:scale-105",
+              cancelled && "grayscale opacity-60",
+            )}
+          />
+          <span aria-hidden className={cn("absolute inset-0 bg-gradient-to-t to-transparent", palette.fade)} />
+        </>
+      )}
+
       {soldOut && (
         <span className="absolute -right-9 top-5 z-10 rotate-45 bg-navy px-10 py-1 font-display text-[11px] font-extrabold tracking-[0.15em] text-cream">
           HABIS
         </span>
       )}
 
-      {photoOnTop && photo}
-
-      <div className={cn("flex flex-1 flex-col gap-2", padding[size], !event.posterUrl && "justify-between")}>
+      <div className={cn("relative flex flex-1 flex-col justify-between gap-2", padding[size])}>
         <DateBlock day={day} month={month} size={size} muted={cancelled} />
         {title}
       </div>
-
-      {!photoOnTop && photo}
     </div>
   );
 }

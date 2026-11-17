@@ -91,7 +91,10 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[sl
         </div>
         <div aria-hidden className="absolute bottom-0 left-[70%] top-0 hidden border-r-2 border-dotted border-cream/40 md:block" />
         <div className="relative hidden w-[30%] items-center justify-center md:flex">
-          <Poster event={event} size="lg" className="w-[240px] rotate-[4deg] shadow-card-hover" />
+          {/* Lebar diatur pembungkus: Poster selalu w-full, jadi kelas lebar langsung di Poster tidak berlaku. */}
+          <div className="w-[210px] lg:w-[230px]">
+            <Poster event={event} size="lg" className="shadow-[0_20px_40px_rgb(0_0_0/0.35)]" />
+          </div>
         </div>
       </header>
 

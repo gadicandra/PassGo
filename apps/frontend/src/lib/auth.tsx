@@ -86,7 +86,7 @@ export function useAuth() {
 
 /** Halaman tujuan setelah login per peran. */
 export function homeFor(role: Role) {
-  if (role === "ORGANIZER") return "/organizer/users";
+  if (role === "ORGANIZER") return "/organizer/events";
   if (role === "STAFF") return "/staff";
   return "/";
 }

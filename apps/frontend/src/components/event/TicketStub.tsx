@@ -33,7 +33,7 @@ export function TicketStub({
         } as CSSProperties
       }
       className={cn(
-        "ticket-notch flex overflow-hidden rounded-card border-2 border-navy bg-white shadow-card",
+        "ticket-notch flex overflow-hidden rounded-card bg-white shadow-card",
         className,
       )}
     >

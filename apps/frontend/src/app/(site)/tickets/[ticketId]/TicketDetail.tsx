@@ -120,7 +120,7 @@ function QrPanel({ ticket }: { ticket: Ticket }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-card border-2 border-navy bg-white p-5 shadow-card">
+    <div className="overflow-hidden rounded-card bg-white p-5 shadow-card">
       <div className="flex items-baseline justify-between gap-3">
         <p className="font-semibold">{ticket.holderName}</p>
         <p className={cn("text-[15px] font-semibold", toneClass[status.tone])}>{status.label}</p>

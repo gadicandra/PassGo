@@ -21,7 +21,7 @@ export function OrderSummaryStub({
   footer?: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-card border-2 border-navy bg-white">
+    <div className="overflow-hidden rounded-card bg-white shadow-card">
       <div className="flex gap-4 p-5">
         <div className="w-24 shrink-0">
           <Poster event={event} size="sm" />

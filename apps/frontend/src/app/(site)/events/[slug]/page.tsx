@@ -50,7 +50,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[sl
         </div>
         <div aria-hidden className="absolute bottom-0 left-[70%] top-0 hidden border-r-2 border-dotted border-current opacity-40 md:block" />
         <div className="hidden w-[30%] items-center justify-center md:flex">
-          <Poster event={event} size="lg" className="w-[240px] -translate-y-6 rotate-[4deg] border-2 border-navy shadow-hard" />
+          <Poster event={event} size="lg" className="w-[240px] -translate-y-6 rotate-[4deg] shadow-card-hover" />
         </div>
       </header>
 

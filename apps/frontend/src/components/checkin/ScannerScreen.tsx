@@ -211,7 +211,7 @@ export function ScannerScreen({ eventId }: { eventId: string }) {
                 {history.map((item) => (
                   <li key={item.id} className="flex items-baseline justify-between gap-3 py-2 text-[14px]">
                     <span className="min-w-0 truncate">
-                      {item.outcome.holderName ?? item.outcome.detail}
+                      {item.outcome.holderName ?? item.outcome.title}
                       {item.outcome.ticketTypeName && <span className="text-cream/60"> · {item.outcome.ticketTypeName}</span>}
                     </span>
                     <span className={cn("shrink-0 font-semibold", item.outcome.kind === "success" ? "text-sun" : item.outcome.kind === "warning" ? "text-cream" : "text-[#ff9b8a]")}>

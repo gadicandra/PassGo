@@ -13,6 +13,7 @@ const links: Record<Role, Array<{ href: string; label: string }>> = {
   ],
   STAFF: [{ href: "/staff", label: "Acara saya" }],
   ORGANIZER: [
+    { href: "/organizer/events", label: "Acara" },
     { href: "/organizer/orders", label: "Pesanan" },
     { href: "/organizer/users", label: "Pengguna" },
     { href: "/organizer/audit-logs", label: "Log audit" },

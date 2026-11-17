@@ -108,7 +108,7 @@ export function RefundPanel({ orderId, onClose, onChanged }: { orderId: string; 
   }
 
   return (
-    <div className="overflow-hidden rounded-card border-2 border-navy bg-white">
+    <div className="overflow-hidden rounded-card bg-white shadow-card">
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <p className="font-mono text-[16px]">{order.orderNumber}</p>

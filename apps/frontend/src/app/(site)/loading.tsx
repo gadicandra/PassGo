@@ -5,8 +5,8 @@ export default function CatalogLoading() {
     <div className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-8 md:py-12" aria-busy aria-label="Memuat acara">
       <Skeleton className="h-[360px] w-full rounded-2xl md:h-[440px]" />
       <div className="mt-8 flex gap-3">
-        {[80, 104, 96, 80].map((width) => (
-          <Skeleton key={width} className="h-10 rounded-lg" style={{ width }} />
+        {[80, 104, 96, 80].map((width, index) => (
+          <Skeleton key={index} className="h-10 rounded-lg" style={{ width }} />
         ))}
       </div>
       <Skeleton className="mt-10 h-10 w-56" />

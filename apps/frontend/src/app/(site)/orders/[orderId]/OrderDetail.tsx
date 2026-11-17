@@ -218,7 +218,7 @@ function StatusBlock({
     const emailFailed = order.ticketEmailStatus === "FAILED";
     return (
       <section className="rounded-card bg-teal p-6 text-cream md:p-8">
-        <h1 className="font-display text-[32px] font-extrabold leading-tight">Pembayaran diterima</h1>
+        <h1 className="font-display text-[32px] font-extrabold leading-tight">{order.total === 0 ? "Tiket berhasil diambil" : "Pembayaran diterima"}</h1>
         <p className="mt-2">
           {emailFailed
             ? "Email gagal terkirim."
@@ -241,7 +241,7 @@ function StatusBlock({
   }
 
   return (
-    <section className="rounded-card border-2 border-navy bg-cream p-6 md:p-8">
+    <section className="rounded-card bg-white p-6 shadow-card md:p-8">
       <h1 className="font-display text-[32px] font-extrabold leading-tight">
         {order.status === "EXPIRED" ? "Waktu pembayaran habis" : "Pesanan dibatalkan"}
       </h1>

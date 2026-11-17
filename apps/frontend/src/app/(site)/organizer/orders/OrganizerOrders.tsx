@@ -117,8 +117,8 @@ export function OrganizerOrders() {
         })}
       </div>
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-12">
-        <div className={cn("overflow-x-auto", selectedRow ? "lg:col-span-8" : "lg:col-span-12")}>
+      <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-12">
+        <div className={cn("min-w-0 overflow-x-auto", selectedRow ? "lg:col-span-8" : "lg:col-span-12")}>
           {!rows ? (
             <div className="flex flex-col gap-2" aria-busy aria-label="Memuat pesanan">
               {Array.from({ length: 8 }, (_, i) => (

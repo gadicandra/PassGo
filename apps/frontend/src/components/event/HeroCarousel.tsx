@@ -11,7 +11,7 @@ import { TEAR_DEPTH, tornEdge } from "./tornEdge";
 
 const AUTO_ADVANCE_MS = 7000;
 const FALL_MS = 700;
-const STUB_POSTER = "rotate-[4deg] border-2 border-navy shadow-hard";
+const STUB_POSTER = "rotate-[4deg] shadow-card-hover";
 
 /** Poster navy di atas hero navy akan hilang, jadi hero pakai oranye untuk acara berposter navy. */
 function heroPalette(event: EventSummary) {

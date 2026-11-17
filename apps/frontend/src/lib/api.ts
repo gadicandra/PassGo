@@ -69,9 +69,11 @@ async function send<T>(path: string, options: RequestOptions = {}): Promise<Enve
   for (const [key, value] of Object.entries(options.query ?? {})) {
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
   }
+  // FormData (upload poster) dikirim apa adanya; browser yang mengisi Content-Type + boundary multipart.
+  const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
   const headers: Record<string, string> = { "X-Requested-With": "fetch" };
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  if (options.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
   if (options.version !== undefined) headers["X-If-Match"] = `"${options.version}"`;
   if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
 
@@ -80,7 +82,7 @@ async function send<T>(path: string, options: RequestOptions = {}): Promise<Enve
     response = await fetch(url.pathname + url.search, {
       method: options.method ?? "GET",
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: isForm ? (options.body as FormData) : options.body === undefined ? undefined : JSON.stringify(options.body),
       credentials: "same-origin",
       signal: options.signal,
     });

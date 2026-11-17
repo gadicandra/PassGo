@@ -10,8 +10,6 @@ import { initModels } from "./src/models";
 let ready: Promise<void> | null = null;
 const ensureDatabase = () => (ready ??= connectDatabase().then(initModels).catch((error: unknown) => { ready = null; throw error; }));
 
-app.set("trust proxy", 1);
-
 const server = express();
 server.disable("x-powered-by");
 server.use(async (request, response, next) => {

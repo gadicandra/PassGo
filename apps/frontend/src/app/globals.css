@@ -193,6 +193,12 @@
 .reveal.is-visible {
   animation: rise-in 600ms var(--ease-ticket) var(--reveal-delay, 0ms) both;
 }
+/* Tanpa JS (atau JS gagal dimuat) kelas is-visible tak pernah dipasang: konten jangan ikut hilang. */
+@media (scripting: none) {
+  .reveal {
+    opacity: 1;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .reveal {

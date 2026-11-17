@@ -17,8 +17,9 @@ const palettes = [
 
 const titleSize: Record<Size, string> = {
   sm: "text-[12px]",
-  md: "text-[28px]",
-  lg: "text-[30px]",
+  // Ikut lebar poster (cqw) supaya kata panjang seperti "KERONCONG" tidak terpotong di kartu sempit (grid 2 kolom HP).
+  md: "text-[min(28px,12cqw)]",
+  lg: "text-[min(30px,12.5cqw)]",
 };
 
 const padding: Record<Size, string> = { sm: "p-2.5", md: "p-4", lg: "p-5" };
@@ -104,7 +105,7 @@ export function Poster({
       role="img"
       aria-label={`Poster ${event.title}`}
       className={cn(
-        "relative flex aspect-[4/5] w-full flex-col overflow-hidden rounded-card border border-navy/15",
+        "@container relative flex aspect-[4/5] w-full flex-col overflow-hidden rounded-card border border-navy/15",
         palette.bg,
         className,
       )}

@@ -32,9 +32,15 @@ export function CatalogFilters({ active, q }: { active: CatalogFilter; q?: strin
             aria-current={isActive ? "page" : undefined}
             className={cn(
               "shrink-0 rounded-lg border px-6 py-2 text-[14px] font-bold transition-colors",
-              isActive ? "border-brand bg-brand text-white" : "border-navy/25 bg-white text-navy hover:bg-navy/5",
+              "inline-flex items-center gap-2",
+              isActive
+                ? "border-brand bg-brand text-white"
+                : filter.value === "gratis"
+                  ? "border-teal/60 bg-teal/10 text-teal hover:bg-teal/15"
+                  : "border-navy/25 bg-white text-navy hover:bg-navy/5",
             )}
           >
+            {filter.value === "gratis" && !isActive && <span aria-hidden className="size-2 rounded-full bg-teal" />}
             {filter.label}
           </Link>
         );

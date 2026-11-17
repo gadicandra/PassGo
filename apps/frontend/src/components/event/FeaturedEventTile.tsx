@@ -1,15 +1,14 @@
 import Link from "next/link";
+import { PriceLabel } from "./PriceLabel";
 import type { EventSummary } from "@/types/api";
 import { cn } from "@/lib/cn";
-import { dateParts, formatTime } from "@/lib/format";
-import { eventPriceLine, toneClass } from "@/lib/status";
+import { dateParts, formatDate, formatTime } from "@/lib/format";
 import { DateBlock, posterPalette, posterWords } from "./Poster";
 
 // Tile landscape untuk acara terdekat: judul besar di 60% kiri, foto di 40% kanan dengan tepi tegas.
 // Tingginya sama dengan poster 4:5 di kolom sebelahnya supaya baris tidak berlubang.
 export function FeaturedEventTile({ event, tone, className }: { event: EventSummary; tone?: number; className?: string }) {
   const palette = posterPalette(event, tone);
-  const price = eventPriceLine(event);
   const { day, month } = dateParts(event.startAt, event.timezone);
 
   return (
@@ -43,14 +42,17 @@ export function FeaturedEventTile({ event, tone, className }: { event: EventSumm
           </div>
         )}
       </div>
-      <div className="mt-3 flex flex-col gap-0.5">
-        <h3 className="font-display text-[20px] font-extrabold leading-snug tracking-tight text-navy group-hover:text-brand">
+      <div className="mt-3 flex flex-col">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted">
+          {formatDate(event.startAt, event.timezone).replace(/ \d{4}$/, "")} · {formatTime(event.startAt, event.timezone)}
+        </p>
+        <h3 className="mt-1 font-display text-[20px] font-extrabold leading-snug tracking-tight text-navy transition-colors group-hover:text-brand">
           {event.title}
         </h3>
-        <p className="text-[13px] text-muted">
-          {event.venueName} · {formatTime(event.startAt, event.timezone)} WIB
-        </p>
-        <p className={cn("text-[14px] font-bold", toneClass[price.tone])}>{price.label}</p>
+        <p className="mt-0.5 truncate text-[13px] text-muted">{event.venueName}</p>
+        <div className="mt-3 border-t border-dashed border-navy/20 pt-2.5">
+          <PriceLabel event={event} />
+        </div>
       </div>
     </Link>
   );

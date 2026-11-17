@@ -1,14 +1,16 @@
-// Tepi kertas sobek untuk hero tiket, mengikuti teknik skill paper-cinder-transition (Meng To):
-// tepi = noise lebar + noise halus di sepanjang garis (bukan gerigi seragam), dan setiap acara
-// punya silhouette sendiri lewat seed, supaya dua robekan tidak pernah sama.
+// Tepi kertas sobek untuk hero tiket. Tiket asli sobek mengikuti garis perforasi: hampir lurus,
+// ada lekuk kecil di tiap lubang, plus serat halus yang tidak beraturan. Jadi tepi = lekuk perforasi
+// + noise lebar tipis + noise halus, per acara beda lewat seed (tidak ada dua robekan yang sama).
 
 /** Tinggi hero desktop (md:h-[440px]); titik tepi dihitung dalam piksel sepanjang tinggi ini. */
 export const TEAR_HEIGHT = 440;
 /** Lebar maksimum sobekan masuk ke badan tiket. Sobekan menimpa badan selebar ini. */
 export const TEAR_DEPTH = 14;
 /** Tebal serat putih kertas yang terlihat di tepi setelah robek. */
-const FIBER = 3;
-const STEP = 5;
+const FIBER = 2;
+/** Jarak antar lubang perforasi di sepanjang garis sobek. */
+export const HOLE_GAP = 14;
+const STEP = 2;
 
 function hash(text: string): number {
   let value = 2166136261;
@@ -45,12 +47,15 @@ export function tornEdge(id: string): TornEdge {
   const broad = valueNoise(seed);
   const fine = valueNoise(seed ^ 0x9e3779b9);
 
-  // Kedalaman sobekan di tiap titik y: lekukan lebar 8px + serat halus 3px, dijaga 1..TEAR_DEPTH-FIBER.
+  // Kedalaman sobekan di tiap titik y: dasar 5px, lekuk 2px di tiap lubang perforasi, gelombang lebar 2,5px,
+  // serat halus 1,2px. Cukup tidak beraturan supaya terlihat kertas, tapi tetap rapi mengikuti garis.
   const ys: number[] = [];
   for (let y = 0; y <= TEAR_HEIGHT; y += STEP) ys.push(y);
   if (ys[ys.length - 1] !== TEAR_HEIGHT) ys.push(TEAR_HEIGHT);
   const depth = ys.map((y) => {
-    const d = 2 + 8 * broad(y * 0.045) + 3 * fine(y * 0.22);
+    const hole = Math.abs(((y + HOLE_GAP / 2) % HOLE_GAP) - HOLE_GAP / 2);
+    const scallop = hole < 4 ? 2 * Math.cos((hole / 4) * (Math.PI / 2)) : 0;
+    const d = 5 + scallop + 2.5 * broad(y * 0.03) + 1.2 * fine(y * 0.35);
     return Math.min(TEAR_DEPTH - FIBER, Math.max(1, d));
   });
 

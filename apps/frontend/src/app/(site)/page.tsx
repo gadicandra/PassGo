@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { EventSummary } from "@/types/api";
 import { CatalogFilters, parseFilter, type CatalogFilter } from "@/components/event/CatalogFilters";
+import { AgendaList } from "@/components/event/AgendaList";
 import { EventCard } from "@/components/event/EventCard";
 import { FeaturedEventTile } from "@/components/event/FeaturedEventTile";
 import { HeroCarousel } from "@/components/event/HeroCarousel";
@@ -141,8 +142,8 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
 
       {others.length > 0 && (
         <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-8">
-          <SectionHeading title="Acara lainnya" count={others.length} />
-          <EventGrid events={others} />
+          <SectionHeading title="Agenda berikutnya" count={others.length} />
+          <AgendaList events={others} />
         </section>
       )}
     </>

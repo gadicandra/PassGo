@@ -7,7 +7,8 @@ import { cn } from "@/lib/cn";
 import { formatDate, formatTime } from "@/lib/format";
 import { eventPriceLine } from "@/lib/status";
 import { Poster, posterPalette } from "./Poster";
-import { TEAR_DEPTH, tornEdge } from "./tornEdge";
+import { FreeBadge } from "./PriceLabel";
+import { HOLE_GAP, TEAR_DEPTH, tornEdge } from "./tornEdge";
 
 const AUTO_ADVANCE_MS = 7000;
 const FALL_MS = 700;
@@ -120,7 +121,7 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
               </p>
             </div>
             <div className="relative flex animate-[rise-in_500ms_var(--ease-ticket)_160ms_both] flex-wrap items-center gap-5">
-              <p className="text-[24px] font-semibold tabular-nums md:text-[28px]">{price.label}</p>
+              {price.label === "Gratis" ? <FreeBadge size="lg" /> : <p className="text-[24px] font-semibold tabular-nums md:text-[28px]">{price.label}</p>}
               <ButtonLink href={`/events/${event.slug}`} variant="dark">
                 Beli tiket
               </ButtonLink>
@@ -194,12 +195,17 @@ function StubPiece({
       style={{ "--edge": edge.stub, "--fiber": edge.stubFiber } as CSSProperties}
       className={cn("relative flex h-full items-center justify-center rounded-r-2xl [clip-path:var(--edge)]", className)}
     >
-      {/* Lubang perforasi tepat di sepanjang garis sobek. */}
+      {/* Lubang perforasi di sepanjang garis sobek, berjarak sama dengan lekuk tepi (HOLE_GAP) supaya sejajar. */}
       <span
         aria-hidden
-        style={{ left: TEAR_DEPTH - 6 }}
+        style={{
+          left: TEAR_DEPTH - 8,
+          backgroundImage: "radial-gradient(circle, currentColor 1.6px, transparent 2.2px)",
+          backgroundSize: `5px ${HOLE_GAP}px`,
+          backgroundPosition: `0 ${-HOLE_GAP / 2}px`,
+        }}
         className={cn(
-          "absolute bottom-3 top-3 origin-top border-l-2 border-dotted border-current opacity-40",
+          "absolute inset-y-0 w-[5px] origin-top opacity-30",
           !settled && "animate-[perf-cut_450ms_var(--ease-ticket)_150ms_both]",
         )}
       />
@@ -221,7 +227,7 @@ function ArrowButton({ side, onClick }: { side: "left" | "right"; onClick: () =>
       onClick={onClick}
       aria-label={side === "left" ? "Acara sebelumnya" : "Acara berikutnya"}
       className={cn(
-        "absolute top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-md bg-navy text-cream transition-colors hover:bg-brand md:flex",
+        "absolute top-1/2 z-30 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-navy shadow-card text-cream transition-colors hover:bg-brand md:flex",
         side === "left" ? "-left-[22px]" : "-right-[22px]",
       )}
     >

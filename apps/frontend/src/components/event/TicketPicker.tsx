@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { ApiError, api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatRupiah } from "@/lib/format";
+import { FreeBadge } from "./PriceLabel";
 import { Perforation } from "./TicketStub";
 
 type Quantities = Record<string, number>;
@@ -176,7 +177,7 @@ function TicketRow({ type, quantity, onChange }: { type: TicketType; quantity: n
         <StatusLine type={type} />
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">
-        <p className="font-semibold tabular-nums">{formatRupiah(type.price)}</p>
+        {type.price === 0 ? <FreeBadge /> : <p className="font-semibold tabular-nums">{formatRupiah(type.price)}</p>}
         {lowStock && <p className="text-[13px] font-semibold text-brand">Sisa {type.available}</p>}
         {onSale && <Stepper name={type.name} value={quantity} max={maxFor(type)} onChange={onChange} />}
       </div>

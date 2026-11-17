@@ -1,14 +1,12 @@
 import Link from "next/link";
 import { Clock, MapPin } from "lucide-react";
 import type { EventSummary } from "@/types/api";
-import { cn } from "@/lib/cn";
 import { daysUntilLabel, formatTime } from "@/lib/format";
 import { Reveal } from "@/components/ui/Reveal";
 import { Poster } from "./Poster";
 import { PriceLabel } from "./PriceLabel";
 
-const TZ = "Asia/Jakarta";
-const ymd = (iso: string, timeZone = TZ) =>
+const ymd = (iso: string, timeZone: string) =>
   new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
 const label = (iso: string, timeZone: string, options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("id-ID", { timeZone, ...options }).format(new Date(iso));
@@ -25,16 +23,12 @@ function byDate(events: EventSummary[]) {
   return groups;
 }
 
-/**
- * Agenda ala Luma: kolom linimasa (label tanggal + kartu acara) dan panel samping berisi
- * kalender mini bulan acara pertama. Tanggal bertitik = ada acara; klik untuk lompat ke tanggal itu.
- */
+/** Agenda ala Luma: label tanggal di garis putus-putus, acara pada tanggal itu tampil sebagai kartu (2 kolom di desktop). */
 export function AgendaList({ events }: { events: EventSummary[] }) {
   const groups = byDate(events);
   let index = 0;
   return (
-    <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_300px]">
-      <ol className="relative ml-1.5 border-l-2 border-dashed border-navy/15 pl-6 md:pl-8">
+    <ol className="relative ml-1.5 border-l-2 border-dashed border-navy/15 pl-6 md:pl-8">
         {groups.map((group) => {
           const soon = daysUntilLabel(group.first.startAt, group.first.timezone);
           return (
@@ -45,7 +39,7 @@ export function AgendaList({ events }: { events: EventSummary[] }) {
                 <span className="font-medium text-muted">{label(group.first.startAt, group.first.timezone, { weekday: "long" })}</span>
                 {soon && <span className="text-[13px] font-semibold text-brand">· {soon}</span>}
               </p>
-              <ul className="mt-3 flex flex-col gap-3">
+              <ul className="mt-3 grid gap-3 md:grid-cols-2">
                 {group.events.map((event) => {
                   const tone = index++;
                   return (
@@ -83,64 +77,6 @@ export function AgendaList({ events }: { events: EventSummary[] }) {
             </li>
           );
         })}
-      </ol>
-
-      {groups.length > 0 && <MiniCalendar groups={groups} />}
-    </div>
-  );
-}
-
-/** Kalender bulan acara pertama; hari yang punya acara bertitik dan bisa diklik. Senin di kolom pertama. */
-function MiniCalendar({ groups }: { groups: Array<{ key: string; events: EventSummary[] }> }) {
-  const [year, month] = groups[0].key.split("-").map(Number);
-  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const firstWeekday = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7; // 0 = Senin
-  const withEvents = new Map(groups.map((group) => [group.key, group.events.length]));
-  const today = ymd(new Date().toISOString());
-  const monthName = new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(year, month - 1, 1)));
-  const inMonth = groups.filter((group) => group.key.startsWith(`${groups[0].key.slice(0, 7)}`)).reduce((sum, group) => sum + group.events.length, 0);
-
-  const cells = [...Array(firstWeekday).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
-
-  return (
-    <aside aria-label="Kalender acara" className="hidden rounded-2xl border border-line bg-white p-5 shadow-card lg:sticky lg:top-28 lg:block">
-      <p className="text-[13px] font-semibold uppercase tracking-[0.06em] text-muted">Kalender</p>
-      <p className="mt-0.5 text-[18px] font-bold capitalize">{monthName}</p>
-      <p className="text-[13px] text-muted">{inMonth} acara bulan ini</p>
-      <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[12px]">
-        {["Sn", "Sl", "Rb", "Km", "Jm", "Sb", "Mg"].map((day) => (
-          <span key={day} className="py-1 font-semibold text-muted">
-            {day}
-          </span>
-        ))}
-        {cells.map((day, i) => {
-          if (day === null) return <span key={`kosong-${i}`} />;
-          const key = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-          const count = withEvents.get(key);
-          const base = "relative flex aspect-square items-center justify-center rounded-lg text-[13px] tabular-nums";
-          if (!count) {
-            return (
-              <span key={key} className={cn(base, key === today ? "font-bold text-brand" : "text-navy/50")}>
-                {day}
-              </span>
-            );
-          }
-          return (
-            <a
-              key={key}
-              href={`#agenda-${key}`}
-              aria-label={`${day} ${monthName}: ${count} acara`}
-              className={cn(base, "bg-brand/10 font-bold text-brand transition-colors hover:bg-brand hover:text-white")}
-            >
-              {day}
-              <span aria-hidden className="absolute bottom-1 size-1 rounded-full bg-current" />
-            </a>
-          );
-        })}
-      </div>
-      <p className="mt-4 flex items-center gap-2 border-t border-line pt-3 text-[12px] text-muted">
-        <span aria-hidden className="size-2 rounded-full bg-brand" /> Ada acara, klik untuk melihat
-      </p>
-    </aside>
+    </ol>
   );
 }

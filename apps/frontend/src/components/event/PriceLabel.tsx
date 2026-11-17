@@ -31,5 +31,14 @@ export function FreeBadge({ size = "sm", className }: { size?: "sm" | "lg"; clas
 export function PriceLabel({ event }: { event: Pick<EventSummary, "status" | "salesStatus" | "priceFrom"> }) {
   const price = eventPriceLine(event);
   if (price.label === "Gratis") return <FreeBadge className="mt-1 self-start" />;
+  // "Mulai Rp75.000" → label kecil "Mulai dari" di atas angka tebal, angka jadi yang pertama terbaca.
+  if (price.label.startsWith("Mulai ")) {
+    return (
+      <div>
+        <p className="text-[12px] text-muted">Mulai dari</p>
+        <p className="text-[15px] font-bold tabular-nums text-navy">{price.label.slice(6)}</p>
+      </div>
+    );
+  }
   return <p className={cn("text-[14px] font-bold", toneClass[price.tone])}>{price.label}</p>;
 }

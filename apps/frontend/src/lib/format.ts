@@ -52,6 +52,7 @@ export function dateParts(iso: string, timeZone = DEFAULT_TZ) {
   return {
     day: new Intl.DateTimeFormat("id-ID", { day: "numeric", timeZone }).format(date),
     month: new Intl.DateTimeFormat("id-ID", { month: "short", timeZone }).format(date),
+    weekday: new Intl.DateTimeFormat("id-ID", { weekday: "short", timeZone }).format(date),
   };
 }
 

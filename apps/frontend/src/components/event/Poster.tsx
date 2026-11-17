@@ -16,7 +16,7 @@ const palettes = [
 ] as const;
 
 const titleSize: Record<Size, string> = {
-  sm: "text-[12px]",
+  sm: "text-[min(12px,10cqw)]",
   // Ikut lebar poster (cqw) supaya kata panjang seperti "KERONCONG" tidak terpotong di kartu sempit (grid 2 kolom HP).
   md: "text-[min(28px,12cqw)]",
   lg: "text-[min(30px,12.5cqw)]",

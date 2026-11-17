@@ -1,15 +1,14 @@
 // Semua teks video di satu tempat: ubah di sini tanpa menyentuh komponen adegan.
 
 export const links = {
-  repo: "github.com/gadicandra/PassGo",
-  web: "[tautan web PassGo]",
+  repo: "https://github.com/gadicandra/PassGo",
+  web: "https://passgo-web.azurewebsites.net",
 };
 
 export const intro = {
-  words: ["Lokakarya.", "Konser.", "Pameran.", "Diskusi."],
-  photos: ["kelas-1", "musik-2", "pasar-1", "literasi-1"],
   subtitle: "Aplikasi Penjualan Tiket Acara Komunitas",
-  meta: "Kelompok 10 · Pemrograman Aplikasi Web 2026 · Universitas Gadjah Mada",
+  // Dua baris, dipisah baris baru (bukan titik tengah).
+  meta: ["Kelompok 10, Pemrograman Aplikasi Web 2026", "Universitas Gadjah Mada"].join("\n"),
 };
 
 export const about = {
@@ -37,45 +36,90 @@ export const architecture = {
   lead: "Frontend dan backend dipisah. Browser hanya berkomunikasi dengan satu alamat, lalu frontend meneruskan permintaan API ke backend.",
   nodes: {
     client: { title: "Browser", body: "Peserta, panitia, penyelenggara" },
-    frontend: { title: "Frontend", body: "Next.js · Vercel / Azure" },
-    backend: { title: "REST API", body: "Express 5 · Node.js" },
+    frontend: { title: "Frontend", body: "Next.js 16, Azure" },
+    backend: { title: "REST API", body: "Express 5, Node.js" },
     database: { title: "Basis Data", body: "MongoDB Atlas" },
   },
   services: ["Midtrans: pembayaran dan notifikasi", "Google: login dengan akun Google", "Supabase: penyimpanan poster", "SMTP: email tiket dan verifikasi"],
 };
 
-export const security = {
-  title: "Keamanan dan Keandalan",
-  lead: "Beberapa mekanisme diterapkan supaya data dan transaksi tetap aman.",
-  points: [
-    { title: "Autentikasi berlapis", body: "Token akses berumur pendek disimpan di memori, token refresh di cookie khusus." },
-    { title: "Hak akses per peran", body: "Peserta, panitia, dan penyelenggara hanya dapat membuka data miliknya." },
-    { title: "Kuota atomik", body: "Pemesanan memakai transaksi basis data sehingga kuota tidak pernah terlampaui." },
-    { title: "Anti transaksi ganda", body: "Kunci idempotensi mencegah satu pesanan tercatat dua kali." },
-    { title: "Pembatasan permintaan", body: "Percobaan masuk dan pengiriman email dibatasi untuk mencegah penyalahgunaan." },
-    { title: "Check-in sekali pakai", body: "Satu tiket hanya dapat dipindai satu kali, meskipun dipindai bersamaan." },
+/**
+ * Flowchart bernotasi standar. Grid 6 kolom x 3 baris: c = kolom 0-5, r = baris 0-2.
+ * kind: start/end = terminator, proc = proses, dec = keputusan, io = input.
+ * tone (untuk end): ok = hijau, warn = kuning, bad = merah.
+ */
+export type FlowNode = { id: string; kind: "start" | "end" | "proc" | "dec" | "io"; c: number; r: number; label: string; tone?: "ok" | "warn" | "bad" };
+export type FlowEdge = { from: string; to: string; label?: "Ya" | "Tidak" };
+export type Flow = { title: string; caption: string; nodes: FlowNode[]; edges: FlowEdge[] };
+
+export const orderFlow: Flow = {
+  title: "Alur Pemesanan dan Pembayaran",
+  caption: "Kuota diperiksa dan ditahan dalam satu transaksi. Status lunas berasal dari notifikasi Midtrans yang sudah diverifikasi.",
+  nodes: [
+    { id: "start", kind: "start", c: 0, r: 0, label: "Mulai" },
+    { id: "pick", kind: "io", c: 0, r: 1, label: "Pilih tipe dan jumlah tiket" },
+    { id: "quota", kind: "dec", c: 1, r: 1, label: "Kuota cukup?" },
+    { id: "order", kind: "proc", c: 2, r: 1, label: "Tahan kuota, buat pesanan (batas 30 menit)" },
+    { id: "pay", kind: "proc", c: 3, r: 1, label: "Peserta membayar di Midtrans" },
+    { id: "paid", kind: "dec", c: 4, r: 1, label: "Lunas sebelum batas waktu?" },
+    { id: "issue", kind: "proc", c: 5, r: 1, label: "Tandai lunas, terbitkan tiket" },
+    { id: "mail", kind: "end", c: 5, r: 0, label: "E-tiket dikirim ke email", tone: "ok" },
+    { id: "reject", kind: "end", c: 1, r: 2, label: "Pesanan ditolak", tone: "bad" },
+    { id: "expire", kind: "end", c: 4, r: 2, label: "Kedaluwarsa, kuota dilepas", tone: "warn" },
+  ],
+  edges: [
+    { from: "start", to: "pick" }, { from: "pick", to: "quota" }, { from: "quota", to: "order", label: "Ya" }, { from: "order", to: "pay" },
+    { from: "pay", to: "paid" }, { from: "paid", to: "issue", label: "Ya" }, { from: "issue", to: "mail" },
+    { from: "quota", to: "reject", label: "Tidak" }, { from: "paid", to: "expire", label: "Tidak" },
+  ],
+};
+
+export const checkInFlow: Flow = {
+  title: "Alur Check-in di Pintu Masuk",
+  caption: "Pemeriksaan terakhir bersifat atomik. Jika dua panitia memindai tiket yang sama bersamaan, hanya satu yang diterima.",
+  nodes: [
+    { id: "start", kind: "start", c: 0, r: 0, label: "Mulai" },
+    { id: "scan", kind: "io", c: 0, r: 1, label: "Pindai QR atau ketik kode" },
+    { id: "d1", kind: "dec", c: 1, r: 1, label: "Kode dikenal?" },
+    { id: "d2", kind: "dec", c: 2, r: 1, label: "Untuk acara ini?" },
+    { id: "d3", kind: "dec", c: 3, r: 1, label: "Jam check-in sudah buka?" },
+    { id: "d4", kind: "dec", c: 4, r: 1, label: "Tiket masih berlaku?" },
+    { id: "d5", kind: "dec", c: 5, r: 1, label: "Belum pernah dipakai?" },
+    { id: "ok", kind: "end", c: 5, r: 0, label: "Diterima, silakan masuk", tone: "ok" },
+    { id: "e1", kind: "end", c: 1, r: 2, label: "Kode tidak dikenal", tone: "bad" },
+    { id: "e2", kind: "end", c: 2, r: 2, label: "Tiket acara lain", tone: "bad" },
+    { id: "e3", kind: "end", c: 3, r: 2, label: "Di luar jam check-in", tone: "warn" },
+    { id: "e4", kind: "end", c: 4, r: 2, label: "Tiket tidak berlaku", tone: "bad" },
+    { id: "e5", kind: "end", c: 5, r: 2, label: "Tiket sudah dipakai", tone: "warn" },
+  ],
+  edges: [
+    { from: "start", to: "scan" }, { from: "scan", to: "d1" },
+    { from: "d1", to: "d2", label: "Ya" }, { from: "d2", to: "d3", label: "Ya" }, { from: "d3", to: "d4", label: "Ya" }, { from: "d4", to: "d5", label: "Ya" },
+    { from: "d5", to: "ok", label: "Ya" },
+    { from: "d1", to: "e1", label: "Tidak" }, { from: "d2", to: "e2", label: "Tidak" }, { from: "d3", to: "e3", label: "Tidak" },
+    { from: "d4", to: "e4", label: "Tidak" }, { from: "d5", to: "e5", label: "Tidak" },
   ],
 };
 
 export const team = [
   {
     name: "Marcelinus Dinoglide Yoga Prakoso",
-    nim: "24/535330/TK/59377",
+    nim: "24/533842/TK/59152",
     tasks: ["Struktur awal dan desain antarmuka", "Katalog dan detail acara", "Checkout dan pembayaran Midtrans", "Pesanan dan pengembalian dana"],
   },
   {
     name: "Garjita Adicandra",
-    nim: "24/540062/TK/59896",
+    nim: "24/535330/TK/59377",
     tasks: ["Klien API dan autentikasi", "Pendaftaran, masuk, dan atur ulang kata sandi", "Profil, pengguna, dan log audit", "Deployment dan README"],
   },
   {
     name: "Rasyid Rayhan Novandy",
-    nim: "24/533842/TK/59152",
+    nim: "24/545518/TK/60688",
     tasks: ["Daftar tiket dan e-tiket", "Pemindai tiket untuk panitia", "Daftar peserta dan laporan kehadiran", "Materi presentasi"],
   },
   {
     name: "Debert Jamie Chanderson",
-    nim: "24/545518/TK/60688",
+    nim: "24/540062/TK/59896",
     tasks: ["Pengelolaan acara", "Tipe tiket dan kuota", "Penugasan panitia", "Laporan penjualan dan video"],
   },
 ];

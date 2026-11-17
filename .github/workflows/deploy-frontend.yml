@@ -35,7 +35,8 @@ jobs:
         env:
           BACKEND_URL: ${{ vars.BACKEND_URL }}
           # Client ID Google untuk tombol "Lanjutkan dengan Google"; kosong = tombol disembunyikan.
-          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          # Client ID Google bersifat publik (ikut ke browser). Variabel repo diutamakan, nilai ini cadangan.
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '224649381528-8r6783at8m6r1ck6ibgnv7j4vhg0kq6m.apps.googleusercontent.com' }}
 
       # Standalone tidak menyalin static & public; server.js melayaninya bila ditaruh di sebelahnya.
       - name: Package

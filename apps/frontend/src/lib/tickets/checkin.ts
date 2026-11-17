@@ -1,6 +1,6 @@
 import type { CheckIn, CheckInResult, VoidReason } from "@/types/api";
 import { ApiError, api } from "@/lib/api";
-import { formatTime } from "@/lib/format";
+import { formatDate, formatTime } from "@/lib/format";
 
 export type OutcomeKind = "success" | "warning" | "error";
 
@@ -80,7 +80,7 @@ export async function submitCheckIn(
           result: "CHECK_IN_CLOSED",
           kind: "warning",
           title: early ? "Check-in belum dibuka" : "Check-in sudah ditutup",
-          detail: early && opensAt ? `Dibuka pukul ${formatTime(opensAt, context.timezone)}.` : "Acara ini sudah selesai.",
+          detail: early && opensAt ? `Dibuka ${opensLabel(opensAt, at, context.timezone)}.` : "Acara ini sudah selesai.",
         };
       }
       default:
@@ -101,3 +101,9 @@ export const resultLabel: Record<CheckInResult, string> = {
   NOT_FOUND: "Tidak dikenal",
   CHECK_IN_CLOSED: "Di luar jam check-in",
 };
+
+/** "pukul 11.00" bila hari ini, selain itu sertakan tanggal: "Sab, 21 Nov 2026 pukul 11.00". */
+function opensLabel(opensAt: string, now: Date, timezone: string): string {
+  const time = `pukul ${formatTime(opensAt, timezone)}`;
+  return formatDate(opensAt, timezone) === formatDate(now.toISOString(), timezone) ? time : `${formatDate(opensAt, timezone)} ${time}`;
+}

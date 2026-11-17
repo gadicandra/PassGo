@@ -113,7 +113,12 @@ export function ScannerScreen({ eventId }: { eventId: string }) {
   const handleDecode = useCallback(
     (text: string) => {
       const now = Date.now();
-      if (busyRef.current || (lastScan.current && lastScan.current.text === text && now - lastScan.current.at < DUPLICATE_MS)) return;
+      const same = lastScan.current?.text === text;
+      const recent = same && now - lastScan.current!.at < DUPLICATE_MS;
+      // Waktu terakhir terlihat diperbarui tiap bingkai: QR yang terus di depan kamera tidak dikirim ulang,
+      // baru dihitung pindaian baru setelah hilang dari kamera selama DUPLICATE_MS.
+      if (same) lastScan.current!.at = now;
+      if (busyRef.current || recent) return;
       lastScan.current = { text, at: now };
       if (text.length > MAX_CODE_LENGTH) {
         show(unknownCodeOutcome());

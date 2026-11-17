@@ -19,6 +19,15 @@ import { requestContext } from "./middlewares/request-context";
 const app = express();
 
 app.disable("x-powered-by");
+// Di belakang proxy (Azure App Service front end, Vercel): IP klien dari X-Forwarded-For untuk rate limit & audit.
+// TRUST_PROXY = jumlah hop proxy di depan app; default 1 (satu front end). Azure: FE Next → front end → backend = 2.
+app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
+// Front end Azure Linux mengirim XFF sebagai "ip:port"; buang port agar rate limit per IP, bukan per koneksi.
+app.use((request, _response, next) => {
+  const xff = request.headers["x-forwarded-for"];
+  if (typeof xff === "string") request.headers["x-forwarded-for"] = xff.split(",").map(stripPort).join(", ");
+  next();
+});
 app.set("etag", false);
 app.use(requestContext);
 app.use(helmet());
@@ -69,5 +78,13 @@ app.use("/api/v1/internal/jobs", jobsRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
+
+/** "203.0.113.7:51234" → "203.0.113.7", "[2001:db8::1]:443" → "2001:db8::1"; IPv6 polos dibiarkan. */
+export function stripPort(entry: string): string {
+  const value = entry.trim();
+  const bracketed = /^\[([^\]]+)\](?::\d+)?$/.exec(value);
+  if (bracketed) return bracketed[1];
+  return /^[\d.]+:\d+$/.test(value) ? value.slice(0, value.lastIndexOf(":")) : value;
+}
 
 export default app;

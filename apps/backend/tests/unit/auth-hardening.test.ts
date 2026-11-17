@@ -37,3 +37,17 @@ test("login: percobaan ke-6 untuk email+IP yang sama → 429 problem+json dengan
   assert.ok(Number(blocked.headers["retry-after"]) > 0);
   assert.match(blocked.headers["ratelimit-policy"], /"login"; ?q=5; ?w=900/);
 });
+
+test("stripPort: XFF Azure 'ip:port' → ip, IPv6 berkurung → tanpa kurung, IPv6 polos tetap", async () => {
+  const { stripPort } = await import("../../src/app");
+  assert.equal(stripPort("203.0.113.7:51234"), "203.0.113.7");
+  assert.equal(stripPort(" 203.0.113.7 "), "203.0.113.7");
+  assert.equal(stripPort("[2001:db8::1]:443"), "2001:db8::1");
+  assert.equal(stripPort("2001:db8::1"), "2001:db8::1");
+});
+
+test("rate limit memakai IP klien dari XFF ber-port: dua port beda dihitung satu klien", async () => {
+  const hit = (port: number) => request(app).post("/api/v1/auth/login").set("X-Forwarded-For", `198.51.100.9:${port}`).send({ email: "port@example.com", password: "" });
+  for (let i = 0; i < 5; i++) await hit(40000 + i);
+  assert.equal((await hit(49999)).status, 429);
+});

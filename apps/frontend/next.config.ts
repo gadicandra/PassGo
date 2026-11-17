@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 // Semua request /api/v1/* diteruskan ke backend, jadi browser melihat satu origin.
@@ -27,6 +28,10 @@ const csp = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // Azure App Service: bundle mandiri (.next/standalone) tanpa npm install di server. Root tracing = root monorepo,
+  // karena dependency di-hoist ke node_modules root oleh npm workspaces.
+  output: "standalone",
+  outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   turbopack: {
     rules: {
       "*.css": {

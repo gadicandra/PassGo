@@ -77,7 +77,9 @@ export function TicketPicker({ event }: { event: Event }) {
 
   function buy() {
     setSubmitting(true);
-    const href = `/checkout/${event.slug}?items=${encodeItems(quantities)}`;
+    const checkout = `/checkout/${event.slug}?items=${encodeItems(quantities)}`;
+    // Tamu langsung ke login dengan URL checkout lengkap; RequireAuth hanya meneruskan pathname, jadi ?items bisa hilang.
+    const href = guest ? `/login?next=${encodeURIComponent(checkout)}` : checkout;
     // Umpan balik "tiket disobek": bagian bawah kartu lepas dulu, baru pindah halaman.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       router.push(href);

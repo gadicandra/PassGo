@@ -1,0 +1,21 @@
+{
+  "name": "passgo-video",
+  "private": true,
+  "description": "Video presentasi & demo PassGo (Remotion). Terpisah dari workspace aplikasi.",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render PassGoDemo out/passgo-demo.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.544",
+    "@remotion/google-fonts": "4.0.544",
+    "@remotion/transitions": "4.0.544",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.544"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "typescript": "^5.9.0"
+  }
+}

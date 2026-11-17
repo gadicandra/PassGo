@@ -10,6 +10,7 @@ const columns = [
       { href: "/?filter=minggu", label: "Minggu ini" },
       { href: "/?filter=bulan", label: "Bulan ini" },
       { href: "/?filter=gratis", label: "Acara gratis" },
+      { href: "/disimpan", label: "Acara disimpan" },
     ],
   },
   {
@@ -89,7 +90,6 @@ export function SiteFooter() {
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-[13px]">Pembayaran diproses aman oleh Midtrans.</p>
         </div>
       </div>
 

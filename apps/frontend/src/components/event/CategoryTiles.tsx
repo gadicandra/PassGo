@@ -8,7 +8,7 @@ import { categories, inCategory } from "@/lib/categories";
 export function CategoryTiles({ events }: { events: EventSummary[] }) {
   return (
     <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-      {categories.map((category) => {
+      {categories.map((category, index) => {
         const count = events.filter(inCategory(category)).length;
         const Icon = category.icon;
         return (
@@ -32,7 +32,7 @@ export function CategoryTiles({ events }: { events: EventSummary[] }) {
                   category.tone,
                 )}
               >
-                <Icon className="size-11" strokeWidth={1.75} />
+                <Icon className="size-11 motion-safe:animate-[icon-float_3.2s_ease-in-out_infinite]" style={{ animationDelay: `${index * 0.35}s` }} strokeWidth={1.75} />
               </span>
               <span aria-hidden className={cn("absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r", category.strip)} />
             </Link>

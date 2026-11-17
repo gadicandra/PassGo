@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Hourglass } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { Event, Order } from "@/types/api";
 import { Poster } from "@/components/event/Poster";
@@ -12,7 +13,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import { ApiError, api } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { formatDate, formatDateTime, formatRupiah } from "@/lib/format";
+import { formatDate, formatDateTime, formatRupiah, formatTime } from "@/lib/format";
 import { ticketStatusLabel, toneClass } from "@/lib/status";
 
 const POLL_MS = 5000;
@@ -268,7 +269,7 @@ function PendingBlock({
   return (
     <section className="rounded-card bg-sun p-6 md:p-8">
       <h1 className="text-[24px] font-bold leading-snug md:text-[28px]">Menunggu pembayaran</h1>
-      {order.expiresAt && <Countdown until={order.expiresAt} />}
+      {order.expiresAt && <Countdown until={order.expiresAt} since={order.createdAt} />}
       {confirming ? (
         <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-navy/20 pt-5" role="alertdialog" aria-label="Konfirmasi batal">
           <p className="w-full font-semibold">Batalkan pesanan ini? Tiket yang ditahan akan dilepas.</p>
@@ -298,18 +299,36 @@ function PendingBlock({
   );
 }
 
-function Countdown({ until }: { until: string }) {
+/** Hitung mundur batas bayar (pola Loket): label, jam batas, bar menyusut, merah saat < 5 menit. */
+function Countdown({ until, since }: { until: string; since: string }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
-  const left = Math.max(0, new Date(until).getTime() - now);
+  const end = new Date(until).getTime();
+  const total = Math.max(1, end - new Date(since).getTime());
+  const left = Math.max(0, end - now);
   const minutes = Math.floor(left / 60000);
   const seconds = Math.floor((left % 60000) / 1000);
+  const urgent = left < 5 * 60_000;
   return (
-    <p className="mt-3 text-[56px] font-semibold leading-none tabular-nums" aria-label={`Sisa waktu ${minutes} menit ${seconds} detik`}>
-      {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
-    </p>
+    <div className="mt-4 rounded-xl bg-white/70 p-4 md:p-5">
+      <p className="flex items-center gap-2 text-[14px] font-semibold text-navy/80">
+        <Hourglass aria-hidden className={cn("size-4", urgent && "animate-pulse text-danger")} />
+        Selesaikan pembayaran dalam
+      </p>
+      <p
+        className={cn("mt-1 text-[44px] font-bold leading-none tabular-nums md:text-[52px]", urgent && "text-danger")}
+        aria-label={`Sisa waktu ${minutes} menit ${seconds} detik`}
+        role="timer"
+      >
+        {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
+      </p>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-navy/10" aria-hidden>
+        <div className={cn("h-full rounded-full transition-[width] duration-1000 ease-linear", urgent ? "bg-danger" : "bg-brand")} style={{ width: `${(left / total) * 100}%` }} />
+      </div>
+      <p className="mt-2 text-[13px] text-navy/70">Bayar sebelum pukul {formatTime(until)} WIB. Lewat dari itu tiket dilepas untuk pembeli lain.</p>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, ChevronDown, CircleUser, LogOut, Receipt, ScanLine, ScrollText, Ticket, UserRound, Users, type LucideIcon } from "lucide-react";
+import { CalendarDays, ChevronDown, CircleUser, Heart, LogOut, Receipt, ScanLine, ScrollText, Ticket, UserRound, Users, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ButtonLink } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth";
@@ -11,6 +11,7 @@ const links: Record<Role, Array<{ href: string; label: string }>> = {
   ATTENDEE: [
     { href: "/tickets", label: "Tiket saya" },
     { href: "/orders", label: "Pesanan saya" },
+    { href: "/disimpan", label: "Acara disimpan" },
   ],
   STAFF: [{ href: "/staff", label: "Acara saya" }],
   ORGANIZER: [
@@ -26,6 +27,7 @@ const item = "flex items-center gap-2.5 rounded-md px-3 py-2 text-[15px] text-na
 // Ikon menu akun per tautan, supaya tiap baris cepat dikenali.
 const menuIcon: Record<string, LucideIcon> = {
   "/tickets": Ticket,
+  "/disimpan": Heart,
   "/orders": Receipt,
   "/staff": ScanLine,
   "/organizer/events": CalendarDays,

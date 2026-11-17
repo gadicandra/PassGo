@@ -36,11 +36,11 @@ export function CatalogFilters({ active, q }: { active?: CatalogFilter; q?: stri
             aria-current={isActive ? "page" : undefined}
             className={cn(
               // Pil seragam ala Loket: ikon berwarna di kiri; aktif = latar oranye muda, garis & teks oranye.
-              "inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-[14px] font-semibold transition-colors",
+              "group inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-[14px] font-semibold transition-colors",
               isActive ? "border-brand bg-brand/10 text-brand" : "border-navy/15 bg-white text-navy hover:border-navy/30 hover:bg-navy/[0.03]",
             )}
           >
-            <filter.icon aria-hidden className={cn("size-4", isActive ? "text-brand" : filter.tint)} strokeWidth={2.25} />
+            <filter.icon aria-hidden className={cn("size-4 motion-safe:group-hover:animate-[icon-nudge_900ms_ease-in-out]", isActive ? "text-brand" : filter.tint)} strokeWidth={2.25} />
             {filter.label}
           </Link>
         );

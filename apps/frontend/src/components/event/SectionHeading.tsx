@@ -35,7 +35,11 @@ export function SectionHeading({
       <h2 className="flex items-center gap-2.5 text-[24px] font-bold leading-tight tracking-[-0.01em] md:text-[28px]">
         {Icon && (
           <span aria-hidden className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl md:size-10", onColor ? "bg-white/60 text-navy" : iconTone[tone])}>
-            <Icon className="size-5 md:size-[22px]" strokeWidth={2.25} />
+            <Icon
+              className="size-5 motion-safe:animate-[icon-nudge_4s_ease-in-out_infinite] md:size-[22px]"
+              style={{ animationDelay: `${(title.length % 7) * 0.45}s` }}
+              strokeWidth={2.25}
+            />
           </span>
         )}
         {title}

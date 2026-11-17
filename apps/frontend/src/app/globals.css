@@ -196,6 +196,50 @@
   }
 }
 
+/* Ikon hidup ala Loket. Dipakai dengan prefiks motion-safe: supaya mati total di reduced motion. */
+/* Goyang kecil sesekali: diam ±70% waktu, lalu menggeleng dan kembali. */
+@keyframes icon-nudge {
+  0%,
+  70%,
+  100% {
+    transform: none;
+  }
+  76% {
+    transform: rotate(-14deg) scale(1.08);
+  }
+  84% {
+    transform: rotate(10deg) scale(1.04);
+  }
+  92% {
+    transform: rotate(-5deg);
+  }
+}
+/* Mengambang pelan naik-turun (ilustrasi kartu kategori). */
+@keyframes icon-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+/* ♡ meletup saat acara disimpan. */
+@keyframes heart-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.4);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 /* Muncul saat di-scroll (skill animation-on-scroll). Kelas is-visible dipasang oleh <Reveal>. */
 .reveal {
   opacity: 0;

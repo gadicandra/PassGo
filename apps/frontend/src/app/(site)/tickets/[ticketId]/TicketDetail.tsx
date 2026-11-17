@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AddToCalendar } from "@/components/event/AddToCalendar";
 import { useEffect, useState } from "react";
 import type { Ticket, VoidReason } from "@/types/api";
 import { Perforation } from "@/components/event/TicketStub";
@@ -87,6 +88,7 @@ export function TicketDetail({ ticketId }: { ticketId: string }) {
         <QrPanel ticket={ticket} />
         <div className="flex flex-col gap-8">
           <HolderForm ticket={ticket} onUpdated={setTicket} />
+          {ticket.status === "VALID" && <AddToCalendar event={ticket.event} />}
           <dl className="grid grid-cols-[120px_1fr] gap-y-2 text-[15px]">
             <dt className="text-muted">Tipe tiket</dt>
             <dd className="font-semibold">{ticket.ticketTypeName}</dd>

@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarDays, Clock, ExternalLink, Info, MapPin } from "lucide-react";
 import { ShareButtons } from "@/components/event/ShareButtons";
+import { AddToCalendar } from "@/components/event/AddToCalendar";
+import { SaveButton } from "@/components/event/SaveButton";
+import { StickyBuyBar } from "@/components/event/StickyBuyBar";
+import { eventPriceLine } from "@/lib/status";
 import { categories } from "@/lib/categories";
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
@@ -121,11 +125,16 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[sl
 
         <aside className="order-1 lg:order-2 lg:col-span-5">
           <div className="lg:sticky lg:top-28">
-            <TicketPicker event={event} />
+            <div id="pilih-tiket" className="scroll-mt-24">
+              <TicketPicker event={event} />
+            </div>
+            {!cancelled && <SaveButton event={event} variant="labeled" className="mt-6" />}
+            <AddToCalendar event={event} />
             <ShareButtons title={event.title} />
           </div>
         </aside>
       </div>
+      {!cancelled && event.salesStatus === "ON_SALE" && <StickyBuyBar priceLabel={eventPriceLine(event).label} />}
     </div>
   );
 }

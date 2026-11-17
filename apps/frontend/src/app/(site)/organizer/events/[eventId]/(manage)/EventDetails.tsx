@@ -6,7 +6,7 @@ import { PosterPanel } from "@/components/organizer/PosterUpload";
 import { useToast } from "@/components/ui/Toast";
 import type { Event } from "@/types/api";
 import { isEditable, updateEvent } from "@/lib/organizer/api";
-import { currentFrom } from "@/lib/organizer/errors";
+import { currentFrom, errorMessage } from "@/lib/organizer/errors";
 
 export function EventDetails() {
   const { event, setEvent } = useManagedEvent();
@@ -26,7 +26,8 @@ export function EventDetails() {
         </p>
       )}
       <EventForm
-        key={event.id}
+        // version di key: setelah 412 form dimuat ulang dari data terbaru, jadi simpan berikutnya tidak menimpa perubahan tab lain.
+        key={`${event.id}-${event.version}`}
         initial={valuesFromEvent(event)}
         readOnly={!editable}
         submitLabel="Simpan perubahan"
@@ -41,10 +42,10 @@ export function EventDetails() {
             setEvent(await updateEvent(event, patch));
             toast.success("Perubahan tersimpan.");
           } catch (error) {
-            // 412: simpan versi terbaru supaya simpan berikutnya tidak ditolak lagi; isian tetap di form.
             const current = currentFrom<Event>(error);
-            if (current) setEvent(current);
-            throw error;
+            if (!current) throw error;
+            setEvent(current);
+            toast.error(errorMessage(error));
           }
         }}
       />

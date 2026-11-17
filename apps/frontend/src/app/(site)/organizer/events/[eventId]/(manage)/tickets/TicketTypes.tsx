@@ -61,8 +61,10 @@ export function TicketTypes() {
       }
       setEditing(null);
     } catch (error) {
+      // 412: form dimuat ulang dari versi terbaru (key memuat version), pesan lewat toast.
+      if (!currentFrom<TicketType>(error)) throw error;
       handleConflict(error);
-      throw error;
+      toast.error(errorMessage(error));
     }
   }
 
@@ -130,7 +132,7 @@ export function TicketTypes() {
         <div ref={panel} className="order-first scroll-mt-24 lg:order-last lg:col-span-5">
           <div className="lg:sticky lg:top-28">
             <TicketTypeForm
-              key={editing.kind === "edit" ? editing.id : "new"}
+              key={editing.kind === "edit" ? `${editing.id}-${editingType?.version}` : "new"}
               event={event}
               type={editingType}
               onSave={save}

@@ -200,7 +200,7 @@ async function main() {
     }
 
     const fresh = await api<{ version: number }>("GET", `/events/${event.id}`);
-    await api("POST", `/events/${event.id}/publish`, undefined, { "If-Match": `"${fresh.version}"` });
+    await api("POST", `/events/${event.id}/publish`, undefined, { "X-If-Match": `"${fresh.version}"` });
     console.log(`terbit   ${seed.title} → /events/${event.slug}`);
   }
 }

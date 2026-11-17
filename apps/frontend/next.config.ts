@@ -14,7 +14,8 @@ const csp = [
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} ${midtrans}`,
   "style-src 'self' 'unsafe-inline'",
   // Poster dari Supabase Storage (atau /uploads lokal lewat rewrite) dan QR data: URL.
-  "img-src 'self' data: blob: https://*.supabase.co " + midtrans,
+  // Tanpa Supabase, backend memberi URL poster absolut ke origin backend sendiri (fallback /uploads lokal).
+  `img-src 'self' data: blob: https://*.supabase.co ${backendUrl} ${midtrans}`,
   "font-src 'self'",
   `connect-src 'self' ${midtrans}`,
   `frame-src ${midtrans}`,

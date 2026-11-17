@@ -37,6 +37,7 @@ export function EventManageShell({ eventId, children }: { eventId: string; child
   const reload = useCallback(async () => {
     try {
       setEvent(await getEvent(eventId));
+      setFailure(null);
     } catch (error) {
       setFailure({
         notFound: error instanceof ApiError && error.status === 404,
@@ -93,6 +94,14 @@ export function EventManageShell({ eventId, children }: { eventId: string; child
     <EventContext.Provider value={value}>
       <EventHeader />
       <EventTabs />
+      {failure && (
+        <p role="alert" className="mt-6 rounded-md bg-danger/10 px-4 py-3 text-[15px] text-danger">
+          Data acara belum diperbarui: {failure.message}{" "}
+          <button type="button" onClick={() => void reload()} className="font-semibold underline underline-offset-4">
+            Muat ulang
+          </button>
+        </p>
+      )}
       <div className="mt-8">{children}</div>
     </EventContext.Provider>
   );

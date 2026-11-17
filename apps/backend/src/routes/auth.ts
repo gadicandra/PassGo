@@ -80,7 +80,7 @@ router.post("/logout-all", authenticate, async (request, response, next) => {
   try { await revokeAllSessions((request as AuthenticatedRequest).user.sub); clearRefreshCookie(response); response.status(204).send(); } catch (error) { next(error); }
 });
 
-router.post("/email-verification", limits.authEmail, authenticate, async (request, response, next) => {
+router.post("/email-verification", authenticate, limits.authEmail, async (request, response, next) => {
   try { await resendVerification((request as AuthenticatedRequest).user.sub); response.status(202).json({ data: { message: "Cek email untuk verifikasi akun." } }); } catch (error) { next(error); }
 });
 

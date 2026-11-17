@@ -29,14 +29,25 @@ export function EventList() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
 
+  // Pencarian juga dikirim ke server (`q`), supaya acara di luar 100 terbaru tetap bisa ditemukan.
+  const search = query.trim().length >= 2 ? query.trim() : "";
   useEffect(() => {
-    listOrganizerEvents({ when: "all" })
-      .then((page) => {
-        setEvents(page.data);
-        setTotal(page.meta.totalItems);
-      })
-      .catch((caught) => setError(errorMessage(caught, "Gagal memuat acara.")));
-  }, []);
+    let active = true;
+    const timer = setTimeout(() => {
+      listOrganizerEvents({ when: "all", q: search })
+        .then((page) => {
+          if (!active) return;
+          setEvents(page.data);
+          setTotal(page.meta.totalItems);
+          setError(null);
+        })
+        .catch((caught) => active && setError(errorMessage(caught, "Gagal memuat acara.")));
+    }, search ? 300 : 0);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [search]);
 
   const visible = useMemo(() => {
     if (!events) return [];

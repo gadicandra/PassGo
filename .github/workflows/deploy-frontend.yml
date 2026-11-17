@@ -34,6 +34,8 @@ jobs:
         run: npm run build:frontend
         env:
           BACKEND_URL: ${{ vars.BACKEND_URL }}
+          # Client ID Google untuk tombol "Lanjutkan dengan Google"; kosong = tombol disembunyikan.
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
 
       # Standalone tidak menyalin static & public; server.js melayaninya bila ditaruh di sebelahnya.
       - name: Package

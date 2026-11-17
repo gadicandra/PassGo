@@ -32,6 +32,9 @@ const nextConfig: NextConfig = {
   // karena dependency di-hoist ke node_modules root oleh npm workspaces.
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
+  // Kunci BACKEND_URL saat build ke dalam bundle. Tanpa ini, fetch dari Server Component (lib/public-api, katalog)
+  // membaca process.env saat runtime; di Azure variabel itu hanya ada saat build di CI → jatuh ke localhost → 503.
+  env: { BACKEND_URL: backendUrl },
   turbopack: {
     rules: {
       "*.css": {

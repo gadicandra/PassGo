@@ -199,7 +199,7 @@ function CancelPanel({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | undefined>();
   // Satu key per dialog: kalau jaringan putus lalu "Batalkan acara" ditekan lagi, server tidak memproses dua kali.
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const [idempotencyKey] = useState(newIdempotencyKey);
 
   async function submit() {
     const trimmed = reason.trim();

@@ -162,7 +162,7 @@ export function ScannerScreen({ eventId }: { eventId: string }) {
           </Link>
           <EventHeaderInline event={event} error={eventError} />
         </div>
-        <div className="text-right" aria-live="polite">
+        <div className="ml-auto text-right" aria-live="polite">
           <p className="text-[44px] font-semibold leading-none tabular-nums text-sun">{report ? report.ticketsCheckedIn : "–"}</p>
           <p className="text-[14px] text-cream/70">{issued !== null ? `dari ${issued} tiket masuk` : "memuat jumlah…"}</p>
         </div>
@@ -193,7 +193,7 @@ export function ScannerScreen({ eventId }: { eventId: string }) {
               autoComplete="off"
               spellCheck={false}
               disabled={cancelled}
-              className="[&_input]:font-mono [&_input]:uppercase [&_label]:text-cream [&_p]:text-cream/70 [&_p[role=alert]]:text-[#ff9b8a]"
+              className="[&_input]:font-mono [&_input]:uppercase [&_input:disabled]:bg-cream/80 [&_label]:text-cream [&_p]:text-cream/70 [&_p[role=alert]]:text-[#ff9b8a]"
             />
             <div>
               <Button type="submit" loading={busy} disabled={cancelled}>

@@ -11,8 +11,8 @@ const MAX_WIDTH = 640;
 
 const stateMessage: Record<Exclude<CameraState, "live">, string> = {
   starting: "Membuka kamera…",
-  denied: "Izin kamera ditolak. Izinkan kamera di pengaturan browser, atau ketik kode tiket di samping.",
-  unavailable: "Kamera tidak tersedia di perangkat atau alamat ini (butuh HTTPS). Ketik kode tiket di samping.",
+  denied: "Izin kamera ditolak. Izinkan kamera di pengaturan browser, atau ketik kode tiket secara manual.",
+  unavailable: "Kamera tidak tersedia di perangkat atau alamat ini (butuh HTTPS). Ketik kode tiket secara manual.",
 };
 
 export function QrCamera({ onDecode, paused, className }: { onDecode: (text: string) => void; paused: boolean; className?: string }) {
@@ -78,7 +78,7 @@ export function QrCamera({ onDecode, paused, className }: { onDecode: (text: str
   }, []);
 
   return (
-    <div className={cn("relative aspect-square w-full overflow-hidden rounded-card border-2 border-cream/20 bg-black", className)}>
+    <div className={cn("relative w-full overflow-hidden rounded-card border-2 border-cream/20 bg-black", state === "live" ? "aspect-square" : "aspect-[4/3]", className)}>
       <video ref={video} playsInline muted className={cn("size-full object-cover", state !== "live" && "invisible")} aria-label="Pratinjau kamera" />
       <canvas ref={canvas} className="hidden" aria-hidden />
       {state === "live" ? (

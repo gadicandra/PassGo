@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, MapPin } from "lucide-react";
+import { CalendarDays, MapPin, Clock } from "lucide-react";
 import type { EventSummary } from "@/types/api";
 import { cn } from "@/lib/cn";
 import { formatDate, formatTime } from "@/lib/format";
@@ -27,7 +27,9 @@ export function EventCard({ event, tone, className }: { event: EventSummary; ton
       <div className="mt-3 flex flex-col">
         <p className="flex items-center gap-1.5 text-[13px] font-medium text-muted">
           <CalendarDays aria-hidden className="size-3.5 shrink-0" />
-          {formatDate(event.startAt, event.timezone).replace(/ \d{4}$/, "")} · {formatTime(event.startAt, event.timezone)}
+          {formatDate(event.startAt, event.timezone).replace(/ \d{4}$/, "")}
+          <Clock aria-hidden className="ml-2 size-3.5 shrink-0" />
+          {formatTime(event.startAt, event.timezone)}
         </p>
         <h3
           className={cn(

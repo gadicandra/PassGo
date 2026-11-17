@@ -37,9 +37,9 @@ export function AgendaList({ events }: { events: EventSummary[] }) {
               <p className="flex flex-wrap items-baseline gap-x-2 text-[16px] font-bold">
                 {label(group.first.startAt, group.first.timezone, { day: "numeric", month: "long" })}
                 <span className="font-medium text-muted">{label(group.first.startAt, group.first.timezone, { weekday: "long" })}</span>
-                {soon && <span className="text-[13px] font-semibold text-brand">· {soon}</span>}
+                {soon && <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[12px] font-semibold text-brand">{soon}</span>}
               </p>
-              <ul className="mt-3 grid gap-3 md:grid-cols-2">
+              <ul className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                 {group.events.map((event) => {
                   const tone = index++;
                   return (

@@ -15,6 +15,8 @@ import { listMyTickets } from "@/lib/tickets/api";
 import { errorMessage } from "@/lib/tickets/errors";
 import type { CursorMeta } from "@/lib/tickets/types";
 import { useRoleGate } from "@/lib/tickets/useRoleGate";
+import { MetaList } from "@/components/ui/MetaList";
+import { CalendarDays, MapPin } from "lucide-react";
 
 const ROLES = ["ATTENDEE"] as const;
 const tabs = [
@@ -143,10 +145,11 @@ export function TicketList() {
               {event.title}
             </Link>
           </h2>
-          <p className="mt-0.5 text-[14px] text-muted">
-            {formatDateTime(event.startAt, event.timezone)} · {event.venueName}
-          </p>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <MetaList
+            className="mt-1 text-[14px] text-muted"
+            items={[{ icon: CalendarDays, children: formatDateTime(event.startAt, event.timezone) }, { icon: MapPin, children: event.venueName }]}
+          />
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             {tickets.map((ticket) => (
               <TicketCard key={ticket.id} ticket={ticket} />
             ))}

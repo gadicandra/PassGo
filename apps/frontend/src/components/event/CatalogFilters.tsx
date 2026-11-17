@@ -22,7 +22,7 @@ export function parseFilter(value: string | string[] | undefined): CatalogFilter
  */
 export function CatalogFilters({ active, q }: { active?: CatalogFilter; q?: string }) {
   return (
-    <nav aria-label="Filter acara" className="flex gap-2.5 overflow-x-auto pb-1">
+    <nav aria-label="Filter acara" className="flex gap-2.5 relative overflow-x-auto pb-1">
       {catalogFilters.map((filter) => {
         const params = new URLSearchParams();
         if (filter.value !== "semua") params.set("filter", filter.value);

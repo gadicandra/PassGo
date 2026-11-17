@@ -12,7 +12,7 @@ const sourceSerif = Source_Serif_4({ variable: "--font-source-serif", subsets: [
 const jetbrains = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: { default: "PassGo", template: "%s · PassGo" },
+  title: { default: "PassGo", template: "%s | PassGo" },
   description: "Tiket acara komunitas kreatif: workshop, pertunjukan, dan pameran.",
 };
 

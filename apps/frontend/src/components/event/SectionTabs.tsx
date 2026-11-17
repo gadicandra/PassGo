@@ -25,7 +25,7 @@ export function SectionTabs({ tabs }: { tabs: Array<{ id: string; label: string 
 
   return (
     <nav aria-label="Bagian halaman" className="sticky top-16 z-30 -mx-4 border-b border-line bg-cream/95 px-4 backdrop-blur md:top-20 md:-mx-8 md:px-8">
-      <ul className="flex gap-6 overflow-x-auto">
+      <ul className="flex gap-6 relative overflow-x-auto">
         {tabs.map((tab) => (
           <li key={tab.id}>
             <a

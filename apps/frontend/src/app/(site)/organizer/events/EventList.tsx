@@ -72,7 +72,7 @@ export function EventList() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Cari judul atau tempat"
-            className="h-11 min-w-0 flex-1 rounded-md border border-navy/25 bg-white px-3 text-[15px] placeholder:text-muted focus:border-navy focus:outline-none sm:w-[260px] sm:flex-none"
+            className="h-11 min-w-0 flex-1 rounded-md border border-navy/25 bg-white px-3 text-base placeholder:text-muted md:text-[15px] focus:border-navy focus:outline-none sm:w-[260px] sm:flex-none"
           />
           <ButtonLink href="/organizer/events/new">Buat acara</ButtonLink>
         </div>
@@ -167,10 +167,10 @@ function EventRow({ event }: { event: Event }) {
           </p>
           <p className="truncate text-[14px] text-muted">{event.venueName}</p>
           {/* Di layar sempit kolom tanggal/status/tiket digabung ke satu baris. */}
-          <p className="mt-1 text-[14px] text-muted md:hidden">
-            {formatDateTime(event.startAt, event.timezone)} ·{" "}
+          <p className="mt-1 flex flex-wrap gap-x-3 text-[14px] text-muted md:hidden">
+            <span>{formatDateTime(event.startAt, event.timezone)}</span>
             <span className={cn("font-semibold", toneClass[status.tone])}>{status.label}</span>
-            {totals.quota > 0 && ` · ${totals.sold}/${totals.quota} terjual`}
+            {totals.quota > 0 && <span>{totals.sold}/{totals.quota} terjual</span>}
           </p>
         </div>
         <p className="hidden text-[14px] md:block">{formatDateTime(event.startAt, event.timezone)}</p>

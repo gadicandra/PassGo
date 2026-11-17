@@ -18,6 +18,8 @@ import { ticketStatusLabel, toneClass } from "@/lib/status";
 import { getTicket, renameTicket } from "@/lib/tickets/api";
 import { errorMessage, validationMessage } from "@/lib/tickets/errors";
 import { useRoleGate } from "@/lib/tickets/useRoleGate";
+import { MetaList } from "@/components/ui/MetaList";
+import { CalendarDays, MapPin } from "lucide-react";
 
 const ROLES = ["ATTENDEE"] as const;
 
@@ -67,7 +69,7 @@ export function TicketDetail({ ticketId }: { ticketId: string }) {
   }
   if (!ticket) {
     return (
-      <div className="grid gap-8 md:grid-cols-[400px_1fr]" aria-busy aria-label="Memuat tiket">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-[400px_1fr]" aria-busy aria-label="Memuat tiket">
         <Skeleton className="h-[520px] rounded-card" />
         <Skeleton className="h-64 rounded-card" />
       </div>
@@ -80,11 +82,12 @@ export function TicketDetail({ ticketId }: { ticketId: string }) {
         Semua tiket
       </Link>
       <h1 className="mt-3 text-[30px] font-bold leading-tight tracking-[-0.01em] md:text-[36px]">{ticket.event.title}</h1>
-      <p className="mt-3 text-muted">
-        {formatDateTime(ticket.event.startAt, ticket.event.timezone)} · {ticket.event.venueName}
-      </p>
+      <MetaList
+        className="mt-3 text-muted"
+        items={[{ icon: CalendarDays, children: formatDateTime(ticket.event.startAt, ticket.event.timezone) }, { icon: MapPin, children: ticket.event.venueName }]}
+      />
 
-      <div className="mt-8 grid items-start gap-8 md:grid-cols-[400px_1fr]">
+      <div className="mt-8 grid grid-cols-1 items-start gap-8 md:grid-cols-[400px_1fr]">
         <QrPanel ticket={ticket} />
         <div className="flex flex-col gap-8">
           <HolderForm ticket={ticket} onUpdated={setTicket} />

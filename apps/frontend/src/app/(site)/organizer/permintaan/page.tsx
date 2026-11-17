@@ -91,7 +91,7 @@ export function OrganizerRequests() {
         {requests.map((user) => {
           const request = user.organizerRequest!;
           return (
-            <li key={user.id} className="grid gap-4 px-5 py-4 md:grid-cols-[1fr_320px]">
+            <li key={user.id} className="grid grid-cols-1 gap-4 px-5 py-4 md:grid-cols-[1fr_320px]">
               <div className="min-w-0">
                 <p className="font-semibold">{request.organization}</p>
                 <p className="break-all text-sm text-muted">

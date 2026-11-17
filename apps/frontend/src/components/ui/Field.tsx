@@ -1,8 +1,9 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
+// 16px di HP: iOS Safari memperbesar halaman bila huruf kolom isian < 16px saat diketuk.
 const control =
-  "w-full rounded-md border border-navy/25 bg-white px-3 text-[15px] text-navy placeholder:text-muted " +
+  "w-full rounded-md border border-navy/25 bg-white px-3 text-base text-navy placeholder:text-muted md:text-[15px] " +
   "transition-colors focus:border-navy focus:outline-none disabled:bg-navy/5 disabled:text-muted " +
   "aria-[invalid=true]:border-danger";
 

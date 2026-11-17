@@ -69,7 +69,7 @@ export function TicketTypes() {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-12">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
       <section className={cn("min-w-0", editing ? "lg:col-span-7" : "lg:col-span-12")}>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -188,7 +188,7 @@ function TicketTypeRow({
           {type.description && <p className="mt-0.5 text-[14px] text-muted">{type.description}</p>}
           <p className="mt-1 text-[14px] text-muted">
             Dijual {formatDate(type.salesStartAt, timeZone)} {formatTime(type.salesStartAt, timeZone)} – {formatDate(type.salesEndAt, timeZone)}{" "}
-            {formatTime(type.salesEndAt, timeZone)} · maks. {type.maxPerOrder}/pesanan
+            {formatTime(type.salesEndAt, timeZone)}, maks. {type.maxPerOrder} tiket per pesanan
           </p>
         </div>
         <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5 text-[14px] tabular-nums sm:grid-cols-[repeat(3,auto)] sm:text-right">

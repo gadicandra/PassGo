@@ -175,7 +175,7 @@ export function ScannerScreen({ eventId }: { eventId: string }) {
 
       {cancelled && <p className="mt-4 rounded-md bg-danger px-4 py-3 font-semibold text-white" role="alert">Acara ini dibatalkan. Check-in ditutup.</p>}
 
-      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
         <div className="flex flex-col gap-4">
           <QrCamera onDecode={handleDecode} paused={busy || cancelled === true} className="mx-auto max-w-[560px]" />
           <ResultPanel outcome={outcome} busy={busy} timezone={timezone} onDismiss={() => setOutcome(null)} />
@@ -217,7 +217,7 @@ export function ScannerScreen({ eventId }: { eventId: string }) {
                   <li key={item.id} className="flex items-baseline justify-between gap-3 py-2 text-[14px]">
                     <span className="min-w-0 truncate">
                       {item.outcome.holderName ?? item.outcome.title}
-                      {item.outcome.ticketTypeName && <span className="text-cream/60"> · {item.outcome.ticketTypeName}</span>}
+                      {item.outcome.ticketTypeName && <span className="ml-2 rounded bg-cream/10 px-1.5 py-0.5 text-[12px] text-cream/75">{item.outcome.ticketTypeName}</span>}
                     </span>
                     <span className={cn("shrink-0 font-semibold", item.outcome.kind === "success" ? "text-sun" : item.outcome.kind === "warning" ? "text-cream" : "text-[#ff9b8a]")}>
                       {resultLabel[item.outcome.result]} <span className="font-normal text-cream/50">{formatTime(item.outcome.at.toISOString(), timezone)}</span>
@@ -271,7 +271,7 @@ function ResultPanel({ outcome, busy, timezone, onDismiss }: { outcome: ScanOutc
       {outcome.holderName && (
         <p className="text-[22px] font-semibold leading-tight">
           {outcome.holderName}
-          {outcome.ticketTypeName && <span className="font-normal opacity-80"> · {outcome.ticketTypeName}</span>}
+          {outcome.ticketTypeName && <span className="ml-2 inline-block rounded-md bg-black/15 px-2 py-0.5 align-middle text-[15px] font-semibold">{outcome.ticketTypeName}</span>}
         </p>
       )}
       <p className="text-[16px] opacity-90">{outcome.detail}</p>

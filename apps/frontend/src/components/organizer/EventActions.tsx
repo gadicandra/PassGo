@@ -45,7 +45,7 @@ export function PublishChecklist() {
       <h2 id="publish-checklist" className="text-[15px] font-semibold">
         {missing === 0 ? "Siap diterbitkan" : `Sebelum terbit: ${missing} hal lagi`}
       </h2>
-      <ul className="mt-2 grid gap-x-8 gap-y-1 text-[14px] sm:grid-cols-2">
+      <ul className="mt-2 grid grid-cols-1 gap-x-8 gap-y-1 text-[14px] sm:grid-cols-2">
         {items.map((item) => (
           <li key={item.key} className="flex items-baseline justify-between gap-3 border-b border-line py-1.5 last:border-0 sm:[&:nth-last-child(2)]:border-0">
             <span className={item.done ? "text-muted" : "text-navy"}>{item.label}</span>

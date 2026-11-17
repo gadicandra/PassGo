@@ -20,7 +20,7 @@ export function OrganizerNav() {
   const visible = user?.isSuperAdmin ? [...links, ...superAdminLinks] : links;
   return (
     <nav aria-label="Kelola" className="border-b border-line">
-      <div className="mx-auto flex max-w-[1200px] gap-8 overflow-x-auto px-4 md:px-8">
+      <div className="mx-auto flex max-w-[1200px] gap-8 relative overflow-x-auto px-4 md:px-8">
         {visible.map((link) => {
           const active = pathname.startsWith(link.href);
           return (

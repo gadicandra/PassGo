@@ -56,7 +56,7 @@ export function CheckoutForm({ event, initialItems }: { event: Event; initialIte
 
   if (status !== "authenticated" || !user) {
     return (
-      <div className="grid gap-10 lg:grid-cols-12" aria-busy>
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-12" aria-busy>
         <Skeleton className="h-80 lg:col-span-7" />
         <Skeleton className="h-80 lg:col-span-5" />
       </div>

@@ -108,7 +108,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[sl
         />
       </div>
 
-      <div className="mt-8 grid gap-10 lg:grid-cols-12">
+      <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-12">
         <div className="order-2 flex flex-col gap-10 lg:order-1 lg:col-span-7">
           <section id="tentang" className="scroll-mt-36">
             <h2 className="flex items-center gap-2 text-[20px] font-semibold">

@@ -189,7 +189,7 @@ export function EventForm({
     : [...TIMEZONES, { value: values.timezone, label: values.timezone }];
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="grid gap-10 lg:grid-cols-12">
+    <form onSubmit={handleSubmit} noValidate className="grid grid-cols-1 gap-10 lg:grid-cols-12">
       <fieldset disabled={readOnly || saving} className="flex min-w-0 flex-col gap-8 lg:col-span-8">
         <section className="flex flex-col gap-5">
           <h2 className="text-[20px] font-semibold">Tentang acara</h2>
@@ -238,7 +238,7 @@ export function EventForm({
               </option>
             ))}
           </Select>
-          <div className="grid gap-5 sm:grid-cols-2 sm:max-w-[520px]">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:max-w-[520px]">
             <Field name="startAt" label="Mulai" type="datetime-local" value={values.startAt} onChange={set("startAt")} error={errors.startAt} required />
             <Field name="endAt" label="Selesai" type="datetime-local" value={values.endAt} onChange={set("endAt")} error={errors.endAt} required />
           </div>

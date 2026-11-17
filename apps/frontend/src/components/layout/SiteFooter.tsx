@@ -51,7 +51,7 @@ const payments: Array<{ name: string; logo?: string }> = [
 export function SiteFooter() {
   return (
     <footer className="mt-16 w-full bg-navy text-cream/70">
-      <div className="mx-auto grid max-w-[1200px] gap-10 px-4 pb-8 pt-12 md:grid-cols-12 md:px-8">
+      <div className="mx-auto grid grid-cols-1 max-w-[1200px] gap-10 px-4 pb-8 pt-12 md:grid-cols-12 md:px-8">
         <div className="md:col-span-4">
           <Wordmark />
           <p className="mt-5 max-w-xs text-[15px] leading-relaxed">
@@ -96,7 +96,7 @@ export function SiteFooter() {
 
       <div className="mx-auto max-w-[1200px] px-4 md:px-8">
         <div className="border-t border-dashed border-cream/20 py-6 text-[13px]">
-          <p>© 2026 PassGo · Kelompok 10 PAW UGM</p>
+          <p>© 2026 PassGo, Kelompok 10 PAW UGM</p>
         </div>
       </div>
     </footer>

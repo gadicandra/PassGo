@@ -117,11 +117,10 @@ export function SalesReportView() {
           <Stat label="Sisa kuota" value={`${totals.ticketsAvailable}`} note={totals.ticketsReserved ? `${totals.ticketsReserved} sedang dipesan` : undefined} />
         </dl>
 
-        <p className="mt-6 text-[14px] text-muted">
-          Pesanan:{" "}
-          {orderStatusOrder.map((item, index) => (
+        <p className="mt-6 flex flex-wrap gap-x-4 gap-y-1 text-[14px] text-muted">
+          <span>Pesanan:</span>
+          {orderStatusOrder.map((item) => (
             <span key={item.status}>
-              {index > 0 && " · "}
               {item.label} <span className="font-semibold tabular-nums text-navy">{totals.ordersByStatus[item.status] ?? 0}</span>
             </span>
           ))}
@@ -147,7 +146,7 @@ export function SalesReportView() {
         {report.byTicketType.length === 0 ? (
           <p className="mt-4 text-muted">Belum ada tipe tiket.</p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
+          <div className="mt-4 relative overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-[14px]">
               <thead>
                 <tr className="border-b border-line text-[13px] text-muted">
@@ -259,7 +258,7 @@ function QuotaBar({ sold, reserved, quota, name }: { sold: number; reserved: num
     <div
       role="img"
       aria-label={`${name}: ${sold} terjual, ${reserved} sedang dipesan, ${rest} sisa dari kuota ${quota}`}
-      title={`${sold} terjual · ${reserved} dipesan · ${rest} sisa`}
+      title={`${sold} terjual, ${reserved} dipesan, ${rest} sisa`}
       className="flex h-2 w-full gap-[2px]"
     >
       {parts.map((part) => (

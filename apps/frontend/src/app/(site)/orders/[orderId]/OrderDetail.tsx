@@ -114,7 +114,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
 
   if (status !== "authenticated" || !order) {
     return (
-      <div className="grid gap-10 lg:grid-cols-12" aria-busy aria-label="Memuat pesanan">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-12" aria-busy aria-label="Memuat pesanan">
         <Skeleton className="h-64 lg:col-span-7" />
         <Skeleton className="h-80 lg:col-span-5" />
       </div>
@@ -138,7 +138,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       </Link>
       <p className="mt-4 font-mono text-[18px]">{order.orderNumber}</p>
 
-      <div className="mt-6 grid gap-10 lg:grid-cols-12">
+      <div className="mt-6 grid grid-cols-1 gap-10 lg:grid-cols-12">
         <div className="flex flex-col gap-8 lg:col-span-7">
           <StatusBlock order={order} busy={busy} onAction={action} />
 

@@ -70,7 +70,7 @@ function Users() {
       </div>
 
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_200px_200px]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_200px_200px]">
         <Field name="q" label="Cari nama/email" type="search" value={filters.q} onChange={(e) => setFilter("q", e.target.value)} />
         <Select name="role" label="Peran" value={filters.role} onChange={(e) => setFilter("role", e.target.value)}>
           <option value="">Semua</option>
@@ -87,7 +87,7 @@ function Users() {
         </Select>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-line bg-white shadow-card">
+      <div className="relative overflow-x-auto rounded-xl border border-line bg-white shadow-card">
         <table className="w-full min-w-[640px] text-left text-[15px]">
           <thead className="border-b border-line text-sm text-muted">
             <tr>
@@ -137,7 +137,7 @@ function Users() {
       {meta && meta.totalPages > 1 && (
         <nav aria-label="Halaman" className="flex items-center justify-between gap-4 text-sm">
           <span className="text-muted">
-            Halaman {meta.page} dari {meta.totalPages} · {meta.totalItems} pengguna
+            Halaman {meta.page} dari {meta.totalPages} ({meta.totalItems} pengguna)
           </span>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>

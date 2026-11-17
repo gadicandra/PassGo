@@ -94,7 +94,7 @@ export function DailyRevenueChart({ days }: { days: Day[] }) {
                 <p className="font-semibold">{dayLong.format(asDate(current.date))}</p>
                 <p className="tabular-nums">{formatRupiah(current.grossRevenue, { freeLabel: false })}</p>
                 <p className="tabular-nums text-cream/75">
-                  {current.ticketsSold} tiket · {current.ordersPaid} pesanan
+                  {current.ticketsSold} tiket dari {current.ordersPaid} pesanan
                 </p>
               </div>
             )}
@@ -116,7 +116,7 @@ export function DailyRevenueChart({ days }: { days: Day[] }) {
 /** Tabel pengganti grafik (aksesibel & bisa disalin). */
 export function DailyRevenueTable({ days, timeZone }: { days: Day[]; timeZone: string }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full min-w-[480px] text-left text-[14px]">
         <caption className="sr-only">Penjualan per hari, tanggal dalam zona {timeZone}</caption>
         <thead>

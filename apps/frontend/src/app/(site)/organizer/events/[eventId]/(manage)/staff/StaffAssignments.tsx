@@ -90,7 +90,7 @@ export function StaffAssignments() {
   if (error) return <p className="text-danger">{error}</p>;
 
   return (
-    <div className="grid gap-10 lg:grid-cols-12">
+    <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
       <section className="min-w-0 lg:col-span-7">
         <h2 className="text-[20px] font-semibold">Panitia bertugas</h2>
         <p className="mt-1 max-w-xl text-[14px] text-muted">
@@ -110,8 +110,9 @@ export function StaffAssignments() {
               <li key={item.user.id} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line py-3">
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{item.user.name}</p>
-                  <p className="truncate text-[14px] text-muted">
-                    {item.user.email} · ditugaskan {item.assignedBy.name}, {formatDateTime(item.assignedAt, event.timezone)}
+                  <p className="truncate text-[14px] text-muted">{item.user.email}</p>
+                  <p className="text-[13px] text-muted">
+                    Ditugaskan oleh {item.assignedBy.name}, {formatDateTime(item.assignedAt, event.timezone)}
                   </p>
                 </div>
                 <Button variant="text" size="sm" loading={busy === item.user.id} onClick={() => revoke(item)}>
@@ -142,7 +143,7 @@ export function StaffAssignments() {
               value={query}
               onChange={(changeEvent) => setQuery(changeEvent.target.value)}
               placeholder="Cari nama atau email"
-              className="mt-4 h-11 w-full rounded-md border border-navy/25 bg-white px-3 text-[15px] placeholder:text-muted focus:border-navy focus:outline-none"
+              className="mt-4 h-11 w-full rounded-md border border-navy/25 bg-white px-3 text-base placeholder:text-muted md:text-[15px] focus:border-navy focus:outline-none"
             />
             {!staff ? (
               <Skeleton className="mt-4 h-32 w-full" />

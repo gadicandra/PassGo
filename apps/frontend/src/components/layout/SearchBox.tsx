@@ -79,7 +79,7 @@ export function SearchBox({ page = false }: { page?: boolean }) {
           onFocus={onFocus}
           onBlur={() => setFocused(false)}
           placeholder={focused ? "Judul acara atau tempat" : ""}
-          className="h-11 w-full rounded-lg border border-[#2b3c63] bg-[#1b2b4d] pl-4 pr-12 text-[15px] text-cream placeholder:text-cream/50 focus:border-brand focus:outline-none"
+          className="h-11 w-full rounded-lg border border-[#2b3c63] bg-[#1b2b4d] pl-4 pr-12 text-base text-cream md:text-[15px] placeholder:text-cream/50 focus:border-brand focus:outline-none"
         />
         <button
           type="submit"
@@ -89,7 +89,7 @@ export function SearchBox({ page = false }: { page?: boolean }) {
           <Search aria-hidden className="size-[18px]" strokeWidth={2.5} />
         </button>
         {idle && (
-          <span aria-hidden className="pointer-events-none absolute inset-y-0 left-4 flex items-center gap-1.5 overflow-hidden text-[15px] text-cream/50">
+          <span aria-hidden className="pointer-events-none absolute inset-y-0 left-4 flex items-center gap-1.5 overflow-hidden text-base text-cream/50 md:text-[15px]">
             Cari acara
             <b key={index} className="animate-[rise-in_400ms_var(--ease-ticket)] font-semibold text-cream/85">
               {IDEAS[index]}
@@ -136,7 +136,7 @@ export function SearchBox({ page = false }: { page?: boolean }) {
                       <span className="min-w-0">
                         <span className="block truncate text-[14px] font-semibold">{event.title}</span>
                         <span className="block truncate text-[12px] text-muted">
-                          {formatDate(event.startAt, event.timezone).replace(/ \d{4}$/, "")} · {event.venueName}
+                          {formatDate(event.startAt, event.timezone).replace(/ \d{4}$/, "")}, {event.venueName}
                         </span>
                       </span>
                     </Link>

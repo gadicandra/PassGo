@@ -13,6 +13,8 @@ import { getEvent } from "@/lib/organizer/api";
 import { errorMessage } from "@/lib/organizer/errors";
 import { eventStatusLabel } from "@/lib/organizer/labels";
 import { EventActions, PublishChecklist } from "./EventActions";
+import { MetaList } from "@/components/ui/MetaList";
+import { CalendarDays, MapPin } from "lucide-react";
 
 interface ManagedEvent {
   event: Event;
@@ -121,19 +123,15 @@ function EventHeader() {
           <h1 className="mt-2 text-[30px] font-bold leading-tight tracking-[-0.01em] break-words md:text-[36px]">
             {event.title}
           </h1>
-          <p className="mt-3 text-[15px] text-muted">
-            <span className={cn("font-semibold", toneClass[status.tone])}>{status.label}</span>
-            {" · "}
-            {formatDateTime(event.startAt, event.timezone)} · {event.venueName}
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[15px] text-muted">
+            <span className={cn("rounded-full bg-navy/5 px-2.5 py-0.5 text-[13px] font-semibold", toneClass[status.tone])}>{status.label}</span>
+            <MetaList items={[{ icon: CalendarDays, children: formatDateTime(event.startAt, event.timezone) }, { icon: MapPin, children: event.venueName }]} />
             {event.status !== "DRAFT" && (
-              <>
-                {" · "}
-                <Link href={`/events/${event.slug}`} className="font-semibold text-navy underline underline-offset-4 hover:text-brand">
-                  Lihat halaman publik
-                </Link>
-              </>
+              <Link href={`/events/${event.slug}`} className="font-semibold text-navy underline underline-offset-4 hover:text-brand">
+                Lihat halaman publik
+              </Link>
             )}
-          </p>
+          </div>
           {event.status === "CANCELLED" && event.cancelReason && (
             <p className="mt-2 text-[15px]">
               <span className="font-semibold text-danger">Alasan pembatalan:</span> {event.cancelReason}
@@ -167,7 +165,7 @@ function EventTabs() {
 
   return (
     <nav aria-label="Kelola acara" className="mt-8 border-b border-line">
-      <div className="-mb-px flex gap-7 overflow-x-auto">
+      <div className="-mb-px flex gap-7 relative overflow-x-auto">
         {tabs.map((tab) => {
           const active = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
           return (

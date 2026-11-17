@@ -119,7 +119,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
         <section className="my-8 w-full bg-sun py-12">
           <div className="mx-auto max-w-[1200px] px-4 md:px-8">
             <SectionHeading title="Gratis, tinggal datang" icon={Ticket} href="/?filter=gratis" onColor />
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               {free.map((event, index) => (
                 <Reveal key={event.id} index={index}>
                 <Link href={`/events/${event.slug}`} className="group block h-full">
@@ -161,8 +161,8 @@ function EventGrid({ events, scroll = false }: { events: EventSummary[]; scroll?
     <div
       className={
         scroll
-          ? "-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-x-5 sm:gap-y-8 sm:overflow-visible sm:px-0 lg:grid-cols-4"
-          : "grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4"
+          ? "relative -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-x-5 sm:gap-y-8 sm:overflow-visible sm:px-0 lg:grid-cols-4"
+          : "grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4"
       }
     >
       {events.map((event, index) => (

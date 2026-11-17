@@ -41,9 +41,9 @@ export function formatTime(iso: string, timeZone = DEFAULT_TZ): string {
   }).format(new Date(iso));
 }
 
-/** "Sab, 10 Okt 2026 · 09.00 WIB" */
+/** "Sab, 10 Okt 2026 pukul 09.00 WIB" */
 export function formatDateTime(iso: string, timeZone = DEFAULT_TZ): string {
-  return `${formatDate(iso, timeZone)} · ${formatTime(iso, timeZone)} ${zoneLabel(timeZone)}`;
+  return `${formatDate(iso, timeZone)} pukul ${formatTime(iso, timeZone)} ${zoneLabel(timeZone)}`;
 }
 
 /** Angka hari & bulan pendek untuk blok tanggal di poster: { day: "10", month: "Okt" }. */

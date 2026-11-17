@@ -113,7 +113,7 @@ function AuditLogs() {
           </Button>
         </p>
       )}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_160px_1fr_160px_160px]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_160px_1fr_160px_160px]">
         <Select name="action" label="Aksi" value={filters.action} onChange={(e) => setFilter("action", e.target.value)}>
           <option value="">Semua aksi</option>
           {ACTIONS.map((action) => (
@@ -154,19 +154,20 @@ function AuditLogs() {
               <span>
                 <span className="font-mono text-sm font-semibold">{log.action}</span>
                 <span className="ml-2 text-muted">
-                  oleh {log.actor?.name ?? "Sistem"} · {log.entityType}
+                  oleh {log.actor?.name ?? "Sistem"}
+                  <span className="ml-2 rounded bg-navy/5 px-1.5 py-0.5 text-[12px]">{log.entityType}</span>
                 </span>
               </span>
               <span className="text-sm text-muted">{formatDateTime(log.createdAt)}</span>
             </button>
             {open === log.id && (
-              <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
+              <div className="mt-3 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
                 <Diff label="Sebelum" value={log.before} />
                 <Diff label="Sesudah" value={log.after} />
                 <p className="flex flex-wrap items-center gap-x-3 gap-y-1 break-all text-muted md:col-span-2">
                   <span>
                     ID entitas <span className="font-mono">{log.entityId}</span>
-                    {log.ip && <> · IP {log.ip}</>}
+                    {log.ip && <span className="ml-3">IP {log.ip}</span>}
                   </span>
                   <Button size="sm" variant="text" onClick={() => setFilter("entityId", log.entityId)}>
                     Riwayat data ini
@@ -196,7 +197,7 @@ function Diff({ label, value }: { label: string; value: Record<string, unknown> 
   return (
     <div>
       <div className="mb-1 font-semibold">{label}</div>
-      <pre className="overflow-x-auto rounded-md bg-navy/5 p-3 font-mono text-xs">{value ? JSON.stringify(value, null, 2) : "—"}</pre>
+      <pre className="relative overflow-x-auto rounded-md bg-navy/5 p-3 font-mono text-xs">{value ? JSON.stringify(value, null, 2) : "—"}</pre>
     </div>
   );
 }

@@ -192,7 +192,7 @@ export function AttendeesView({ eventId }: { eventId: string }) {
         )}
       </div>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
+      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
         <Field
           name="search"
           type="search"
@@ -289,7 +289,7 @@ export function AttendeesView({ eventId }: { eventId: string }) {
                       <p className="truncate font-semibold">{attendee.holderName}</p>
                       <p className="truncate text-[13px] text-muted">
                         Pembeli: {attendee.buyerName}
-                        {attendee.buyerEmail ? ` · ${attendee.buyerEmail}` : ""}
+                        {attendee.buyerEmail ? `, ${attendee.buyerEmail}` : ""}
                       </p>
                     </div>
                     <p className="text-[14px]">{attendee.ticketTypeName}</p>
@@ -299,7 +299,7 @@ export function AttendeesView({ eventId }: { eventId: string }) {
                       {attendee.status === "CHECKED_IN" && attendee.checkedInAt && (
                         <span className="block text-[12px] font-normal text-muted">
                           {formatTime(attendee.checkedInAt, timezone)}
-                          {attendee.checkedInBy ? ` · ${attendee.checkedInBy.name}` : ""}
+                          {attendee.checkedInBy ? ` oleh ${attendee.checkedInBy.name}` : ""}
                         </span>
                       )}
                     </p>
@@ -339,7 +339,7 @@ export function AttendeesView({ eventId }: { eventId: string }) {
               Sebelumnya
             </Button>
             <p className="text-[14px] text-muted" aria-live="polite">
-              Halaman {data.meta.page} dari {Math.max(1, data.meta.totalPages)} · {data.meta.totalItems} peserta
+              Halaman {data.meta.page} dari {Math.max(1, data.meta.totalPages)} ({data.meta.totalItems} peserta)
             </p>
             <Button variant="outline" size="sm" disabled={page >= data.meta.totalPages || loading} onClick={() => setPage((current) => current + 1)}>
               Berikutnya

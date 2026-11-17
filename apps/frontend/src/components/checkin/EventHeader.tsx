@@ -26,9 +26,10 @@ export function EventHeader({ event, error, title }: { event: Event | null; erro
     <header>
       <h1 className="text-[30px] font-bold leading-tight tracking-[-0.01em] md:text-[36px]">{title}</h1>
       {event ? (
-        <p className="mt-3 text-muted">
-          {event.title} · {formatDateTime(event.startAt, event.timezone)}
-        </p>
+        <div className="mt-3 text-muted">
+          <p className="font-semibold text-navy">{event.title}</p>
+          <p className="text-[14px]">{formatDateTime(event.startAt, event.timezone)}</p>
+        </div>
       ) : error ? (
         <p className="mt-3 text-danger" role="alert">Acara tidak ditemukan atau kamu tidak ditugaskan di acara ini.</p>
       ) : (

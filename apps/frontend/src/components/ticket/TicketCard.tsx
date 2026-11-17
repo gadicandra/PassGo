@@ -20,7 +20,7 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
           <p className={cn("text-[14px] font-semibold", toneClass[status.tone])}>
             {status.label}
             {ticket.status === "CHECKED_IN" && ticket.checkedInAt && (
-              <span className="font-normal text-muted"> · {formatDateTime(ticket.checkedInAt, ticket.event.timezone)}</span>
+              <span className="block text-[12px] font-normal text-muted">{formatDateTime(ticket.checkedInAt, ticket.event.timezone)}</span>
             )}
           </p>
         </div>

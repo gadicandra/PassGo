@@ -76,7 +76,7 @@ export function StaffEvents() {
       </div>
 
       {loading && (
-        <div className="mt-8 grid gap-4 md:grid-cols-2" aria-busy aria-label="Memuat acara">
+        <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2" aria-busy aria-label="Memuat acara">
           {Array.from({ length: 2 }, (_, i) => (
             <Skeleton key={i} className="h-[170px] rounded-card" />
           ))}
@@ -103,7 +103,7 @@ export function StaffEvents() {
       )}
 
       {!loading && loaded && !loaded.error && loaded.events.length > 0 && (
-        <ul className="mt-8 grid gap-4 md:grid-cols-2">
+        <ul className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
           {loaded.events.map((event) => {
             const links = eventLinks(role, event.id);
             const cancelled = event.status === "CANCELLED";

@@ -107,6 +107,55 @@ export async function login(input: { email: string; password: string }): Promise
   };
 }
 
+/**
+ * Masuk/daftar lewat Google. Email harus sudah diverifikasi Google.
+ * - Email baru: akun ATTENDEE dibuat, langsung terverifikasi, password acak (bisa diatur lewat "Lupa password").
+ * - Email sudah ada: akun yang sama dipakai. Bila akun itu belum terverifikasi, password diganti acak dan sesi lama
+ *   dicabut, supaya orang yang mendaftar dengan email milik orang lain tidak bisa masuk lagi.
+ */
+export async function loginWithGoogle(profile: { email: string; emailVerified: boolean; name: string }): Promise<{
+  accessToken: string;
+  user: ReturnType<typeof publicUser>;
+  record: UserRecord;
+}> {
+  if (!profile.emailVerified) throw new AppError(403, "google-email-unverified", "Email Google ini belum terverifikasi.");
+  let user = await UserModel.findOne({ email: profile.email }).lean<UserRecord>();
+
+  if (!user) {
+    user = {
+      id: uuidv7(),
+      name: profile.name.slice(0, 100),
+      email: profile.email,
+      phone: null,
+      passwordHash: await bcrypt.hash(createOpaqueToken(), 12),
+      role: "ATTENDEE",
+      isActive: true,
+      emailVerified: true,
+      tokenVersion: 0,
+      version: 1,
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    await UserModel.create(user);
+  } else {
+    if (!user.isActive) throw new AppError(401, "invalid-credentials", "Akun ini dinonaktifkan.");
+    if (!user.emailVerified) {
+      user = await UserModel.findOneAndUpdate(
+        { id: user.id },
+        {
+          $set: { emailVerified: true, passwordHash: await bcrypt.hash(createOpaqueToken(), 12), updatedAt: now() },
+          $inc: { tokenVersion: 1, version: 1 },
+        },
+        { new: true },
+      ).lean<UserRecord>();
+      if (!user) throw new AppError(401, "invalid-credentials", "Akun tidak ditemukan.");
+      await RefreshTokenModel.updateMany({ userId: user.id, revokedAt: null }, { $set: { revokedAt: now() } });
+    }
+  }
+
+  return { accessToken: createAccessToken(user), user: publicUser(toUserRecord(user)), record: user };
+}
+
 export async function issueRefreshToken(user: UserRecord, metadata: { userAgent?: string; ip?: string }): Promise<string> {
   const token = createOpaqueToken();
   await RefreshTokenModel.create({

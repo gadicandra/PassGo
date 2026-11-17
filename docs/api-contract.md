@@ -643,6 +643,16 @@ Kirim ulang email verifikasi untuk akun yang login. `202`. Bila sudah terverifik
 + `Set-Cookie: __Secure-refresh_token=…`.
 Error: `401 invalid-credentials`. Pesan dan waktu respons sama untuk email tidak ada, password salah, atau akun nonaktif (server tetap menjalankan `bcrypt.compare` terhadap *dummy hash* bila email tidak ditemukan). Email belum terverifikasi **tetap boleh login** (lihat ✉️).
 
+#### `POST /auth/google` 🔓
+Masuk atau daftar dengan tombol "Lanjutkan dengan Google" (Google Identity Services).
+```json
+{ "credential": "<ID token dari Google>" }
+```
+Server memverifikasi tanda tangan (JWKS Google), `aud` = `GOOGLE_CLIENT_ID`, `iss`, dan masa berlaku. `200` dan cookie sama seperti login.
+- Email belum terdaftar: akun `ATTENDEE` dibuat, `emailVerified: true`, password acak (atur lewat reset password).
+- Email sudah terdaftar: akun yang sama dipakai. Bila akun itu belum terverifikasi, password diganti acak dan semua sesinya dicabut.
+Error: `401 google-token-invalid`, `403 google-email-unverified`, `401 invalid-credentials` (akun nonaktif), `502 google-unavailable`, `503 google-login-disabled` (`GOOGLE_CLIENT_ID` kosong). Rate limit sama dengan login.
+
 #### `POST /auth/refresh` 🍪
 Tanpa body. `200` dengan bentuk sama seperti login + cookie baru.
 Error: `401 refresh-token-invalid` (tidak ada/kedaluwarsa/dicabut), `401 refresh-token-reused` (family dicabut), `403 csrf-check-failed`.
@@ -1186,6 +1196,7 @@ Aksi yang dicatat (`action`): `USER_CREATED`, `USER_UPDATED`, `USER_ROLE_CHANGED
 | 4 | POST | `/auth/email-verification` | 👤 | 202 |
 | 5 | POST | `/auth/email-verification/confirm` | 🔓 | 204 |
 | 6 | POST | `/auth/login` | 🔓 | |
+| 6a | POST | `/auth/google` | 🔓 | |
 | 7 | POST | `/auth/refresh` | 🍪 | |
 | 8 | POST | `/auth/logout` | 🍪 | 204 |
 | 9 | POST | `/auth/logout-all` | 👤 | 204 |

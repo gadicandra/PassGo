@@ -9,16 +9,18 @@ const backendUrl = (process.env.BACKEND_URL ?? "http://localhost:3000").replace(
 // ponytail: tanpa nonce, XSS inline belum tertutup penuh. Upgrade: nonce lewat proxy.ts (semua halaman jadi dinamis).
 const isDev = process.env.NODE_ENV === "development";
 const midtrans = "https://*.midtrans.com https://*.veritrans.co.id https://*.cloudfront.net https://*.mixpanel.com https://*.google-analytics.com";
+// Tombol "Lanjutkan dengan Google" (Google Identity Services), sesuai daftar CSP di dokumentasi GIS.
+const gis = "https://accounts.google.com/gsi/";
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} ${midtrans}`,
-  "style-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} ${midtrans} ${gis}client`,
+  `style-src 'self' 'unsafe-inline' ${gis}style`,
   // Poster dari Supabase Storage (atau /uploads lokal lewat rewrite) dan QR data: URL.
   // Tanpa Supabase, backend memberi URL poster absolut ke origin backend sendiri (fallback /uploads lokal).
   `img-src 'self' data: blob: https://*.supabase.co ${backendUrl} ${midtrans}`,
   "font-src 'self'",
-  `connect-src 'self' ${midtrans}`,
-  `frame-src ${midtrans}`,
+  `connect-src 'self' ${midtrans} ${gis}`,
+  `frame-src ${midtrans} ${gis}`,
   "object-src 'none'",
   "base-uri 'self'",
   `form-action 'self' ${midtrans}`,

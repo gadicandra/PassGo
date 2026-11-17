@@ -13,7 +13,9 @@ import {
   revokeAllSessions,
   revokeRefreshToken,
   verifyEmail,
+  loginWithGoogle,
 } from "../services/auth-service";
+import { verifyGoogleIdToken } from "../lib/google-id-token";
 import { authenticate, type AuthenticatedRequest } from "../middlewares/authenticate";
 import { AppError } from "../utils/app-error";
 import { limits } from "../middlewares/rate-limit";
@@ -60,6 +62,16 @@ router.post("/login", ...limits.login, async (request, response, next) => {
     const user = await getUserById(result.user.id);
     if (!user) throw new AppError(401, "invalid-credentials", "Email atau password tidak valid.");
     setRefreshCookie(response, await issueRefreshToken(user, { userAgent: userAgent(request), ip: request.ip }));
+    response.json({ data: { accessToken: result.accessToken, tokenType: "Bearer", expiresIn: 900, user: result.user } });
+  } catch (error) { next(error); }
+});
+
+// Tombol "Lanjutkan dengan Google": body { credential } = ID token dari Google Identity Services.
+router.post("/google", ...limits.login, async (request, response, next) => {
+  try {
+    const { credential } = z.object({ credential: z.string().min(20).max(4096) }).strict().parse(request.body);
+    const result = await loginWithGoogle(await verifyGoogleIdToken(credential));
+    setRefreshCookie(response, await issueRefreshToken(result.record, { userAgent: userAgent(request), ip: request.ip }));
     response.json({ data: { accessToken: result.accessToken, tokenType: "Bearer", expiresIn: 900, user: result.user } });
   } catch (error) { next(error); }
 });

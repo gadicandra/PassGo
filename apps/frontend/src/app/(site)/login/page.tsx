@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect } from "react";
 import { AuthCard } from "@/components/auth/AuthCard";
+import { GoogleButton, OrDivider } from "@/components/auth/GoogleButton";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError } from "@/components/ui/Field";
 import { homeFor, safeNext, useAuth } from "@/lib/auth";
@@ -37,7 +38,9 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
         </>
       }
     >
-      <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+      <GoogleButton />
+      <OrDivider />
+      <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-4" noValidate>
         <Field name="email" label="Email" type="email" autoComplete="email" required error={fieldErrors.email} />
         <Field name="password" label="Password" type="password" autoComplete="current-password" required error={fieldErrors.password} />
         <Link href="/forgot-password" className="-mt-1 self-end text-sm font-semibold text-navy hover:text-brand">

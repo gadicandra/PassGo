@@ -24,15 +24,44 @@ export function RefundPanel({ orderId, onClose, onChanged }: { orderId: string; 
   const [formError, setFormError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
   const idempotencyKey = useRef<string | null>(null);
+  const [loadError, setLoadError] = useState<string>();
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    let active = true;
     api<Order>(`/orders/${orderId}`)
-      .then(setOrder)
-      .catch(() => setFormError("Gagal memuat pesanan."));
-  }, [orderId]);
+      .then((loaded) => active && setOrder(loaded))
+      .catch((error) => {
+        if (!active) return;
+        setLoadError(error instanceof ApiError && error.status === 404 ? "Pesanan tidak ditemukan." : "Gagal memuat pesanan.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [orderId, attempt]);
 
   if (!order) {
-    return <Skeleton className="h-80 w-full rounded-card" />;
+    if (!loadError) return <Skeleton className="h-80 w-full rounded-card" />;
+    return (
+      <div className="rounded-card border border-navy/15 bg-white p-6 shadow-card">
+        <FormError>{loadError}</FormError>
+        <div className="mt-4 flex gap-3">
+          <Button
+            variant="dark"
+            size="sm"
+            onClick={() => {
+              setLoadError(undefined);
+              setAttempt((count) => count + 1);
+            }}
+          >
+            Coba lagi
+          </Button>
+          <Button variant="text" size="sm" onClick={onClose}>
+            Tutup
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   const refundable =

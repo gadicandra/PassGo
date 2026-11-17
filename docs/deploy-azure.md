@@ -304,20 +304,24 @@ Frontend tidak butuh secret apa pun di Azure. `BACKEND_URL` dibaca **saat build*
 Workflow sudah ada di repo: `.github/workflows/deploy-backend.yml` dan `deploy-frontend.yml`. Keduanya
 membaca nama app dan alamat backend dari *repository variables*, dan kredensial dari *repository secrets*.
 
-Jalankan dari root repo (perintah `gh` memakai repo di folder ini):
+Semua perintah `gh` di bawah memakai `-R` (repo eksplisit). Tanpa itu `gh` mencoba membaca `.git` lokal,
+dan **gagal bila `gh` di-install lewat snap sementara repo ada di `/media/...`** (snap tidak boleh membaca drive
+eksternal → `fatal: not a git repository`).
 
 ```bash
+REPO=gadicandra/PassGo
+
 # Variables (tidak rahasia)
-gh variable set AZURE_BACKEND_APP_NAME  -b "$API"
-gh variable set AZURE_FRONTEND_APP_NAME -b "$WEB"
-gh variable set BACKEND_URL             -b "$API_URL"
+gh variable set AZURE_BACKEND_APP_NAME  -R $REPO -b "$API"
+gh variable set AZURE_FRONTEND_APP_NAME -R $REPO -b "$WEB"
+gh variable set BACKEND_URL             -R $REPO -b "$API_URL"
 
 # Secrets: publish profile diambil langsung dari Azure dan di-pipe ke GitHub, tidak pernah ditulis ke disk
-az webapp deployment list-publishing-profiles -g $RG -n $API --xml | gh secret set AZURE_BACKEND_PUBLISH_PROFILE
-az webapp deployment list-publishing-profiles -g $RG -n $WEB --xml | gh secret set AZURE_FRONTEND_PUBLISH_PROFILE
+az webapp deployment list-publishing-profiles -g $RG -n $API --xml | gh secret set AZURE_BACKEND_PUBLISH_PROFILE  -R $REPO
+az webapp deployment list-publishing-profiles -g $RG -n $WEB --xml | gh secret set AZURE_FRONTEND_PUBLISH_PROFILE -R $REPO
 
-gh variable list
-gh secret list
+gh variable list -R $REPO     # harus 3 baris
+gh secret list   -R $REPO     # harus 2 baris
 ```
 
 > Publish profile berisi password deploy. Bila bocor, reset dari Portal (app → *Reset publish profile*),
@@ -374,25 +378,25 @@ Urutan penting: **secrets dan variables (langkah 5) harus sudah ada sebelum work
 
 ```bash
 git push -u origin chore/azure-deploy
-gh pr create --base main --head chore/azure-deploy \
+gh pr create -R $REPO --base main --head chore/azure-deploy \
   --title "chore(deploy): Azure App Service untuk frontend dan backend" \
   --body "Workflow GitHub Actions, Next standalone, TRUST_PROXY + strip port XFF Azure, job berkala in-process, docs/deploy-azure.md."
 ```
 
-Minta review tim, lalu merge (dari GitHub atau `gh pr merge --merge`). Merge ke `main` memicu kedua workflow.
+Minta review tim, lalu merge (dari GitHub atau `gh pr merge -R $REPO --merge`). Merge ke `main` memicu kedua workflow.
 
 ### 7.2 Pantau workflow
 
 ```bash
-gh run list --limit 5
-gh run watch                     # pilih run yang sedang berjalan
+gh run list -R $REPO --limit 5
+gh run watch -R $REPO            # pilih run yang sedang berjalan
 ```
 
 Bila workflow sempat jalan sebelum secrets diisi dan gagal, jalankan ulang manual:
 
 ```bash
-gh workflow run deploy-backend.yml  --ref main
-gh workflow run deploy-frontend.yml --ref main
+gh workflow run deploy-backend.yml  -R $REPO --ref main
+gh workflow run deploy-frontend.yml -R $REPO --ref main
 ```
 
 Deploy backend dulu dan pastikan sehat (langkah 8.1) sebelum mengandalkan frontend.
@@ -479,11 +483,12 @@ Pertama selalu lihat log: `az webapp log tail -g $RG -n <app>`.
 |---|---|---|
 | `RequestDisallowedByAzure ... best available regions` saat membuat plan | Region tidak diizinkan untuk Azure for Students | Langkah 1.1, ganti `LOC`, ulangi `az appservice plan create ... -l $LOC` |
 | `ConnectionResetError(104, 'Connection reset by peer')` dari perintah `az` | Koneksi jaringan ke Azure terputus (bukan error konfigurasi) | Jalankan ulang perintahnya; bila terus, ganti jaringan (hotspot) atau lewat Portal |
+| `gh ...`: `failed to run git: fatal: not a git repository` | `gh` dari snap tidak bisa membaca repo di `/media/...` | Tambah `-R gadicandra/PassGo` di setiap perintah `gh` |
 | Workflow gagal di langkah deploy, `401 Unauthorized` | Basic auth mati atau publish profile kedaluwarsa | Ulangi 2.3 (`--basic-auth Enabled`) lalu 5 (`gh secret set`) |
 | Halaman "Application Error" / container restart terus | Startup command salah | Cek 3.1 / 4.1: `az webapp config show -g $RG -n <app> --query appCommandLine` |
 | Frontend tidak menjawab, log: `Listening on <nama-container>` | `HOSTNAME` tidak di-override | Startup frontend harus diawali `HOSTNAME=0.0.0.0` |
 | `/api/v1/health/ready` → 503 | Backend tidak bisa ke Atlas | Tambah IP dari 6.1 di Atlas Network Access |
-| Request API dari web → 500 "Internal Server Error" polos | `BACKEND_URL` kosong saat build, rewrite ke localhost | Cek `gh variable list`, lalu `gh workflow run deploy-frontend.yml --ref main` |
+| Request API dari web → 500 "Internal Server Error" polos | `BACKEND_URL` kosong saat build, rewrite ke localhost | Cek `gh variable list`, lalu `gh workflow run deploy-frontend.yml -R $REPO --ref main` |
 | Login gagal `403 csrf-check-failed` | `CSRF_ALLOWED_ORIGINS` tidak sama persis dengan URL web | Harus `https://<WEB>.azurewebsites.net` tanpa `/` di akhir; ulangi 3.2 |
 | Login berhasil tapi reload langsung keluar | Membuka backend langsung, bukan web | Selalu pakai `$WEB_URL`; cookie hanya berlaku lewat proxy |
 | Email tidak terkirim | SMTP salah (`SMTP_PASS`) atau provider memblokir | Cek log "Gagal mengirim outbox email"; perbaiki `SMTP_*`, ulangi 3.2 |
@@ -533,4 +538,4 @@ az group delete -n $RG --yes --no-wait
 - **Job berkala.** Server backend menjalankan expire pesanan dan pengiriman outbox email tiap
   `JOB_INTERVAL_SECONDS`. Aman berjalan di beberapa instance (outbox di-*claim* atomik, expiry kondisional).
 - **Ganti alamat backend** = build ulang frontend, karena `BACKEND_URL` terkunci di build:
-  `gh variable set BACKEND_URL -b <url-baru> && gh workflow run deploy-frontend.yml --ref main`.
+  `gh variable set BACKEND_URL -b <url-baru> && gh workflow run deploy-frontend.yml -R $REPO --ref main`.

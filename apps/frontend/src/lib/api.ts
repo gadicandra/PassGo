@@ -69,10 +69,10 @@ async function send<T>(path: string, options: RequestOptions = {}): Promise<Enve
   for (const [key, value] of Object.entries(options.query ?? {})) {
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
   }
-  const headers: Record<string, string> = { "X-Requested-With": "fetch" };
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   // FormData (upload poster) dikirim apa adanya; browser yang mengisi Content-Type + boundary multipart.
   const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
+  const headers: Record<string, string> = { "X-Requested-With": "fetch" };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   if (options.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
   if (options.version !== undefined) headers["X-If-Match"] = `"${options.version}"`;
   if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;

@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/Toast";
 import type { Event } from "@/types/api";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { cancelEvent, deleteEvent, publishEvent } from "@/lib/organizer/api";
+import { cancelEvent, deleteEvent, newIdempotencyKey, publishEvent } from "@/lib/organizer/api";
 import { currentFrom, errorMessage } from "@/lib/organizer/errors";
 import { useManagedEvent } from "./EventManage";
 

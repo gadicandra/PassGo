@@ -9,15 +9,17 @@ export interface Category {
   icon: LucideIcon;
   /** Kelas warna latar ilustrasi (token desain). */
   tone: string;
+  /** Strip warna di bawah kartu kategori (pola kartu kota Loket). */
+  strip: string;
   match: RegExp;
 }
 
 export const categories: Category[] = [
-  { slug: "musik", label: "Musik & konser", icon: Music, tone: "bg-brand text-cream", match: /konser|musik|gitar|orkes|keroncong|akustik|band/i },
-  { slug: "kelas", label: "Workshop & kelas", icon: Scissors, tone: "bg-teal text-cream", match: /workshop|kelas|lokakarya|sablon|cukil|keramik/i },
-  { slug: "pasar", label: "Pasar & pameran", icon: Palette, tone: "bg-sun text-navy", match: /pasar|lapak|pameran|zine|bazar|seni/i },
-  { slug: "film", label: "Film", icon: Clapperboard, tone: "bg-navy text-sun", match: /film|bioskop|pemutaran|sinema/i },
-  { slug: "literasi", label: "Diskusi & literasi", icon: BookOpen, tone: "bg-cream text-navy ring-1 ring-navy/15", match: /diskusi|buku|puisi|literasi|baca|menulis/i },
+  { slug: "musik", label: "Musik & konser", icon: Music, tone: "bg-brand text-cream", strip: "from-brand to-sun", match: /konser|musik|gitar|orkes|keroncong|akustik|band/i },
+  { slug: "kelas", label: "Workshop & kelas", icon: Scissors, tone: "bg-teal text-cream", strip: "from-teal to-[#5fb3a8]", match: /workshop|kelas|lokakarya|sablon|cukil|keramik/i },
+  { slug: "pasar", label: "Pasar & pameran", icon: Palette, tone: "bg-sun text-navy", strip: "from-sun to-brand", match: /pasar|lapak|pameran|zine|bazar|seni/i },
+  { slug: "film", label: "Film", icon: Clapperboard, tone: "bg-navy text-sun", strip: "from-navy to-[#4b6cb7]", match: /film|bioskop|pemutaran|sinema/i },
+  { slug: "literasi", label: "Diskusi & literasi", icon: BookOpen, tone: "bg-cream text-navy ring-1 ring-navy/15", strip: "from-[#b7740a] to-sun", match: /diskusi|buku|puisi|literasi|baca|menulis/i },
 ];
 
 export const categoryBySlug = (slug: unknown) => categories.find((category) => category.slug === slug);

@@ -34,6 +34,7 @@ export function CategoryTiles({ events }: { events: EventSummary[] }) {
               >
                 <Icon className="size-11" strokeWidth={1.75} />
               </span>
+              <span aria-hidden className={cn("absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r", category.strip)} />
             </Link>
           </li>
         );

@@ -1,13 +1,14 @@
 import Link from "next/link";
+import { CalendarDays, CalendarRange, LayoutGrid, Ticket, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export type CatalogFilter = "semua" | "minggu" | "bulan" | "gratis";
 
-export const catalogFilters: Array<{ value: CatalogFilter; label: string }> = [
-  { value: "semua", label: "Semua" },
-  { value: "minggu", label: "Minggu ini" },
-  { value: "bulan", label: "Bulan ini" },
-  { value: "gratis", label: "Gratis" },
+export const catalogFilters: Array<{ value: CatalogFilter; label: string; icon: LucideIcon; tint: string }> = [
+  { value: "semua", label: "Semua", icon: LayoutGrid, tint: "text-navy" },
+  { value: "minggu", label: "Minggu ini", icon: CalendarDays, tint: "text-teal" },
+  { value: "bulan", label: "Bulan ini", icon: CalendarRange, tint: "text-sun" },
+  { value: "gratis", label: "Gratis", icon: Ticket, tint: "text-brand" },
 ];
 
 export function parseFilter(value: string | string[] | undefined): CatalogFilter {
@@ -15,11 +16,13 @@ export function parseFilter(value: string | string[] | undefined): CatalogFilter
   return catalogFilters.some((filter) => filter.value === raw) ? (raw as CatalogFilter) : "semua";
 }
 
-/** Chip filter berupa link, jadi filter bisa dibagikan lewat URL dan jalan tanpa JavaScript. */
-/** `active` kosong = tidak ada chip yang aktif (mis. sedang melihat satu kategori). */
+/**
+ * Chip filter berupa link, jadi filter bisa dibagikan lewat URL dan jalan tanpa JavaScript.
+ * `active` kosong = tidak ada chip yang aktif (mis. sedang melihat satu kategori).
+ */
 export function CatalogFilters({ active, q }: { active?: CatalogFilter; q?: string }) {
   return (
-    <nav aria-label="Filter acara" className="flex gap-3 overflow-x-auto pb-1">
+    <nav aria-label="Filter acara" className="flex gap-2.5 overflow-x-auto pb-1">
       {catalogFilters.map((filter) => {
         const params = new URLSearchParams();
         if (filter.value !== "semua") params.set("filter", filter.value);
@@ -32,16 +35,12 @@ export function CatalogFilters({ active, q }: { active?: CatalogFilter; q?: stri
             href={href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "shrink-0 rounded-lg border px-6 py-2 text-[14px] font-bold transition-colors",
-              "inline-flex items-center gap-2",
-              isActive
-                ? "border-brand bg-brand text-white"
-                : filter.value === "gratis"
-                  ? "border-teal/60 bg-teal/10 text-teal hover:bg-teal/15"
-                  : "border-navy/25 bg-white text-navy hover:bg-navy/5",
+              // Pil seragam ala Loket: ikon berwarna di kiri; aktif = latar oranye muda, garis & teks oranye.
+              "inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-[14px] font-semibold transition-colors",
+              isActive ? "border-brand bg-brand/10 text-brand" : "border-navy/15 bg-white text-navy hover:border-navy/30 hover:bg-navy/[0.03]",
             )}
           >
-            {filter.value === "gratis" && !isActive && <span aria-hidden className="size-2 rounded-full bg-teal" />}
+            <filter.icon aria-hidden className={cn("size-4", isActive ? "text-brand" : filter.tint)} strokeWidth={2.25} />
             {filter.label}
           </Link>
         );

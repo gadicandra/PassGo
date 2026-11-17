@@ -2,12 +2,20 @@ import Link from "next/link";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 
+const iconTone = {
+  brand: "bg-brand/10 text-brand",
+  teal: "bg-teal/10 text-teal",
+  sun: "bg-sun/20 text-[#b7740a]",
+  navy: "bg-navy/[0.07] text-navy",
+};
+
 /** Judul section katalog: ikon + judul di kiri, jumlah acara dan tautan "Lihat semua ›" di kanan. */
 export function SectionHeading({
   title,
   icon: Icon,
   count,
   href,
+  tone = "brand",
   onColor = false,
   className,
 }: {
@@ -16,6 +24,8 @@ export function SectionHeading({
   icon?: LucideIcon;
   count?: number;
   href?: string;
+  /** Warna kotak ikon; tiap section beda warna supaya ikon tidak seragam oranye. */
+  tone?: keyof typeof iconTone;
   /** Di atas latar berwarna (band kuning): tautan navy supaya kontras cukup. */
   onColor?: boolean;
   className?: string;
@@ -23,7 +33,11 @@ export function SectionHeading({
   return (
     <div className={cn("mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2", className)}>
       <h2 className="flex items-center gap-2.5 text-[24px] font-bold leading-tight tracking-[-0.01em] md:text-[28px]">
-        {Icon && <Icon aria-hidden className={cn("size-6 shrink-0 md:size-7", onColor ? "text-navy" : "text-brand")} strokeWidth={2} />}
+        {Icon && (
+          <span aria-hidden className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl md:size-10", onColor ? "bg-white/60 text-navy" : iconTone[tone])}>
+            <Icon className="size-5 md:size-[22px]" strokeWidth={2.25} />
+          </span>
+        )}
         {title}
       </h2>
       <div className="flex items-center gap-4">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { EventSummary } from "@/types/api";
-import { CatalogFilters, parseFilter, type CatalogFilter } from "@/components/event/CatalogFilters";
+import { CatalogFilters, catalogFilters, parseFilter, type CatalogFilter } from "@/components/event/CatalogFilters";
 import { CalendarDays, Compass, MapPinned, Search, Ticket } from "lucide-react";
 import { AgendaList } from "@/components/event/AgendaList";
 import { CategoryTiles } from "@/components/event/CategoryTiles";
@@ -59,7 +59,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
         <section className="mt-8">
           <SectionHeading
             title={q ? `Hasil “${q}”` : category ? category.label : filterTitle[filter]}
-            icon={q ? Search : category ? category.icon : Compass}
+            icon={q ? Search : category ? category.icon : (catalogFilters.find((item) => item.value === filter)?.icon ?? Compass)}
             count={filtered.length}
           />
           {filtered.length ? (
@@ -104,13 +104,13 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
       </div>
 
       <section className="mx-auto w-full max-w-[1200px] px-4 pt-8 md:px-8">
-        <SectionHeading title="Jelajahi kategori" icon={Compass} />
+        <SectionHeading title="Jelajahi kategori" icon={Compass} tone="navy" />
         <CategoryTiles events={events} />
       </section>
 
       {nearest.length > 0 && (
         <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-8">
-          <SectionHeading title="Paling dekat" icon={MapPinned} count={nearest.length} href="/?filter=minggu" />
+          <SectionHeading title="Paling dekat" icon={MapPinned} tone="brand" count={nearest.length} href="/?filter=minggu" />
           <EventGrid events={nearest} scroll />
         </section>
       )}
@@ -147,7 +147,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/">) {
 
       {others.length > 0 && (
         <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-8">
-          <SectionHeading title="Agenda berikutnya" icon={CalendarDays} count={others.length} />
+          <SectionHeading title="Agenda berikutnya" icon={CalendarDays} tone="teal" count={others.length} />
           <AgendaList events={others} />
         </section>
       )}

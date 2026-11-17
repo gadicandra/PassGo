@@ -6,7 +6,7 @@ Bila narasi lebih panjang atau pendek, ubah durasi adegan di `src/PassGoDemo.tsx
 
 ## 1. Pembukaan (12 detik)
 
-Assalamualaikum warahmatullahi wabarakatuh, selamat pagi atau siang. Kami dari Kelompok 10 mata kuliah Pemrograman Aplikasi Web. Pada video ini kami mempresentasikan PassGo, aplikasi penjualan tiket untuk acara komunitas.
+Assalamualaikum warahmatullahi wabarakatuh. Kami Kelompok 10 mata kuliah Pemrograman Aplikasi Web, mempresentasikan PassGo, aplikasi penjualan tiket untuk acara komunitas.
 
 ## 2. Latar Belakang (40 detik)
 

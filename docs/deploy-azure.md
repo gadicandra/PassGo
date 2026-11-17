@@ -23,7 +23,7 @@ Waktu yang dibutuhkan: ±45 menit untuk pertama kali.
 ## Daftar isi
 
 0. [Persiapan](#0-persiapan)
-1. [Isi variabel shell](#1-isi-variabel-shell)
+1. [Isi variabel shell & pilih region](#1-isi-variabel-shell)
 2. [Buat resource Azure](#2-buat-resource-azure)
 3. [Konfigurasi backend](#3-konfigurasi-backend)
 4. [Konfigurasi frontend](#4-konfigurasi-frontend)
@@ -105,7 +105,7 @@ Nama app harus **unik global** (jadi subdomain `*.azurewebsites.net`); tambah ak
 cd /path/ke/PassGo
 
 RG=passgo-rg                 # resource group
-LOC=southeastasia            # Singapura: paling dekat dengan Indonesia & Atlas region Singapura
+LOC=southeastasia            # GANTI dengan region yang diizinkan, lihat 1.1 di bawah
 PLAN=passgo-plan             # satu plan dipakai bersama oleh dua app
 API=passgo-api               # nama Web App backend  → https://passgo-api.azurewebsites.net
 WEB=passgo-web               # nama Web App frontend → https://passgo-web.azurewebsites.net
@@ -115,7 +115,33 @@ WEB_URL=https://$WEB.azurewebsites.net
 echo "$API_URL  $WEB_URL"
 ```
 
-Cek nama belum dipakai (harus `nameAvailable: true` untuk keduanya):
+### 1.1 Cari region yang diizinkan (wajib untuk Azure for Students)
+
+Subscription **Azure for Students** dibatasi policy ke beberapa region saja (biasanya 3–5, berbeda per akun).
+Region lain ditolak dengan `RequestDisallowedByAzure ... best available regions`. Lihat daftarnya:
+
+```bash
+az policy assignment list \
+  --query "[?parameters.listOfAllowedLocations].{policy:displayName, regions:parameters.listOfAllowedLocations.value}" -o json
+```
+
+Pilih satu region dari daftar itu dan isi `LOC`. Urutan yang disarankan (paling dekat ke Indonesia dulu):
+`southeastasia` → `eastasia` → `japaneast` → `koreacentral` → `centralindia` → `australiaeast` → apa saja
+yang tersedia. Region di AS/Eropa tetap jalan normal, hanya ±150–250 ms lebih lambat dari Indonesia.
+
+```bash
+LOC=<region-dari-daftar>     # mis. LOC=eastasia
+```
+
+Bila perintah di atas kosong, buka Portal → **Policy** → **Assignments** →
+*Allowed resource deployment regions* → tab **Parameters**.
+
+Atlas sebaiknya di region yang berdekatan dengan `LOC`. Cluster Atlas yang sudah ada tidak perlu dipindah;
+koneksi lintas region tetap jalan, hanya query sedikit lebih lambat.
+
+### 1.2 Cek nama belum dipakai
+
+Hasilnya harus `nameAvailable: true` untuk keduanya:
 
 ```bash
 az rest --method post \
@@ -137,8 +163,15 @@ Dua app berbagi satu plan, jadi biaya hanya satu B1.
 
 ```bash
 az group create -n $RG -l $LOC
-az appservice plan create -g $RG -n $PLAN --is-linux --sku B1
+az appservice plan create -g $RG -n $PLAN --is-linux --sku B1 -l $LOC
 ```
+
+`-l $LOC` ditulis eksplisit di plan: tanpa itu plan ikut region resource group, yang mungkin dibuat di region
+lain sebelumnya. Kedua Web App otomatis ikut region plan.
+
+> **Kena `RequestDisallowedByAzure`?** Region `LOC` tidak ada di daftar 1.1. Resource group yang sudah
+> terlanjur dibuat boleh tetap dipakai (policy memblokir plan, bukan resource group). Ganti `LOC` dengan region
+> yang diizinkan, lalu jalankan ulang hanya perintah `az appservice plan create` di atas.
 
 > **Mau gratis (F1)?** Ganti `--sku B1` dengan `--sku F1` dan lewati semua `--always-on true` di bawah
 > (F1 tidak mendukungnya). App akan tidur setelah ±20 menit sepi; request pertama lambat dan email bisa
@@ -433,6 +466,7 @@ Pertama selalu lihat log: `az webapp log tail -g $RG -n <app>`.
 
 | Gejala | Penyebab | Perbaikan |
 |---|---|---|
+| `RequestDisallowedByAzure ... best available regions` saat membuat plan | Region tidak diizinkan untuk Azure for Students | Langkah 1.1, ganti `LOC`, ulangi `az appservice plan create ... -l $LOC` |
 | Workflow gagal di langkah deploy, `401 Unauthorized` | Basic auth mati atau publish profile kedaluwarsa | Ulangi 2.3 (`--basic-auth Enabled`) lalu 5 (`gh secret set`) |
 | Halaman "Application Error" / container restart terus | Startup command salah | Cek 3.1 / 4.1: `az webapp config show -g $RG -n <app> --query appCommandLine` |
 | Frontend tidak menjawab, log: `Listening on <nama-container>` | `HOSTNAME` tidak di-override | Startup frontend harus diawali `HOSTNAME=0.0.0.0` |

@@ -6,6 +6,8 @@ export const links = {
 };
 
 export const intro = {
+  words: ["Lokakarya.", "Konser.", "Pameran.", "Diskusi."],
+  photos: ["kelas-1", "musik-2", "pasar-1", "literasi-1"],
   subtitle: "Aplikasi Penjualan Tiket Acara Komunitas",
   meta: "Kelompok 10 · Pemrograman Aplikasi Web 2026 · Universitas Gadjah Mada",
 };
@@ -85,28 +87,29 @@ export const tech = [
   { group: "Deployment & Pengujian", items: ["Vercel dan Azure", "GitHub Actions", "Postman dan Newman", "node:test"] },
 ];
 
-export type Shot = { file: string; chapter: string; title: string; body: string; url: string };
+/** `focus`: titik (persen x, y) yang didekati kamera selama layar tampil. */
+export type Shot = { file: string; chapter: string; title: string; body: string; url: string; focus: [number, number] };
 
 // Urutan demo mengikuti alur pengguna: peserta, panitia, lalu penyelenggara.
 export const demo: Shot[] = [
-  { file: "01-beranda", chapter: "Peserta", title: "Beranda", body: "Halaman utama menampilkan acara terdekat dalam bentuk tiket yang dapat digeser.", url: "passgo / beranda" },
-  { file: "02-kategori", chapter: "Peserta", title: "Kategori dan Filter", body: "Acara dapat disaring berdasarkan waktu, harga, dan kategori. Setiap kartu memuat tanggal, tempat, dan harga.", url: "passgo / beranda" },
-  { file: "04-cari", chapter: "Peserta", title: "Pencarian", body: "Kolom pencarian menampilkan kategori populer dan acara terdekat sebelum pengguna mengetik.", url: "passgo / cari" },
-  { file: "03-agenda", chapter: "Peserta", title: "Agenda", body: "Acara berikutnya dikelompokkan berdasarkan tanggal pelaksanaan.", url: "passgo / beranda" },
-  { file: "05-detail", chapter: "Peserta", title: "Detail Acara", body: "Halaman detail memuat tanggal, waktu, lokasi, kategori, deskripsi, dan pilihan tiket.", url: "passgo / acara / konser-orkestra" },
-  { file: "06-detail-tiket", chapter: "Peserta", title: "Pemilihan Tiket", body: "Peserta memilih jumlah tiket per tipe. Acara juga dapat disimpan, ditambahkan ke kalender, atau dibagikan.", url: "passgo / acara / konser-orkestra" },
-  { file: "07-masuk", chapter: "Peserta", title: "Masuk ke Akun", body: "Pengguna masuk dengan email dan kata sandi, atau dengan akun Google.", url: "passgo / masuk" },
-  { file: "09-pesanan", chapter: "Peserta", title: "Daftar Pesanan", body: "Status setiap pesanan ditampilkan. Pembayaran diproses oleh Midtrans dengan batas waktu 30 menit.", url: "passgo / pesanan" },
-  { file: "08-tiket-saya", chapter: "Peserta", title: "Daftar Tiket", body: "Tiket yang sudah dibayar dipisahkan menjadi acara yang akan datang dan yang sudah lewat.", url: "passgo / tiket" },
-  { file: "10-etiket", chapter: "Peserta", title: "E-Tiket", body: "E-tiket memuat kode QR dan kode 16 karakter. Nama pemegang tiket dapat diubah.", url: "passgo / tiket / detail" },
-  { file: "17-staff-acara", chapter: "Panitia", title: "Acara yang Ditugaskan", body: "Panitia hanya dapat melihat acara yang ditugaskan kepadanya.", url: "passgo / panitia" },
-  { file: "18-scanner", chapter: "Panitia", title: "Pemindaian Tiket", body: "Kamera membaca kode QR, lalu sistem menampilkan hasilnya: diterima, sudah digunakan, atau tidak berlaku.", url: "passgo / pindai" },
-  { file: "11-org-acara", chapter: "Penyelenggara", title: "Daftar Acara", body: "Penyelenggara melihat seluruh acara beserta statusnya: draf, terbit, selesai, atau dibatalkan.", url: "passgo / kelola / acara" },
-  { file: "16-org-buat", chapter: "Penyelenggara", title: "Pembuatan Acara", body: "Penyelenggara mengisi detail, lokasi, jadwal, dan poster. Acara baru disimpan sebagai draf.", url: "passgo / kelola / acara baru" },
-  { file: "12-org-tipe-tiket", chapter: "Penyelenggara", title: "Tipe Tiket dan Kuota", body: "Harga, kuota, dan masa penjualan diatur per tipe tiket. Sistem mencegah penjualan melebihi kuota.", url: "passgo / kelola / tipe tiket" },
-  { file: "14-org-peserta", chapter: "Penyelenggara", title: "Daftar Peserta", body: "Penyelenggara dapat mencari peserta, melakukan check-in manual, dan mengunduh data dalam format CSV atau XLSX.", url: "passgo / kelola / peserta" },
-  { file: "13-org-penjualan", chapter: "Penyelenggara", title: "Laporan Penjualan", body: "Laporan memuat pendapatan, jumlah tiket terjual, dan grafik pendapatan harian.", url: "passgo / kelola / penjualan" },
-  { file: "15-org-pesanan", chapter: "Penyelenggara", title: "Pesanan dan Pengembalian Dana", body: "Seluruh pesanan dapat dipantau, termasuk pesanan yang memerlukan pengembalian dana.", url: "passgo / kelola / pesanan" },
+  { file: "01-beranda", chapter: "Peserta", title: "Beranda", body: "Halaman utama menampilkan acara terdekat dalam bentuk tiket yang dapat digeser.", url: "passgo / beranda", focus: [50, 32] },
+  { file: "02-kategori", chapter: "Peserta", title: "Kategori dan Filter", body: "Acara dapat disaring berdasarkan waktu, harga, dan kategori. Setiap kartu memuat tanggal, tempat, dan harga.", url: "passgo / beranda", focus: [50, 40] },
+  { file: "04-cari", chapter: "Peserta", title: "Pencarian", body: "Kolom pencarian menampilkan kategori populer dan acara terdekat sebelum pengguna mengetik.", url: "passgo / cari", focus: [50, 22] },
+  { file: "03-agenda", chapter: "Peserta", title: "Agenda", body: "Acara berikutnya dikelompokkan berdasarkan tanggal pelaksanaan.", url: "passgo / beranda", focus: [42, 48] },
+  { file: "05-detail", chapter: "Peserta", title: "Detail Acara", body: "Halaman detail memuat tanggal, waktu, lokasi, kategori, deskripsi, dan pilihan tiket.", url: "passgo / acara / konser-orkestra", focus: [45, 32] },
+  { file: "06-detail-tiket", chapter: "Peserta", title: "Pemilihan Tiket", body: "Peserta memilih jumlah tiket per tipe. Acara juga dapat disimpan, ditambahkan ke kalender, atau dibagikan.", url: "passgo / acara / konser-orkestra", focus: [72, 45] },
+  { file: "07-masuk", chapter: "Peserta", title: "Masuk ke Akun", body: "Pengguna masuk dengan email dan kata sandi, atau dengan akun Google.", url: "passgo / masuk", focus: [50, 38] },
+  { file: "09-pesanan", chapter: "Peserta", title: "Daftar Pesanan", body: "Status setiap pesanan ditampilkan. Pembayaran diproses oleh Midtrans dengan batas waktu 30 menit.", url: "passgo / pesanan", focus: [45, 22] },
+  { file: "08-tiket-saya", chapter: "Peserta", title: "Daftar Tiket", body: "Tiket yang sudah dibayar dipisahkan menjadi acara yang akan datang dan yang sudah lewat.", url: "passgo / tiket", focus: [30, 35] },
+  { file: "10-etiket", chapter: "Peserta", title: "E-Tiket", body: "E-tiket memuat kode QR dan kode 16 karakter. Nama pemegang tiket dapat diubah.", url: "passgo / tiket / detail", focus: [32, 42] },
+  { file: "17-staff-acara", chapter: "Panitia", title: "Acara yang Ditugaskan", body: "Panitia hanya dapat melihat acara yang ditugaskan kepadanya.", url: "passgo / panitia", focus: [38, 40] },
+  { file: "18-scanner", chapter: "Panitia", title: "Pemindaian Tiket", body: "Kamera membaca kode QR, lalu sistem menampilkan hasilnya: diterima, sudah digunakan, atau tidak berlaku.", url: "passgo / pindai", focus: [45, 48] },
+  { file: "11-org-acara", chapter: "Penyelenggara", title: "Daftar Acara", body: "Penyelenggara melihat seluruh acara beserta statusnya: draf, terbit, selesai, atau dibatalkan.", url: "passgo / kelola / acara", focus: [50, 40] },
+  { file: "16-org-buat", chapter: "Penyelenggara", title: "Pembuatan Acara", body: "Penyelenggara mengisi detail, lokasi, jadwal, dan poster. Acara baru disimpan sebagai draf.", url: "passgo / kelola / acara baru", focus: [38, 42] },
+  { file: "12-org-tipe-tiket", chapter: "Penyelenggara", title: "Tipe Tiket dan Kuota", body: "Harga, kuota, dan masa penjualan diatur per tipe tiket. Sistem mencegah penjualan melebihi kuota.", url: "passgo / kelola / tipe tiket", focus: [42, 45] },
+  { file: "14-org-peserta", chapter: "Penyelenggara", title: "Daftar Peserta", body: "Penyelenggara dapat mencari peserta, melakukan check-in manual, dan mengunduh data dalam format CSV atau XLSX.", url: "passgo / kelola / peserta", focus: [50, 38] },
+  { file: "13-org-penjualan", chapter: "Penyelenggara", title: "Laporan Penjualan", body: "Laporan memuat pendapatan, jumlah tiket terjual, dan grafik pendapatan harian.", url: "passgo / kelola / penjualan", focus: [40, 40] },
+  { file: "15-org-pesanan", chapter: "Penyelenggara", title: "Pesanan dan Pengembalian Dana", body: "Seluruh pesanan dapat dipantau, termasuk pesanan yang memerlukan pengembalian dana.", url: "passgo / kelola / pesanan", focus: [50, 32] },
 ];
 
 export const chapterSubtitle: Record<string, string> = {

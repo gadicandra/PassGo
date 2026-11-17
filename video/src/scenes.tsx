@@ -1,46 +1,62 @@
 import type { CSSProperties, ReactNode } from "react";
-import { AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Easing, Img, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { about, architecture, background, intro, links, phone, security, team, tech, type Shot } from "./content";
 import { color, font } from "./theme";
 
-/** Muncul naik dengan pegas, dengan jeda `delay` frame. */
-function useRise(delay = 0) {
+/*
+  Bahasa visual: tiket kertas PassGo. Kertas krem + tinta navy untuk isi, navy penuh hanya untuk
+  pembuka, pembatas bab, dan penutup. Tanpa kartu seragam dan cahaya dekoratif: hierarki dibangun
+  dari ukuran huruf, garis tipis, dan foto/produk asli. Gerak: teks muncul per baris dari balik
+  garis (reveal), kamera mendorong ke bagian layar yang sedang dijelaskan.
+*/
+
+const ease = Easing.bezier(0.22, 1, 0.36, 1);
+
+/** Baris teks yang "naik" dari balik garis tak terlihat (reveal editorial). */
+function Reveal({ at = 0, children, style }: { at?: number; children: ReactNode; style?: CSSProperties }) {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const progress = spring({ frame: frame - delay, fps, config: { damping: 200 } });
-  return { opacity: progress, transform: `translateY(${interpolate(progress, [0, 1], [40, 0])}px)` } satisfies CSSProperties;
-}
-
-function Rise({ delay = 0, children, style }: { delay?: number; children: ReactNode; style?: CSSProperties }) {
-  return <div style={{ ...useRise(delay), ...style }}>{children}</div>;
-}
-
-const page: CSSProperties = { backgroundColor: color.navy, color: color.cream, fontFamily: font.sans, padding: "90px 120px" };
-
-/** Label bab kecil di kiri atas (mis. "02 · Pembagian tugas"). */
-function Chapter({ children }: { children: ReactNode }) {
+  const progress = interpolate(frame, [at, at + 18], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
   return (
-    <Rise>
-      <p style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: color.sun }}>{children}</p>
-    </Rise>
+    <div style={{ overflow: "hidden", ...style }}>
+      <div style={{ transform: `translateY(${(1 - progress) * 105}%)`, opacity: progress > 0 ? 1 : 0 }}>{children}</div>
+    </div>
   );
 }
+
+/** Garis tipis yang tergambar dari kiri. */
+function Rule({ at = 0, tone = "rgba(20,33,61,0.18)", style }: { at?: number; tone?: string; style?: CSSProperties }) {
+  const frame = useCurrentFrame();
+  const width = interpolate(frame, [at, at + 24], [0, 100], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
+  return <div style={{ height: 2, backgroundColor: tone, width: `${width}%`, ...style }} />;
+}
+
+/** Garis perforasi tiket (titik-titik) yang tergambar, motif merek PassGo. */
+function Perforation({ at = 0, tone = color.brand }: { at?: number; tone?: string }) {
+  const frame = useCurrentFrame();
+  const size = interpolate(frame, [at, at + 30], [0, 100], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
+  return <div style={{ backgroundImage: `radial-gradient(circle, ${tone} 3px, transparent 3.5px)`, backgroundSize: "18px 8px", height: 8, width: `${size}%` }} />;
+}
+
+const paper: CSSProperties = { backgroundColor: color.cream, color: color.navy, fontFamily: font.sans };
+const ink: CSSProperties = { backgroundColor: color.navy, color: color.cream, fontFamily: font.sans };
+const display = (size: number): CSSProperties => ({ fontFamily: font.display, fontSize: size, lineHeight: 0.95, letterSpacing: -size * 0.03, margin: 0 });
+const label: CSSProperties = { fontSize: 24, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", margin: 0 };
+const softInk = "rgba(20,33,61,0.75)";
 
 function Wordmark({ size = 96 }: { size?: number }) {
   return (
     <div
       style={{
         display: "inline-flex",
-        alignItems: "center",
         backgroundColor: color.brand,
         color: color.cream,
         fontFamily: font.display,
         fontSize: size,
-        letterSpacing: -2,
-        padding: `${size * 0.12}px ${size * 0.45}px ${size * 0.12}px ${size * 0.25}px`,
-        borderRadius: size * 0.12,
-        // Takik setengah lingkaran di kanan, seperti tiket (sama dengan logo di aplikasi).
-        maskImage: `radial-gradient(circle at 100% 50%, transparent ${size * 0.18}px, #000 ${size * 0.18 + 1}px)`,
+        letterSpacing: -size * 0.02,
+        padding: `${size * 0.1}px ${size * 0.42}px ${size * 0.1}px ${size * 0.22}px`,
+        borderRadius: size * 0.08,
+        // Takik setengah lingkaran di kanan, sama dengan logo di aplikasi.
+        maskImage: `radial-gradient(circle at 100% 50%, transparent ${size * 0.17}px, #000 ${size * 0.17 + 1}px)`,
       }}
     >
       PASSGO
@@ -48,306 +64,430 @@ function Wordmark({ size = 96 }: { size?: number }) {
   );
 }
 
+/* ---------- Pembuka: potongan foto acara + kata kinetik, lalu logo ---------- */
+
 export function Intro() {
-  const frame = useCurrentFrame();
-  const glow = interpolate(frame, [0, 120], [0.4, 1], { extrapolateRight: "clamp" });
+  const { fps } = useVideoConfig();
+  const beat = Math.round(fps * 0.75);
+  const logoAt = beat * intro.words.length;
   return (
-    <AbsoluteFill style={{ ...page, justifyContent: "center", alignItems: "center", textAlign: "center" }}>
-      <div style={{ position: "absolute", inset: 0, background: `radial-gradient(circle at 50% 40%, rgba(240,78,35,${0.35 * glow}), transparent 60%)` }} />
-      <Rise>
-        <Wordmark size={150} />
-      </Rise>
-      <Rise delay={12}>
-        <p style={{ fontSize: 46, fontWeight: 600, marginTop: 50, maxWidth: 1300 }}>{intro.subtitle}</p>
-      </Rise>
-      <Rise delay={24}>
-        <p style={{ fontSize: 30, color: color.muted, marginTop: 10 }}>{intro.meta}</p>
-      </Rise>
+    <AbsoluteFill style={ink}>
+      {intro.words.map((word, index) => (
+        <Sequence key={word} from={index * beat} durationInFrames={beat} layout="none">
+          <MontageFrame photo={intro.photos[index]} word={word} />
+        </Sequence>
+      ))}
+      <Sequence from={logoAt} layout="none">
+        <AbsoluteFill style={{ ...ink, padding: "0 160px", justifyContent: "center" }}>
+          <Reveal>
+            <Wordmark size={170} />
+          </Reveal>
+          <div style={{ width: 900, margin: "56px 0 40px" }}>
+            <Perforation at={10} />
+          </div>
+          <Reveal at={18}>
+            <p style={{ fontSize: 52, fontWeight: 600, margin: 0 }}>{intro.subtitle}</p>
+          </Reveal>
+          <Reveal at={28}>
+            <p style={{ fontSize: 28, color: "rgba(255,248,240,0.6)", margin: "14px 0 0" }}>{intro.meta}</p>
+          </Reveal>
+        </AbsoluteFill>
+      </Sequence>
     </AbsoluteFill>
   );
 }
 
-/** Adegan judul + paragraf + 3 kartu bernomor (Latar Belakang, Pengenalan Aplikasi). */
-function PointsScene({ chapter, data }: { chapter: string; data: { title: string; lead: string; points: Array<{ title: string; body: string }> } }) {
+function MontageFrame({ photo, word }: { photo: string; word: string }) {
+  const frame = useCurrentFrame();
   return (
-    <AbsoluteFill style={page}>
-      <Chapter>{chapter}</Chapter>
-      <Rise delay={6}>
-        <h1 style={{ fontSize: 84, fontWeight: 700, margin: "24px 0 0", letterSpacing: -1 }}>{data.title}</h1>
-      </Rise>
-      <Rise delay={12}>
-        <p style={{ fontSize: 38, color: "rgba(255,248,240,0.8)", maxWidth: 1450, lineHeight: 1.4, marginTop: 20 }}>{data.lead}</p>
-      </Rise>
-      <div style={{ display: "flex", gap: 36, marginTop: 64 }}>
-        {data.points.map((point, index) => (
-          <Rise key={point.title} delay={24 + index * 10} style={{ flex: 1, display: "flex" }}>
-            <div style={{ flex: 1, backgroundColor: color.navySoft, borderRadius: 28, padding: 44, minHeight: 360, borderTop: `8px solid ${[color.brand, color.sun, color.teal][index]}` }}>
-              <p style={{ fontSize: 30, fontWeight: 700, color: [color.brand, color.sun, "#5fb3a8"][index], margin: 0 }}>0{index + 1}</p>
-              <p style={{ fontSize: 42, fontWeight: 700, margin: "18px 0 0" }}>{point.title}</p>
-              <p style={{ fontSize: 30, lineHeight: 1.45, color: "rgba(255,248,240,0.78)", marginTop: 16 }}>{point.body}</p>
+    <AbsoluteFill>
+      <Img
+        src={staticFile(`photos/${photo}.webp`)}
+        style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${interpolate(frame, [0, 23], [1.12, 1.04])})` }}
+      />
+      <AbsoluteFill style={{ background: "linear-gradient(90deg, rgba(20,33,61,0.85), rgba(20,33,61,0.1) 70%)" }} />
+      <AbsoluteFill style={{ justifyContent: "flex-end", padding: "0 160px 140px" }}>
+        <Reveal>
+          <p style={{ ...display(200), color: color.cream }}>{word}</p>
+        </Reveal>
+      </AbsoluteFill>
+    </AbsoluteFill>
+  );
+}
+
+/* ---------- Latar Belakang: foto penuh di kiri, tiga masalah dipisah garis di kanan ---------- */
+
+export function Background() {
+  return (
+    <AbsoluteFill style={{ ...paper, flexDirection: "row" }}>
+      <div style={{ width: "42%", position: "relative", overflow: "hidden" }}>
+        <Img src={staticFile("photos/pasar-2.webp")} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <div style={{ position: "absolute", left: 60, bottom: 60, right: 60 }}>
+          <Reveal>
+            <p style={{ ...label, color: color.cream }}>01 Latar belakang</p>
+          </Reveal>
+        </div>
+      </div>
+      <div style={{ flex: 1, padding: "110px 120px 0 110px" }}>
+        <Reveal at={6}>
+          <h1 style={display(92)}>{background.title}</h1>
+        </Reveal>
+        <Reveal at={14}>
+          <p style={{ fontSize: 34, lineHeight: 1.45, color: softInk, margin: "28px 0 50px", maxWidth: 900 }}>{background.lead}</p>
+        </Reveal>
+        {background.points.map((point, index) => (
+          <div key={point.title}>
+            <Rule at={26 + index * 14} />
+            <div style={{ display: "flex", gap: 40, padding: "30px 0" }}>
+              <Reveal at={30 + index * 14} style={{ width: 340, flexShrink: 0 }}>
+                <p style={{ fontSize: 34, fontWeight: 700, margin: 0 }}>{point.title}</p>
+              </Reveal>
+              <Reveal at={34 + index * 14}>
+                <p style={{ fontSize: 29, lineHeight: 1.45, color: softInk, margin: 0 }}>{point.body}</p>
+              </Reveal>
             </div>
-          </Rise>
+          </div>
         ))}
       </div>
     </AbsoluteFill>
   );
 }
 
-export const Background = () => <PointsScene chapter="01 · Latar Belakang" data={background} />;
-export const About = () => <PointsScene chapter="02 · Pengenalan" data={about} />;
+/* ---------- Pengenalan: pernyataan besar + produk asli yang keluar dari tepi ---------- */
 
-/** Diagram alur: Browser, Frontend, REST API, Basis Data, dengan layanan pihak ketiga di bawahnya. */
-export function Architecture() {
+export function About() {
   const frame = useCurrentFrame();
+  const slide = interpolate(frame, [10, 50], [120, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
+  const [first, ...rest] = about.title.split(" ");
+  return (
+    <AbsoluteFill style={paper}>
+      <div style={{ position: "absolute", left: 120, top: 110, width: 760 }}>
+        <Reveal>
+          <p style={{ ...label, color: color.brand }}>02 Pengenalan</p>
+        </Reveal>
+        <Reveal at={8} style={{ marginTop: 30 }}>
+          <h1 style={display(110)}>{first}</h1>
+        </Reveal>
+        <Reveal at={14}>
+          <h1 style={display(110)}>{rest.join(" ")}</h1>
+        </Reveal>
+        <Reveal at={24}>
+          <p style={{ fontSize: 33, lineHeight: 1.45, color: softInk, margin: "36px 0 46px" }}>{about.lead}</p>
+        </Reveal>
+        {about.points.map((point, index) => (
+          <div key={point.title}>
+            <Rule at={36 + index * 10} />
+            <Reveal at={40 + index * 10} style={{ padding: "22px 0" }}>
+              <p style={{ fontSize: 28, margin: 0, lineHeight: 1.4 }}>
+                <b>{point.title}.</b> <span style={{ color: softInk }}>{point.body}</span>
+              </p>
+            </Reveal>
+          </div>
+        ))}
+      </div>
+      {/* Produk sungguhan sebagai bukti, sengaja terpotong tepi kanan seperti halaman dek profesional. */}
+      <div
+        style={{
+          position: "absolute",
+          left: 960,
+          top: 150,
+          width: 1220,
+          borderRadius: 18,
+          overflow: "hidden",
+          boxShadow: "0 30px 80px rgba(20,33,61,0.25)",
+          transform: `translateX(${slide}px)`,
+          opacity: interpolate(frame, [10, 30], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+        }}
+      >
+        <Img src={staticFile("shots/01-beranda.png")} style={{ width: "100%" }} />
+      </div>
+    </AbsoluteFill>
+  );
+}
+
+/* ---------- Pembagian tugas: empat kolom dipisah garis tegak, gaya halaman profil ---------- */
+
+export function Team() {
+  return (
+    <AbsoluteFill style={{ ...paper, padding: "110px 120px" }}>
+      <Reveal>
+        <p style={{ ...label, color: color.brand }}>03 Tim</p>
+      </Reveal>
+      <Reveal at={6} style={{ marginTop: 26 }}>
+        <h1 style={display(110)}>Pembagian Tugas</h1>
+      </Reveal>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", marginTop: 80 }}>
+        {team.map((member, index) => (
+          <div key={member.name} style={{ borderLeft: index === 0 ? "none" : "2px solid rgba(20,33,61,0.15)", padding: index === 0 ? "0 44px 0 0" : "0 44px" }}>
+            <Reveal at={18 + index * 8}>
+              <p style={{ fontSize: 22, fontWeight: 700, color: color.brand, margin: 0 }}>{member.nim}</p>
+            </Reveal>
+            <Reveal at={22 + index * 8} style={{ marginTop: 16 }}>
+              <p style={{ fontSize: 40, fontWeight: 700, lineHeight: 1.12, margin: 0 }}>{member.name}</p>
+            </Reveal>
+            <div style={{ marginTop: 36 }}>
+              {member.tasks.map((task, taskIndex) => (
+                <Reveal key={task} at={32 + index * 8 + taskIndex * 4}>
+                  <p style={{ fontSize: 27, lineHeight: 1.35, margin: "0 0 18px", color: "rgba(20,33,61,0.8)" }}>{task}</p>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </AbsoluteFill>
+  );
+}
+
+/* ---------- Teknologi: lembar spesifikasi (label kiri, isi kanan, garis tipis) ---------- */
+
+export function Tech() {
+  return (
+    <AbsoluteFill style={{ ...paper, padding: "110px 120px", flexDirection: "row", gap: 120 }}>
+      <div style={{ width: 560 }}>
+        <Reveal>
+          <p style={{ ...label, color: color.brand }}>04 Teknologi</p>
+        </Reveal>
+        <Reveal at={6} style={{ marginTop: 26 }}>
+          <h1 style={display(104)}>Teknologi yang</h1>
+        </Reveal>
+        <Reveal at={12}>
+          <h1 style={display(104)}>Digunakan</h1>
+        </Reveal>
+      </div>
+      <div style={{ flex: 1, paddingTop: 30 }}>
+        {tech.map((row, index) => (
+          <div key={row.group}>
+            <Rule at={20 + index * 12} />
+            <div style={{ display: "flex", padding: "38px 0" }}>
+              <Reveal at={24 + index * 12} style={{ width: 320, flexShrink: 0 }}>
+                <p style={{ fontSize: 24, fontWeight: 700, color: color.brand, margin: 0, textTransform: "uppercase", letterSpacing: 2 }}>{row.group}</p>
+              </Reveal>
+              <Reveal at={28 + index * 12}>
+                <p style={{ fontSize: 36, fontWeight: 600, margin: 0, lineHeight: 1.35 }}>{row.items.join("  ·  ")}</p>
+              </Reveal>
+            </div>
+          </div>
+        ))}
+        <Rule at={70} />
+      </div>
+    </AbsoluteFill>
+  );
+}
+
+/* ---------- Arsitektur: rantai datar di atas kertas, garis penghubung tergambar ---------- */
+
+export function Architecture() {
   const { nodes, services } = architecture;
   const chain = [nodes.client, nodes.frontend, nodes.backend, nodes.database];
-  const accents = [color.muted, color.brand, color.sun, "#5fb3a8"];
   return (
-    <AbsoluteFill style={page}>
-      <Chapter>05 · Arsitektur</Chapter>
-      <Rise delay={6}>
-        <h1 style={{ fontSize: 84, fontWeight: 700, margin: "24px 0 0", letterSpacing: -1 }}>{architecture.title}</h1>
-      </Rise>
-      <Rise delay={12}>
-        <p style={{ fontSize: 34, color: "rgba(255,248,240,0.8)", maxWidth: 1500, lineHeight: 1.4, marginTop: 20 }}>{architecture.lead}</p>
-      </Rise>
-      <div style={{ display: "flex", alignItems: "center", marginTop: 70 }}>
+    <AbsoluteFill style={{ ...paper, padding: "110px 120px" }}>
+      <Reveal>
+        <p style={{ ...label, color: color.brand }}>05 Arsitektur</p>
+      </Reveal>
+      <Reveal at={6} style={{ marginTop: 26 }}>
+        <h1 style={display(104)}>{architecture.title}</h1>
+      </Reveal>
+      <Reveal at={14}>
+        <p style={{ fontSize: 32, lineHeight: 1.45, color: softInk, margin: "28px 0 0", maxWidth: 1350 }}>{architecture.lead}</p>
+      </Reveal>
+      <div style={{ display: "flex", alignItems: "flex-start", marginTop: 90 }}>
         {chain.map((node, index) => (
-          <div key={node.title} style={{ display: "flex", alignItems: "center", flex: index === chain.length - 1 ? "0 0 auto" : 1 }}>
-            <Rise delay={20 + index * 12}>
-              <div style={{ width: 330, backgroundColor: color.navySoft, borderRadius: 26, padding: "34px 30px", borderLeft: `8px solid ${accents[index]}` }}>
-                <p style={{ fontSize: 38, fontWeight: 700, margin: 0 }}>{node.title}</p>
-                <p style={{ fontSize: 25, color: "rgba(255,248,240,0.75)", margin: "10px 0 0" }}>{node.body}</p>
-              </div>
-            </Rise>
+          <div key={node.title} style={{ display: "flex", alignItems: "flex-start", flex: index === chain.length - 1 ? "0 0 auto" : 1 }}>
+            <div style={{ width: 300 }}>
+              <Reveal at={24 + index * 14}>
+                <p style={{ fontSize: 46, fontWeight: 700, margin: 0 }}>{node.title}</p>
+              </Reveal>
+              <Reveal at={28 + index * 14}>
+                <p style={{ fontSize: 26, color: "rgba(20,33,61,0.7)", margin: "8px 0 0" }}>{node.body}</p>
+              </Reveal>
+            </div>
             {index < chain.length - 1 && (
-              // Panah tumbuh dari kiri ke kanan setelah kotak di kirinya muncul.
-              <div style={{ flex: 1, height: 6, margin: "0 18px", backgroundColor: "rgba(255,248,240,0.15)", borderRadius: 9, overflow: "hidden" }}>
-                <div
-                  style={{
-                    height: "100%",
-                    backgroundColor: color.brand,
-                    width: `${interpolate(frame, [30 + index * 12, 50 + index * 12], [0, 100], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}%`,
-                  }}
-                />
+              <div style={{ flex: 1, padding: "30px 30px 0" }}>
+                <Rule at={34 + index * 14} tone={color.brand} />
               </div>
             )}
           </div>
         ))}
       </div>
-      <Rise delay={70}>
-        <p style={{ fontSize: 28, fontWeight: 700, color: color.sun, margin: "70px 0 20px" }}>Layanan terintegrasi</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 22 }}>
-          {services.map((service) => (
-            <div key={service} style={{ backgroundColor: "rgba(255,248,240,0.08)", borderRadius: 18, padding: "22px 26px", fontSize: 26, fontWeight: 600, lineHeight: 1.35 }}>
-              {service}
-            </div>
-          ))}
+      <div style={{ marginTop: 110 }}>
+        <Rule at={80} />
+        <div style={{ display: "flex", gap: 60, paddingTop: 30 }}>
+          <Reveal at={84} style={{ width: 300, flexShrink: 0 }}>
+            <p style={{ fontSize: 24, fontWeight: 700, color: color.brand, margin: 0, textTransform: "uppercase", letterSpacing: 2 }}>Terhubung ke</p>
+          </Reveal>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 60px", flex: 1 }}>
+            {services.map((service, index) => (
+              <Reveal key={service} at={88 + index * 4}>
+                <p style={{ fontSize: 29, margin: 0 }}>{service}</p>
+              </Reveal>
+            ))}
+          </div>
         </div>
-      </Rise>
+      </div>
     </AbsoluteFill>
   );
 }
+
+/* ---------- Keamanan: dua kolom daftar bergaris, tanpa kartu ---------- */
 
 export function Security() {
   return (
-    <AbsoluteFill style={page}>
-      <Chapter>06 · Keamanan</Chapter>
-      <Rise delay={6}>
-        <h1 style={{ fontSize: 84, fontWeight: 700, margin: "24px 0 0", letterSpacing: -1 }}>{security.title}</h1>
-      </Rise>
-      <Rise delay={12}>
-        <p style={{ fontSize: 34, color: "rgba(255,248,240,0.8)", marginTop: 20 }}>{security.lead}</p>
-      </Rise>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 28, marginTop: 50 }}>
+    <AbsoluteFill style={{ ...paper, padding: "110px 120px" }}>
+      <Reveal>
+        <p style={{ ...label, color: color.brand }}>06 Keamanan</p>
+      </Reveal>
+      <Reveal at={6} style={{ marginTop: 26 }}>
+        <h1 style={display(104)}>{security.title}</h1>
+      </Reveal>
+      <Reveal at={14}>
+        <p style={{ fontSize: 32, color: softInk, margin: "28px 0 60px" }}>{security.lead}</p>
+      </Reveal>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 100 }}>
         {security.points.map((point, index) => (
-          <Rise key={point.title} delay={22 + index * 8}>
-            <div style={{ backgroundColor: color.navySoft, borderRadius: 26, padding: "34px 36px", minHeight: 250 }}>
-              <p style={{ fontSize: 34, fontWeight: 700, margin: 0 }}>{point.title}</p>
-              <p style={{ fontSize: 27, lineHeight: 1.45, color: "rgba(255,248,240,0.78)", marginTop: 14 }}>{point.body}</p>
+          <div key={point.title}>
+            <Rule at={24 + index * 8} />
+            <div style={{ padding: "28px 0 32px" }}>
+              <Reveal at={28 + index * 8}>
+                <p style={{ fontSize: 34, fontWeight: 700, margin: 0 }}>{point.title}</p>
+              </Reveal>
+              <Reveal at={32 + index * 8}>
+                <p style={{ fontSize: 27, lineHeight: 1.45, color: softInk, margin: "10px 0 0" }}>{point.body}</p>
+              </Reveal>
             </div>
-          </Rise>
+          </div>
         ))}
       </div>
     </AbsoluteFill>
   );
 }
 
-export function Team() {
-  return (
-    <AbsoluteFill style={page}>
-      <Chapter>03 · Tim</Chapter>
-      <Rise delay={6}>
-        <h1 style={{ fontSize: 76, fontWeight: 700, margin: "24px 0 50px", letterSpacing: -1 }}>Pembagian Tugas</h1>
-      </Rise>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
-        {team.map((member, index) => (
-          <Rise key={member.name} delay={14 + index * 8}>
-            <div style={{ backgroundColor: color.cream, color: color.navy, borderRadius: 28, padding: "36px 44px", display: "flex", gap: 32 }}>
-              <div
-                style={{
-                  width: 104,
-                  height: 104,
-                  borderRadius: 999,
-                  flexShrink: 0,
-                  backgroundColor: [color.brand, color.teal, color.sun, color.navy][index],
-                  color: color.cream,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontFamily: font.display,
-                  fontSize: 44,
-                }}
-              >
-                {member.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}
-              </div>
-              <div>
-                <p style={{ fontSize: 34, fontWeight: 700, margin: 0 }}>{member.name}</p>
-                <p style={{ fontSize: 22, color: "#6b6b66", margin: "4px 0 14px" }}>{member.nim}</p>
-                <ul style={{ fontSize: 25, lineHeight: 1.5, margin: 0, paddingLeft: 26 }}>
-                  {member.tasks.map((task) => (
-                    <li key={task}>{task}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </Rise>
-        ))}
-      </div>
-    </AbsoluteFill>
-  );
-}
+/* ---------- Pembatas bab demo: navy penuh, judul besar, perforasi ---------- */
 
-export function Tech() {
-  return (
-    <AbsoluteFill style={page}>
-      <Chapter>04 · Teknologi</Chapter>
-      <Rise delay={6}>
-        <h1 style={{ fontSize: 76, fontWeight: 700, margin: "24px 0 50px", letterSpacing: -1 }}>Teknologi yang Digunakan</h1>
-      </Rise>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 28 }}>
-        {tech.map((column, index) => (
-          <Rise key={column.group} delay={14 + index * 8}>
-            <div style={{ backgroundColor: color.navySoft, borderRadius: 28, padding: 40, height: 560 }}>
-              <p style={{ fontSize: 30, fontWeight: 700, color: [color.brand, color.sun, "#5fb3a8", "#8ea7ff"][index], margin: 0 }}>{column.group}</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 18, marginTop: 30 }}>
-                {column.items.map((item) => (
-                  <div key={item} style={{ backgroundColor: "rgba(255,248,240,0.08)", borderRadius: 18, padding: "20px 24px", fontSize: 30, fontWeight: 600 }}>
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Rise>
-        ))}
-      </div>
-    </AbsoluteFill>
-  );
-}
-
-/** Pembatas bab demo, mis. "Demo · Peserta". */
 export function DemoTitle({ chapter, subtitle }: { chapter: string; subtitle: string }) {
   return (
-    <AbsoluteFill style={{ ...page, justifyContent: "center" }}>
-      <Chapter>07 · Demo Aplikasi</Chapter>
-      <Rise delay={6}>
-        <h1 style={{ fontSize: 140, fontWeight: 700, margin: "20px 0 0", letterSpacing: -3 }}>{chapter}</h1>
-      </Rise>
-      <Rise delay={14}>
-        <p style={{ fontSize: 40, color: "rgba(255,248,240,0.75)", marginTop: 20 }}>{subtitle}</p>
-      </Rise>
+    <AbsoluteFill style={{ ...ink, padding: "0 160px", justifyContent: "center" }}>
+      <Reveal>
+        <p style={{ ...label, color: color.sun }}>07 Demo aplikasi</p>
+      </Reveal>
+      <Reveal at={6} style={{ marginTop: 30 }}>
+        <h1 style={{ ...display(220), color: color.cream }}>{chapter}</h1>
+      </Reveal>
+      <div style={{ width: 1100, margin: "50px 0 36px" }}>
+        <Perforation at={12} />
+      </div>
+      <Reveal at={18}>
+        <p style={{ fontSize: 40, color: "rgba(255,248,240,0.75)", margin: 0 }}>{subtitle}</p>
+      </Reveal>
     </AbsoluteFill>
   );
 }
 
-/** Satu layar demo: teks di kiri, screenshot dalam bingkai browser di kanan dengan zoom pelan. */
+/* ---------- Layar demo: produk memenuhi layar, kamera mendorong ke bagian yang dijelaskan ---------- */
+
 export function DemoShot({ shot, index, total }: { shot: Shot; index: number; total: number }) {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
-  const zoom = interpolate(frame, [0, durationInFrames], [1, 1.08]);
-  const pan = interpolate(frame, [0, durationInFrames], [0, -3]);
+  const [fx, fy] = shot.focus;
+  const zoom = interpolate(frame, [0, durationInFrames], [1.02, 1.32], { easing: Easing.inOut(Easing.cubic) });
   return (
-    <AbsoluteFill style={{ ...page, padding: 80, flexDirection: "row", alignItems: "center", gap: 70 }}>
-      <div style={{ width: 470, flexShrink: 0 }}>
-        <Rise>
-          <p style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: color.sun }}>
-            Demo · {shot.chapter}
-          </p>
-        </Rise>
-        <Rise delay={6}>
-          <h2 style={{ fontSize: 64, fontWeight: 700, lineHeight: 1.08, margin: "22px 0 0", letterSpacing: -1 }}>{shot.title}</h2>
-        </Rise>
-        <Rise delay={12}>
-          <p style={{ fontSize: 32, lineHeight: 1.45, color: "rgba(255,248,240,0.8)", marginTop: 26 }}>{shot.body}</p>
-        </Rise>
-        <Rise delay={18}>
-          <p style={{ fontSize: 22, color: color.muted, marginTop: 40 }}>
-            {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
-          </p>
-        </Rise>
-      </div>
-      <Rise delay={4} style={{ flex: 1 }}>
-        <div style={{ borderRadius: 22, overflow: "hidden", backgroundColor: "#fff", boxShadow: "0 40px 90px rgba(0,0,0,0.45)" }}>
-          <div style={{ height: 52, backgroundColor: "#eef0f4", display: "flex", alignItems: "center", gap: 10, padding: "0 20px" }}>
-            {["#ff5f57", "#febc2e", "#28c840"].map((dot) => (
-              <span key={dot} style={{ width: 15, height: 15, borderRadius: 99, backgroundColor: dot }} />
-            ))}
-            <span style={{ marginLeft: 20, flex: 1, height: 32, borderRadius: 10, backgroundColor: "#fff", color: "#6b6b66", fontSize: 18, display: "flex", alignItems: "center", padding: "0 16px" }}>
-              {shot.url}
-            </span>
+    <AbsoluteFill style={{ backgroundColor: color.cream, overflow: "hidden" }}>
+      <Img
+        src={staticFile(`shots/${shot.file}.png`)}
+        style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${zoom})`, transformOrigin: `${fx}% ${fy}%` }}
+      />
+      {/* Bilah keterangan bawah (lower third): navy pekat, teks kiri, nomor layar kanan. */}
+      <AbsoluteFill style={{ justifyContent: "flex-end" }}>
+        <div
+          style={{
+            background: "linear-gradient(0deg, rgba(20,33,61,0.96) 0%, rgba(20,33,61,0.9) 70%, rgba(20,33,61,0) 100%)",
+            padding: "120px 120px 70px",
+            display: "flex",
+            alignItems: "flex-end",
+            gap: 80,
+            fontFamily: font.sans,
+            color: color.cream,
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <Reveal at={6}>
+              <p style={{ ...label, fontSize: 22, color: color.sun }}>{shot.chapter}</p>
+            </Reveal>
+            <Reveal at={10} style={{ marginTop: 14 }}>
+              <h2 style={{ ...display(76), color: color.cream }}>{shot.title}</h2>
+            </Reveal>
+            <Reveal at={16} style={{ marginTop: 18 }}>
+              <p style={{ fontSize: 31, lineHeight: 1.4, color: "rgba(255,248,240,0.82)", margin: 0, maxWidth: 1300 }}>{shot.body}</p>
+            </Reveal>
           </div>
-          <div style={{ aspectRatio: "16 / 9", overflow: "hidden" }}>
-            <Img
-              src={staticFile(`shots/${shot.file}.png`)}
-              style={{ width: "100%", transform: `scale(${zoom}) translateY(${pan}%)`, transformOrigin: "50% 20%" }}
-            />
-          </div>
+          <Reveal at={20}>
+            <p style={{ fontSize: 24, fontWeight: 600, color: "rgba(255,248,240,0.55)", margin: 0, fontVariantNumeric: "tabular-nums" }}>
+              {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
+            </p>
+          </Reveal>
         </div>
-      </Rise>
+      </AbsoluteFill>
     </AbsoluteFill>
   );
 }
 
+/* ---------- Tampilan seluler: dua ponsel di atas kertas, teks kiri ---------- */
+
 export function PhoneShots() {
+  const frame = useCurrentFrame();
   return (
-    <AbsoluteFill style={{ ...page, flexDirection: "row", alignItems: "center", gap: 80 }}>
-      <div style={{ width: 600 }}>
-        <Chapter>07 · Demo Aplikasi</Chapter>
-        <Rise delay={6}>
-          <h2 style={{ fontSize: 72, fontWeight: 700, margin: "22px 0 0", letterSpacing: -1 }}>{phone.title}</h2>
-        </Rise>
-        <Rise delay={12}>
-          <p style={{ fontSize: 34, lineHeight: 1.45, color: "rgba(255,248,240,0.8)", marginTop: 26 }}>{phone.body}</p>
-        </Rise>
+    <AbsoluteFill style={{ ...paper, flexDirection: "row", alignItems: "center", padding: "0 120px", gap: 100 }}>
+      <div style={{ width: 640 }}>
+        <Reveal>
+          <p style={{ ...label, color: color.brand }}>07 Demo aplikasi</p>
+        </Reveal>
+        <Reveal at={6} style={{ marginTop: 26 }}>
+          <h1 style={display(104)}>{phone.title}</h1>
+        </Reveal>
+        <Reveal at={14}>
+          <p style={{ fontSize: 33, lineHeight: 1.45, color: softInk, margin: "30px 0 0" }}>{phone.body}</p>
+        </Reveal>
       </div>
-      <div style={{ display: "flex", gap: 50 }}>
-        {phone.files.map((file, index) => (
-          <Rise key={file} delay={10 + index * 10}>
-            <div style={{ width: 400, borderRadius: 56, padding: 14, backgroundColor: "#0b1222", boxShadow: "0 40px 90px rgba(0,0,0,0.5)" }}>
-              <div style={{ borderRadius: 44, overflow: "hidden", aspectRatio: "390 / 844" }}>
+      <div style={{ display: "flex", gap: 56, alignItems: "flex-start" }}>
+        {phone.files.map((file, index) => {
+          const rise = interpolate(frame, [10 + index * 8, 40 + index * 8], [160, index * 60], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
+          return (
+            <div key={file} style={{ width: 400, borderRadius: 54, padding: 12, backgroundColor: color.navy, boxShadow: "0 30px 70px rgba(20,33,61,0.3)", transform: `translateY(${rise}px)` }}>
+              <div style={{ borderRadius: 42, overflow: "hidden", aspectRatio: "390 / 844" }}>
                 <Img src={staticFile(`shots/${file}.png`)} style={{ width: "100%" }} />
               </div>
             </div>
-          </Rise>
-        ))}
+          );
+        })}
       </div>
     </AbsoluteFill>
   );
 }
 
+/* ---------- Penutup ---------- */
+
 export function Outro() {
   return (
-    <AbsoluteFill style={{ ...page, justifyContent: "center", alignItems: "center", textAlign: "center" }}>
-      <Rise>
-        <Wordmark size={110} />
-      </Rise>
-      <Rise delay={10}>
-        <h1 style={{ fontSize: 96, fontWeight: 700, margin: "50px 0 0", letterSpacing: -2 }}>Terima Kasih</h1>
-      </Rise>
-      <Rise delay={20}>
-        <p style={{ fontSize: 36, color: "rgba(255,248,240,0.8)", marginTop: 30 }}>Repositori: {links.repo}</p>
-        <p style={{ fontSize: 36, color: "rgba(255,248,240,0.8)", marginTop: 8 }}>Aplikasi web: {links.web}</p>
-      </Rise>
+    <AbsoluteFill style={{ ...ink, padding: "0 160px", justifyContent: "center" }}>
+      <Reveal>
+        <Wordmark size={120} />
+      </Reveal>
+      <Reveal at={10} style={{ marginTop: 60 }}>
+        <h1 style={{ ...display(180), color: color.cream }}>Terima Kasih</h1>
+      </Reveal>
+      <div style={{ width: 1100, margin: "50px 0 40px" }}>
+        <Perforation at={18} />
+      </div>
+      <Reveal at={26}>
+        <p style={{ fontSize: 34, color: "rgba(255,248,240,0.8)", margin: 0 }}>
+          Repositori <b style={{ color: color.cream }}>{links.repo}</b>
+        </p>
+      </Reveal>
+      <Reveal at={32} style={{ marginTop: 10 }}>
+        <p style={{ fontSize: 34, color: "rgba(255,248,240,0.8)", margin: 0 }}>
+          Aplikasi web <b style={{ color: color.cream }}>{links.web}</b>
+        </p>
+      </Reveal>
     </AbsoluteFill>
   );
 }

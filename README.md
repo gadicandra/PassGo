@@ -39,6 +39,7 @@ Referensi produk: Loket.com, GoTix, Tiket.com.
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | Latar belakang, lingkup, matriks wewenang, tech stack, model data, alur pemesanan/pembayaran/check-in, email outbox, keamanan, roadmap, ADR |
 | [`docs/api-contract.md`](docs/api-contract.md) | Kontrak REST API v1: konvensi, auth, format error, idempotency, concurrency, semua endpoint |
+| [`docs/PROJECT.md`](docs/PROJECT.md) | **Dokumentasi lengkap dalam satu file**: user story, fitur, arsitektur, model data, semua endpoint, halaman, keamanan, pengujian, deploy |
 | [`docs/deploy-azure.md`](docs/deploy-azure.md) | Deploy frontend & backend ke Azure App Service lewat GitHub Actions |
 | [`postman/README.md`](postman/README.md) | Menjalankan pengujian API (Postman/Newman) |
 

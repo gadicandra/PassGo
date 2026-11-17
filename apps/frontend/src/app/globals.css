@@ -1,0 +1,223 @@
+@import "tailwindcss";
+
+/* Token desain PassGo, diambil dari desain final di Stitch.
+   Pakai sebagai kelas Tailwind: bg-navy, text-brand, bg-sun, border-line, font-display, dst. */
+@theme {
+  --color-navy: #14213d;
+  --color-navy-soft: #1c2e54;
+  --color-brand: #f04e23;
+  --color-brand-dark: #d63c10;
+  --color-sun: #f5a623;
+  --color-teal: #1b6b63;
+  --color-cream: #fff8f0;
+  --color-line: rgb(20 33 61 / 0.15);
+  --color-muted: #6b6b66;
+  --color-danger: #ba1a1a;
+
+  --radius-card: 12px;
+  --shadow-card: 0 2px 8px rgb(20 33 61 / 0.08);
+  --shadow-card-hover: 0 6px 16px rgb(20 33 61 / 0.14);
+  --shadow-hard: 8px 8px 0 #14213d;
+
+  /* Token gerak (skill animation-systems): masuk = ease-ticket, keluar = ease-tear. */
+  --ease-ticket: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-tear: cubic-bezier(0.5, 0, 0.75, 0);
+}
+
+@theme inline {
+  --font-display: var(--font-archivo), sans-serif;
+  --font-sans: var(--font-hanken), sans-serif;
+  --font-serif: var(--font-source-serif), serif;
+  --font-mono: var(--font-jetbrains), monospace;
+}
+
+@layer base {
+  body {
+    background: var(--color-cream);
+    color: var(--color-navy);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--color-brand);
+    color: white;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+/* Takik tiket: dua setengah lingkaran di atas & bawah garis perforasi.
+   Warna takik = warna latar di belakang tiket, atur lewat --notch-bg dan posisinya lewat --notch-x. */
+@utility ticket-notch {
+  position: relative;
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    left: calc(var(--notch-x, 70%) - var(--notch-size, 16px));
+    width: calc(var(--notch-size, 16px) * 2);
+    height: calc(var(--notch-size, 16px) * 2);
+    border-radius: 9999px;
+    background: var(--notch-bg, var(--color-cream));
+    z-index: 20;
+  }
+  &::before {
+    top: calc(var(--notch-size, 16px) * -1);
+  }
+  &::after {
+    bottom: calc(var(--notch-size, 16px) * -1);
+  }
+}
+
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Robekan tiket di hero, gaya solasi ditarik (pasang dengan origin-bottom-left: poros di sudut bawah yang masih menempel).
+   Tegang sebentar, lalu robekan merambat pelan dan rata dari atas ke bawah, bagian bawah lepas lembut, diam. Tanpa pantulan. */
+@keyframes stub-rip {
+  0% {
+    transform: none;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  6% {
+    /* tarikan awal: kertas menegang sedikit ke arah berlawanan */
+    transform: translateX(-1px) rotate(-0.3deg);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+  }
+  75% {
+    /* robekan merambat rata dari atas ke bawah (kecepatan hampir konstan, seperti solasi ditarik) */
+    transform: rotate(4deg);
+    animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  88% {
+    /* bagian bawah lepas pelan */
+    transform: translate(6px, 2px) rotate(4.4deg);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  100% {
+    /* diam miring di samping badan tiket */
+    transform: translate(10px, 6px) rotate(3.5deg);
+  }
+}
+
+/* Bayangan di bawah sobekan yang terangkat, ikut ketukan stub-rip. */
+@keyframes lift-shadow {
+  0%,
+  6% {
+    opacity: 0;
+  }
+  75% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+/* Titik robek yang turun dari atas ke bawah. Serat putih hanya terlihat di atas titik ini,
+   jadi tepi kertas "terbuka" mengikuti tarikan, bukan muncul sekaligus. Sinkron dengan fase 6%-75% stub-rip. */
+@property --tear {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+@keyframes tear-progress {
+  from {
+    --tear: 0%;
+  }
+  to {
+    --tear: 104%;
+  }
+}
+.tear-reveal {
+  mask-image: linear-gradient(to bottom, #000 calc(var(--tear) - 4%), transparent var(--tear));
+  animation: tear-progress 1520ms cubic-bezier(0.4, 0, 0.6, 1) 830ms both;
+}
+
+/* Ganti slide: sobekan yang sudah robek jatuh berputar keluar. Mulai dari posisi akhir stub-rip. */
+@keyframes stub-fall {
+  from {
+    transform: translate(10px, 6px) rotate(3.5deg);
+    opacity: 1;
+  }
+  to {
+    transform: translate(90px, 260px) rotate(20deg);
+    opacity: 0;
+  }
+}
+
+/* Garis perforasi "digunting" dari atas ke bawah. Pasang bersama origin-top. */
+@keyframes perf-cut {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* Masuk standar: naik 20px + muncul. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Bagian bawah tiket disobek: tertahan sebentar, lalu lepas miring dan jatuh. */
+@keyframes tear-away {
+  0% {
+    transform: none;
+  }
+  30% {
+    transform: translateY(2px) rotate(-1deg);
+  }
+  100% {
+    transform: translate(12px, 22px) rotate(3deg);
+    opacity: 0;
+  }
+}
+
+/* Muncul saat di-scroll (skill animation-on-scroll). Kelas is-visible dipasang oleh <Reveal>. */
+.reveal {
+  opacity: 0;
+}
+.reveal.is-visible {
+  animation: rise-in 600ms var(--ease-ticket) var(--reveal-delay, 0ms) both;
+}
+/* Tanpa JS (atau JS gagal dimuat) kelas is-visible tak pernah dipasang: konten jangan ikut hilang. */
+@media (scripting: none) {
+  .reveal {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

@@ -6,13 +6,20 @@ import type { UserRole } from "../services/auth-repository";
 import { type AuthenticatedRequest } from "../middlewares/authenticate";
 import { AppError } from "../utils/app-error";
 import { runIdempotent } from "../services/idempotency-service";
+import type { AuditContext } from "../services/audit-service";
+import { password, phone } from "../validators/user-fields";
 
 const router = Router();
 const role = z.enum(["ORGANIZER", "STAFF", "ATTENDEE"]);
-const createSchema = z.object({ name: z.string().trim().min(2).max(100), email: z.string().email().max(254), phone: z.string().nullable().optional(), role: z.enum(["STAFF", "ORGANIZER"]), password: z.string().min(8).max(64) }).strict();
-const updateSchema = z.object({ name: z.string().trim().min(2).max(100).optional(), phone: z.string().nullable().optional(), role: role.optional(), isActive: z.boolean().optional() }).strict().refine((value) => Object.keys(value).length > 0, "Body tidak boleh kosong.");
+const createSchema = z.object({ name: z.string().trim().min(2).max(100), email: z.string().email().max(254), phone, role: z.enum(["STAFF", "ORGANIZER"]), password }).strict();
+const updateSchema = z.object({ name: z.string().trim().min(2).max(100).optional(), phone, role: role.optional(), isActive: z.boolean().optional() }).strict().refine((value) => Object.keys(value).length > 0, "Body tidak boleh kosong.");
 
 router.use(authorize("ORGANIZER"));
+
+const auditOf = (request: import("express").Request): AuditContext => {
+  const user = (request as AuthenticatedRequest).user;
+  return { actorId: user.sub, actorRole: user.role, ip: request.ip, userAgent: request.get("user-agent") };
+};
 
 router.get("/", async (request, response, next) => {
   try {
@@ -29,7 +36,7 @@ router.post("/", async (request, response, next) => {
   try {
     const input = createSchema.parse(request.body);
     const result = await runIdempotent({ userId: (request as AuthenticatedRequest).user.sub, method: request.method, path: request.path, keyHeader: request.get("idempotency-key"), body: input, handler: async () => {
-      const user = await createManagedUser(input);
+      const user = await createManagedUser(input, auditOf(request));
       return { status: 201, body: { data: user }, headers: { Location: `/api/v1/users/${user.id}` } };
     } });
     for (const [name, value] of Object.entries(result.headers)) response.set(name, value);
@@ -43,7 +50,7 @@ router.get("/:userId", async (request, response, next) => {
 
 router.patch("/:userId", async (request, response, next) => {
   try {
-    const user = await updateManagedUser((request as unknown as AuthenticatedRequest).user.sub, request.params.userId, request.get("if-match"), updateSchema.parse(request.body));
+    const user = await updateManagedUser(auditOf(request), request.params.userId, request.get("if-match"), updateSchema.parse(request.body));
     response.set("ETag", `"${user.version}"`).json({ data: user });
   } catch (error) { next(error); }
 });

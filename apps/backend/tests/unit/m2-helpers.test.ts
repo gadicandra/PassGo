@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import request from "supertest";
 import app from "../../src/app";
-import { csvCell } from "../../src/services/attendee-service";
+import { csvCell, xlsxCell } from "../../src/services/attendee-service";
 import { maskEmail } from "../../src/services/ticket-service";
 import { cursorPage, decodeCursor, encodeCursor } from "../../src/utils/cursor";
 import { normalizeTicketCode } from "../../src/utils/ticket-code";
@@ -44,6 +44,13 @@ test("maskEmail dan csvCell (anti formula injection)", () => {
   assert.equal(csvCell("-1"), "'-1");
   assert.equal(csvCell('a,"b"'), '"a,""b"""');
   assert.equal(csvCell(null), "");
+});
+
+test("xlsxCell: prefiks anti formula injection, nilai kosong jadi string kosong", () => {
+  assert.equal(xlsxCell("=HYPERLINK(\"x\")"), "'=HYPERLINK(\"x\")");
+  assert.equal(xlsxCell("+62812"), "'+62812");
+  assert.equal(xlsxCell("Rina"), "Rina");
+  assert.equal(xlsxCell(undefined), "");
 });
 
 test("checkInBody: tepat satu dari code/ticketId", () => {

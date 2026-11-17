@@ -1,3 +1,4 @@
+import ExcelJS from "exceljs";
 import { Order, Ticket, User } from "../models";
 import { formatTicketCode } from "../utils/ticket-code";
 import { assertEventAccess, type Viewer } from "./event-access";
@@ -64,7 +65,9 @@ function localTime(at: Date | null, timeZone: string): string {
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
 
-export async function exportAttendeesCsv(eventId: string, viewer: Viewer, status: TicketStatus[], audit: AuditContext) {
+const EXPORT_HEADER = ["ticketCode", "holderName", "ticketTypeName", "status", "checkedInAt", "checkedInByName", "buyerName", "buyerEmail", "buyerPhone", "orderNumber"] as const;
+
+async function attendeeExportRows(eventId: string, viewer: Viewer, status: TicketStatus[], audit: AuditContext, format: "csv" | "xlsx") {
   const event = await assertEventAccess(eventId, viewer);
   const tickets = await Ticket.find({ eventId, status: { $in: status } }).sort({ holderName: 1, id: 1 }).lean<TicketRecord[]>();
   const [rows, orders, checkers] = await Promise.all([
@@ -74,12 +77,34 @@ export async function exportAttendeesCsv(eventId: string, viewer: Viewer, status
   ]);
   const orderById = new Map(orders.map((order) => [order.id, order]));
   const checkerName = new Map(checkers.map((user) => [user.id, user.name]));
-  const header = ["ticketCode", "holderName", "ticketTypeName", "status", "checkedInAt", "checkedInByName", "buyerName", "buyerEmail", "buyerPhone", "orderNumber"];
   const lines = tickets.map((ticket, index) => {
     const order = orderById.get(ticket.orderId);
-    return [formatTicketCode(ticket.code), ticket.holderName, rows[index].ticketTypeName, ticket.status, localTime(ticket.checkedInAt, event.timezone), ticket.checkedInBy ? checkerName.get(ticket.checkedInBy) ?? "" : "", order?.buyerName, order?.buyerEmail, order?.buyerPhone, order?.orderNumber].map(csvCell).join(",");
+    return [formatTicketCode(ticket.code), ticket.holderName, rows[index].ticketTypeName, ticket.status, localTime(ticket.checkedInAt, event.timezone), ticket.checkedInBy ? checkerName.get(ticket.checkedInBy) ?? "" : "", order?.buyerName, order?.buyerEmail, order?.buyerPhone, order?.orderNumber];
   });
-  await recordAudit(audit, { action: "ATTENDEES_EXPORTED", entityType: "Event", entityId: eventId, eventId, after: { format: "csv", status, rows: tickets.length } });
+  await recordAudit(audit, { action: "ATTENDEES_EXPORTED", entityType: "Event", entityId: eventId, eventId, after: { format, status, rows: tickets.length } });
   const stamp = localTime(new Date(), event.timezone).slice(0, 10).replaceAll("-", "");
-  return { filename: `attendees-${event.slug}-${stamp}.csv`, body: `﻿${[header.join(","), ...lines].join("\r\n")}\r\n` };
+  return { lines, stamp, slug: event.slug };
+}
+
+export async function exportAttendeesCsv(eventId: string, viewer: Viewer, status: TicketStatus[], audit: AuditContext) {
+  const { lines, stamp, slug } = await attendeeExportRows(eventId, viewer, status, audit, "csv");
+  const body = [EXPORT_HEADER.join(","), ...lines.map((line) => line.map(csvCell).join(","))].join("\r\n");
+  return { filename: `attendees-${slug}-${stamp}.csv`, body: `\uFEFF${body}\r\n` };
+}
+
+export function xlsxCell(value: unknown): string {
+  const text = value == null ? "" : String(value);
+  return /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+}
+
+export async function exportAttendeesXlsx(eventId: string, viewer: Viewer, status: TicketStatus[], audit: AuditContext) {
+  const { lines, stamp, slug } = await attendeeExportRows(eventId, viewer, status, audit, "xlsx");
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Peserta");
+  sheet.columns = EXPORT_HEADER.map((key) => ({ header: key, key, width: key === "ticketCode" || key === "buyerEmail" ? 28 : 20 }));
+  sheet.getRow(1).font = { bold: true };
+  sheet.views = [{ state: "frozen", ySplit: 1 }];
+  for (const line of lines) sheet.addRow(line.map(xlsxCell));
+  const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+  return { filename: `attendees-${slug}-${stamp}.xlsx`, body: buffer };
 }

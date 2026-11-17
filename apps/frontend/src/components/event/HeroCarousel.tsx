@@ -174,7 +174,7 @@ export function HeroCarousel({ events }: { events: EventSummary[] }) {
               aria-label={`Tampilkan ${item.title}`}
               aria-current={i === index}
               onClick={() => go(i)}
-              className="py-2"
+              className="py-[11px]"
             >
               <span className={cn("block h-[3px] w-6 rounded-full transition-colors", i === index ? "bg-navy" : "bg-navy/25")} />
             </button>

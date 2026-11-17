@@ -133,7 +133,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[sl
                 href={event.mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1.5 font-semibold underline underline-offset-4 hover:text-brand"
+                className="mt-1 inline-flex items-center gap-1.5 py-1 font-semibold underline underline-offset-4 hover:text-brand"
               >
                 Buka di Maps
                 <ExternalLink aria-hidden className="size-4" />

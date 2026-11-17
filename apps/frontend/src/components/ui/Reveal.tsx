@@ -8,7 +8,11 @@ const MAX_DELAY_MS = 360;
 
 let observer: IntersectionObserver | null = null;
 
-/** Satu observer untuk semua elemen; tiap elemen dianimasikan sekali saat ±20% terlihat. */
+/**
+ * Satu observer untuk semua elemen; tiap elemen dianimasikan sekali saat mendekati layar.
+ * rootMargin 1600px (±2 layar HP): kartu mulai muncul sebelum masuk viewport, jadi scroll cepat di HP
+ * tidak memperlihatkan area kosong (dulu -10% / threshold 0.2 membuat section terlihat kosong).
+ */
 function observe(element: Element) {
   observer ??= new IntersectionObserver(
     (entries) => {
@@ -18,7 +22,7 @@ function observe(element: Element) {
         observer?.unobserve(entry.target);
       }
     },
-    { threshold: 0.2, rootMargin: "0px 0px -10% 0px" },
+    { threshold: 0, rootMargin: "0px 0px 1600px 0px" },
   );
   observer.observe(element);
   return () => observer?.unobserve(element);

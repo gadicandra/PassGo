@@ -46,7 +46,7 @@ export default function RegisterPage() {
       footer={
         <>
           Sudah punya akun?{" "}
-          <Link href="/login" className="font-semibold text-brand hover:underline">
+          <Link href="/login" className="inline-block py-1 font-semibold text-brand hover:underline">
             Masuk
           </Link>
         </>

@@ -32,7 +32,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
       footer={
         <>
           Belum punya akun?{" "}
-          <Link href="/register" className="font-semibold text-brand hover:underline">
+          <Link href="/register" className="inline-block py-1 font-semibold text-brand hover:underline">
             Daftar
           </Link>
         </>
@@ -43,7 +43,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
       <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-4" noValidate>
         <Field name="email" label="Email" type="email" autoComplete="email" required error={fieldErrors.email} />
         <Field name="password" label="Password" type="password" autoComplete="current-password" required error={fieldErrors.password} />
-        <Link href="/forgot-password" className="-mt-1 self-end text-sm font-semibold text-navy hover:text-brand">
+        <Link href="/forgot-password" className="-my-1 self-end py-1.5 text-sm font-semibold text-navy hover:text-brand">
           Lupa password?
         </Link>
         <FormError>{error}</FormError>

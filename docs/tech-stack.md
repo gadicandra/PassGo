@@ -257,8 +257,9 @@ Tanpa kredensial Supabase, poster otomatis disimpan di disk lokal (`uploads/`) u
 - **Payment gateway Indonesia** dengan QRIS, GoPay, ShopeePay, virtual account bank, dan kartu.
 - **Snap** menyediakan halaman pembayaran siap pakai (popup), jadi tidak perlu membangun UI tiap metode bayar.
 - **Sandbox gratis** dan bisa dipakai akun perorangan, tanpa verifikasi badan usaha untuk demo.
-- Webhook bertanda tangan SHA-512 diverifikasi dengan `timingSafeEqual` dari `node:crypto`, lalu status
-  dikonfirmasi ulang ke API Midtrans sebelum pesanan dianggap lunas.
+- Webhook bertanda tangan SHA-512 diverifikasi dengan `timingSafeEqual` dari `node:crypto`, dan nominalnya
+  dicocokkan dengan total pesanan sebelum pesanan dianggap lunas. Status juga bisa dicek ulang ke API Midtrans
+  lewat `POST /orders/:orderId/payment/sync` bila webhook terlambat.
 
 **Alternatif:** Xendit (aktivasi lebih cepat, tapi kode sudah dibangun di atas Snap), Core API Midtrans (perlu
 UI per metode bayar sendiri).

@@ -120,7 +120,7 @@ Frontend Next.js ──/api/v1──▶ Backend Express ──▶ MongoDB Atlas
 
 Browser hanya berkomunikasi dengan frontend, lalu frontend meneruskan permintaan `/api/v1/*` ke backend. Dengan begitu cookie login (`SameSite=Strict`) tidak pernah dikirim lintas domain. Di backend, route memeriksa token dan peran, service memegang aturan bisnis dan transaksi, dan model Mongoose menyimpan data.
 
-Alasan pemilihan setiap teknologi dan library (termasuk Zod, Mongoose, sharp, jsQR, dan lainnya) dijelaskan di [`docs/tech-stack.md`](docs/tech-stack.md).
+Alasan pemilihan setiap teknologi dan library (termasuk Zod, Mongoose, sharp, jsQR, dan lainnya) dijelaskan di [`docs/tech-stack.md`](docs/tech-stack.md). Cara backend dan browser menghubungi setiap layanan pihak ketiga (MongoDB Atlas, Midtrans, Google, Supabase, SMTP, Azure) dijelaskan langkah demi langkah di [`docs/integrations.md`](docs/integrations.md).
 
 ## Endpoint API
 
@@ -215,7 +215,7 @@ Base URL: **`https://passgo-api.azurewebsites.net/api/v1`** (lokal: `http://loca
 ### Pembayaran
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| POST | `/payments/midtrans/notifications` | 🔏 | Webhook Midtrans. Tanda tangan SHA-512 diverifikasi, lalu status dikonfirmasi ulang ke Midtrans |
+| POST | `/payments/midtrans/notifications` | 🔏 | Webhook Midtrans. Tanda tangan SHA-512 dan nominal diverifikasi sebelum pesanan ditandai lunas |
 
 ### Tiket (`/tickets`)
 | Method | Path | Akses | Keterangan |

@@ -323,6 +323,9 @@ Frontend dan backend dideploy ke **Azure App Service** lewat GitHub Actions seti
 
 | Dokumen | Isi |
 |---|---|
+| [`docs/PROJECT.md`](docs/PROJECT.md) | Dokumentasi lengkap dalam satu file: user story, fitur, model data, alur, keamanan, pengujian, ADR |
+| [`docs/tech-stack.md`](docs/tech-stack.md) | Alasan pemilihan setiap teknologi dan library |
+| [`docs/integrations.md`](docs/integrations.md) | Cara menghubungi setiap layanan pihak ketiga (Atlas, Midtrans, Google, Supabase, SMTP, Azure) |
 | [`docs/architecture.md`](docs/architecture.md) | Latar belakang, matriks wewenang, model data, alur pemesanan, pembayaran, dan check-in, email outbox, keamanan, ADR |
 | [`docs/api-contract.md`](docs/api-contract.md) | Kontrak REST API v1: konvensi, autentikasi, format error, idempotency, concurrency, semua endpoint |
 | [`docs/deploy-azure.md`](docs/deploy-azure.md) | Deploy frontend dan backend ke Azure App Service |

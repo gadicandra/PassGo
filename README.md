@@ -120,6 +120,136 @@ Frontend Next.js ──/api/v1──▶ Backend Express ──▶ MongoDB Atlas
 
 Browser hanya berkomunikasi dengan frontend, lalu frontend meneruskan permintaan `/api/v1/*` ke backend. Dengan begitu cookie login (`SameSite=Strict`) tidak pernah dikirim lintas domain. Di backend, route memeriksa token dan peran, service memegang aturan bisnis dan transaksi, dan model Mongoose menyimpan data.
 
+Alasan pemilihan setiap teknologi dan library (termasuk Zod, Mongoose, sharp, jsQR, dan lainnya) dijelaskan di [`docs/tech-stack.md`](docs/tech-stack.md).
+
+## Endpoint API
+
+Base URL: **`https://passgo-api.azurewebsites.net/api/v1`** (lokal: `http://localhost:3000/api/v1`). Total **63 endpoint** (ditambah 2 endpoint internal untuk job).
+
+**Konvensi:** respons sukses `{ "data": …, "meta": … }`; error memakai format RFC 9457 (`application/problem+json`) dengan `code` untuk logika dan `detail` berbahasa Indonesia. ID memakai UUID v7, uang dalam integer Rupiah, waktu dalam RFC 3339 UTC. Field yang tidak dikenal ditolak `422`.
+
+**Legenda akses:**
+🔓 publik (token opsional) · 🍪 cookie refresh + header CSRF (`Origin` terdaftar dan `X-Requested-With: fetch`) · 👤 login, peran apa pun · 🎟️ peserta · 🧑‍💼 penyelenggara **atau** panitia yang ditugaskan di acara itu · 👑 penyelenggara · ⭐ superadmin · 🔏 tanda tangan Midtrans · 🔁 wajib header `Idempotency-Key` · 🔒 wajib header `If-Match: "<version>"` (atau `X-If-Match`)
+
+### Health
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/health` | 🔓 | Server hidup (tanpa memeriksa basis data) |
+| GET | `/health/ready` | 🔓 | Server siap dan terhubung ke basis data |
+
+### Autentikasi (`/auth`)
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| POST | `/auth/register` | 🔓 | Daftar akun peserta. Selalu `202` agar email terdaftar tidak bisa ditebak |
+| POST | `/auth/login` | 🔓 | Masuk dengan email dan password, mengembalikan access token dan cookie refresh |
+| POST | `/auth/google` | 🔓 | Masuk dengan akun Google (ID token Google Identity Services) |
+| POST | `/auth/refresh` | 🍪 | Menukar refresh token (dirotasi setiap dipakai) dengan access token baru |
+| POST | `/auth/logout` | 🍪 | Keluar dari perangkat ini |
+| POST | `/auth/logout-all` | 👤 | Keluar dari semua perangkat |
+| POST | `/auth/email-verification` | 👤 | Kirim ulang email verifikasi |
+| POST | `/auth/email-verification/confirm` | 🔓 | Konfirmasi verifikasi email dengan token dari email |
+| POST | `/auth/password-reset` | 🔓 | Minta tautan reset password. Selalu `202` |
+| POST | `/auth/password-reset/confirm` | 🔓 | Simpan password baru dengan token reset, lalu semua sesi dicabut |
+
+### Akun sendiri (`/me`)
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/me` | 👤 | Data akun yang sedang masuk |
+| PATCH | `/me` | 👤 🔒 | Ubah nama dan nomor HP |
+| POST | `/me/password` | 👤 | Ganti password. Sesi lain dicabut, sesi ini tetap berjalan |
+| POST | `/me/organizer-request` | 👤 | Peserta mengajukan diri menjadi penyelenggara (email harus terverifikasi, tidak punya pembelian aktif) |
+| GET | `/me/assigned-events` | 👤 | Acara yang ditugaskan kepada panitia (`when=upcoming\|past\|all`) |
+
+### Pengguna (`/users`)
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/users` | 👑 | Daftar pengguna. Filter `role`, `isActive`, `q`; urut `name` atau `createdAt` |
+| POST | `/users` | 👑 🔁 | Buat akun panitia atau penyelenggara |
+| GET | `/users/:userId` | 👑 | Detail pengguna |
+| PATCH | `/users/:userId` | 👑 🔒 | Ubah nama, HP, peran (`STAFF` ↔ `ORGANIZER`), atau status aktif |
+| GET | `/users/organizer-requests` | ⭐ | Daftar pengajuan penyelenggara yang menunggu |
+| POST | `/users/:userId/organizer-request/approve` | ⭐ | Setujui pengajuan, peran berubah menjadi penyelenggara |
+| POST | `/users/:userId/organizer-request/reject` | ⭐ | Tolak pengajuan dengan catatan |
+
+### Acara (`/events`)
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/events` | 🔓 | Katalog. Selain penyelenggara hanya melihat acara terbit atau dibatalkan. Filter `q`, `when`, `from`, `to` |
+| GET | `/events/by-slug/:slug` | 🔓 | Detail acara berdasarkan slug |
+| GET | `/events/:eventId` | 🔓 | Detail acara berdasarkan ID |
+| POST | `/events` | 👑 | Buat acara sebagai draf |
+| PATCH | `/events/:eventId` | 👑 🔒 | Ubah data acara |
+| DELETE | `/events/:eventId` | 👑 | Hapus acara (hanya draf) |
+| POST | `/events/:eventId/publish` | 👑 | Terbitkan acara |
+| POST | `/events/:eventId/cancel` | 👑 | Batalkan acara: tiket tidak berlaku, pesanan lunas ditandai perlu refund, pembeli diberi tahu lewat email |
+| PUT | `/events/:eventId/poster` | 👑 | Unggah poster (multipart, maks 2 MB, JPEG/PNG/WebP, diubah ke WebP) |
+| DELETE | `/events/:eventId/poster` | 👑 | Hapus poster |
+
+### Tipe tiket
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/events/:eventId/ticket-types` | 🔓 | Daftar tipe tiket beserta sisa kuota |
+| GET | `/events/:eventId/ticket-types/:ticketTypeId` | 🔓 | Detail tipe tiket |
+| POST | `/events/:eventId/ticket-types` | 👑 | Buat tipe tiket (harga, kuota, masa jual, batas per pesanan) |
+| PATCH | `/events/:eventId/ticket-types/:ticketTypeId` | 👑 🔒 | Ubah tipe tiket (kuota tidak boleh di bawah tiket yang sudah terjual) |
+| DELETE | `/events/:eventId/ticket-types/:ticketTypeId` | 👑 | Hapus tipe tiket yang belum pernah dipesan |
+
+### Panitia acara
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/events/:eventId/staff` | 👑 | Daftar panitia yang ditugaskan |
+| PUT | `/events/:eventId/staff/:userId` | 👑 | Tugaskan panitia ke acara |
+| DELETE | `/events/:eventId/staff/:userId` | 👑 | Cabut penugasan panitia |
+
+### Pesanan (`/orders`)
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| POST | `/orders` | 👤 🔁 | Buat pesanan dan tahan kuota 30 menit. Acara gratis langsung lunas. Mengembalikan token Midtrans Snap |
+| GET | `/orders` | 🎟️ 👑 | Pesanan milik sendiri (peserta) atau semua pesanan (penyelenggara) |
+| GET | `/orders/:orderId` | 🎟️ 👑 | Detail pesanan dan status pembayaran |
+| POST | `/orders/:orderId/cancel` | 🎟️ 👑 | Batalkan pesanan yang belum dibayar, kuota dilepas |
+| POST | `/orders/:orderId/ticket-email` | 🎟️ 👑 | Kirim ulang e-tiket ke email (maks 3 kali per jam) |
+| POST | `/orders/:orderId/payment/sync` | 🎟️ 👑 | Cek ulang status pembayaran ke Midtrans |
+| POST | `/orders/:orderId/refund` | 👑 🔁 | Catat pengembalian dana, tiket menjadi tidak berlaku |
+
+### Pembayaran
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| POST | `/payments/midtrans/notifications` | 🔏 | Webhook Midtrans. Tanda tangan SHA-512 diverifikasi, lalu status dikonfirmasi ulang ke Midtrans |
+
+### Tiket (`/tickets`)
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/tickets` | 🎟️ | Tiket milik sendiri |
+| GET | `/tickets/:ticketId` | 🎟️ | Detail tiket beserta kode dan isi QR |
+| PATCH | `/tickets/:ticketId` | 🎟️ 🔒 | Ubah nama pemegang tiket |
+| POST | `/tickets/:ticketId/reissue` | 👑 🔒 | Terbitkan ulang kode tiket, kode lama tidak berlaku |
+
+### Check-in, peserta, dan laporan
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| POST | `/events/:eventId/check-ins` | 🧑‍💼 | Check-in dengan QR atau kode manual. Hasil: diterima, sudah dipakai, di luar jam check-in, tidak berlaku, acara lain, atau tidak dikenal |
+| GET | `/events/:eventId/check-ins` | 🧑‍💼 | Riwayat pindaian (panitia hanya melihat pindaiannya sendiri) |
+| GET | `/events/:eventId/check-ins/:checkInId` | 🧑‍💼 | Detail satu pindaian |
+| POST | `/events/:eventId/check-ins/:checkInId/revert` | 👑 | Batalkan check-in yang keliru, dengan alasan |
+| GET | `/events/:eventId/attendees` | 🧑‍💼 | Daftar peserta (data pembeli disamarkan untuk panitia) |
+| GET | `/events/:eventId/attendees/export` | 👑 | Ekspor peserta, `format=csv` atau `format=xlsx` |
+| GET | `/events/:eventId/reports/sales` | 👑 | Laporan penjualan |
+| GET | `/events/:eventId/reports/attendance` | 🧑‍💼 | Laporan kehadiran |
+
+### Log audit
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/audit-logs` | 👑 | Jejak aksi penting. Filter `action`, `entityType`, `entityId`, `actorId`, `eventId`, `from`, `to` |
+
+### Internal
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET/POST | `/internal/jobs/send-emails` | `Authorization: Bearer $CRON_SECRET` | Kirim antrean email |
+| GET/POST | `/internal/jobs/expire-pending-orders` | `Authorization: Bearer $CRON_SECRET` | Kedaluwarsakan pesanan yang lewat batas bayar |
+
+Endpoint internal tidak termasuk 63 endpoint di atas dan hanya dipakai scheduler. Detail body, contoh respons, dan daftar kode error setiap endpoint ada di [`docs/api-contract.md`](docs/api-contract.md).
+
 ## Struktur Repositori
 
 ```

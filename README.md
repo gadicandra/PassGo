@@ -9,7 +9,7 @@ Proyek Akhir Pemrograman Aplikasi Web 2026/2027, **Kelompok 10**, kategori **US3
 | | Tautan |
 |---|---|
 | Aplikasi web | **[https://passgo-web.azurewebsites.net](https://passgo-web.azurewebsites.net)** |
-| Video presentasi dan demo | **[Google Drive](https://drive.google.com/drive/folders/1KIRrBomNauZgTGaiy5gFKrr69euTYxCj)** |
+| Video presentasi dan demo, kredensial | **[Google Drive](https://drive.google.com/drive/folders/1KIRrBomNauZgTGaiy5gFKrr69euTYxCj)** |
 | API (health check) | [https://passgo-api.azurewebsites.net/api/v1/health](https://passgo-api.azurewebsites.net/api/v1/health) |
 | Repositori | [https://github.com/gadicandra/PassGo](https://github.com/gadicandra/PassGo) |
 
